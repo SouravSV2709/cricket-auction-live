@@ -1,0 +1,7 @@
+/* src/components/ThemePreview.css */
+.preview-box {
+  transition: transform 0.2s ease-in-out;
+}
+.preview-box:hover {
+  transform: scale(1.05);
+}

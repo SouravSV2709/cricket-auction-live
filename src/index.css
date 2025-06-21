@@ -1,13 +1,157 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🔥 Ring explosion effect */
+@keyframes ring-explode {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+.ring-explosion {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 9999px;
+  border: 4px solid #facc15; /* yellow-400 */
+  animation: ring-explode 1.2s ease-out forwards;
+  z-index: 0;
 }
+
+/* ✨ Logo pop-in animation */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.6s ease-out;
+}
+
+@keyframes spark-burst {
+  0% {
+    opacity: 1;
+    transform: scale(0.5) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3) rotate(720deg);
+  }
+}
+
+.spark-burst {
+  position: absolute;
+  width: 160px;
+  height: 160px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #facc15 30%, transparent 70%);
+  animation: spark-burst 0.8s ease-out infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ✅ SOLD STAMP ANIMATION */
+@keyframes sold-stamp {
+  0% {
+    transform: scale(2) rotate(-45deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(-20deg);
+    opacity: 1;
+  }
+}
+
+.sold-stamp {
+  position: absolute;
+  top: 50%;
+  transform: rotate(-20deg);
+  font-size: 2rem;
+  font-weight: 700;
+  color: #10a214; /* green */
+  border: 4px solid #10a214;;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  animation: sold-stamp 1s ease-in-out;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.unsold-stamp {
+  position: absolute;
+  top: 50%;
+  transform: rotate(-20deg);
+  font-size: 2rem;
+  font-weight: 700;
+  color: #f87171; /* red-400 */
+  border: 4px solid #f87171;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  animation: sold-stamp 1s ease-in-out;
+  z-index: 20;
+  pointer-events: none;
+}
+
+
+  .animate-spin-slow {
+    animation: spin 4s linear infinite;
+  }
+
+  @keyframes elegantFade {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  90% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.broadcast-message {
+  animation: elegantFade 60s ease-in-out forwards;
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+
