@@ -6,6 +6,9 @@ import THEMES from '../components/themes';
 import Lottie from "lottie-react";
 import { io } from "socket.io-client";
 
+
+const API = CONFIG.API_BASE_URL;
+
 let currentSoldAudio = null;
 
 const soldAudioFiles = [
@@ -41,11 +44,11 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [theme, setTheme] = useState('default');
 
     useEffect(() => {
-        fetch("http://localhost:5000/api/theme")
+        fetch(`${API}/api/theme`)
             .then(res => res.json())
             .then(data => setTheme(data.theme || "default"));
 
-        const socket = io("http://localhost:5000");
+        const socket = io(API);
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme));
         return () => socket.disconnect();
         }, []);
@@ -97,7 +100,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchPlayer = async () => {
         try {
-            const res = await fetch("http://localhost:5000/api/current-player");
+            const res = await fetch(`${API}/api/current-player`);
             const basic = await res.json();
 
             if (!basic?.id) {
@@ -106,7 +109,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                 return;
             }
 
-            const fullRes = await fetch(`http://localhost:5000/api/players/${basic.id}`);
+            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
             const fullPlayer = await fullRes.json();
             fullPlayer.base_price = computeBasePrice(fullPlayer);
             setPlayer(fullPlayer);
@@ -147,7 +150,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchAllPlayers = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
             const data = await res.json();
             console.log("✅ Player list fetched:", data.length);
             setPlayerList(data);
@@ -158,7 +161,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchTeams = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`);
             const data = await res.json();
             setTeamSummaries(data);
         } catch (err) {
@@ -171,7 +174,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchTournament = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/tournaments/${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/tournaments/${CONFIG.TOURNAMENT_ID}`);
             const data = await res.json();
             console.log("🏷️ Tournament fetched:", data);
 
@@ -218,7 +221,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         fetchTournament();
         fetchAllPlayers();
 
-        const socket = io("http://localhost:5000");
+        const socket = io("API");
 
         socket.on("playerSold", () => setTimeout(fetchPlayer, 300));
         socket.on("playerChanged", () => setTimeout(fetchPlayer, 300));
@@ -230,7 +233,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     useEffect(() => {
         if (teamSummaries.length === 0) return;
 
-        const socket = io("http://localhost:5000");
+        const socket = io(API);
 
         socket.on("showTeam", (payload) => {
             if (!payload || payload.team_id === null) {
@@ -257,7 +260,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     }, [teamSummaries]);
 
     useEffect(() => {
-        fetch("http://localhost:5000/api/custom-message")
+        fetch(`${API}/api/custom-message`)
             .then(res => res.json())
             .then(data => setCustomMessage(data.message));
     }, []);

@@ -4,6 +4,7 @@ import CONFIG from '../components/config';
 import THEMES from '../components/themes';
 import './ThemePreview.css';
 
+const API = CONFIG.API_BASE_URL;
 
 const computeBasePrice = (player) => {
     if (player.base_price && player.base_price > 0) return player.base_price;
@@ -35,7 +36,7 @@ const AdminPanel = () => {
     // Function to update theme
 
     const updateTheme = async () => {
-  await fetch("http://localhost:5000/api/theme", {
+  await fetch(`${API}api/theme`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ theme: selectedTheme }),
@@ -47,7 +48,7 @@ const AdminPanel = () => {
     const fetchPlayers = async () => {
         try {
             const tournamentId = CONFIG.TOURNAMENT_ID; // replace this with dynamic value if needed
-            const res = await fetch(`http://localhost:5000/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
             if (!res.ok) throw new Error("Failed to fetch players");
             const data = await res.json();
             setPlayers(data);
@@ -58,7 +59,7 @@ const AdminPanel = () => {
 
     const fetchTeams = async (tournamentId) => {
         try {
-            const res = await fetch(`http://localhost:5000/api/teams?tournament_id=${tournamentId}`);
+            const res = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
             const text = await res.text();
             if (!text) {
                 console.warn("Empty response from /api/teams");
@@ -82,7 +83,7 @@ const AdminPanel = () => {
 
     const fetchCurrentPlayer = async () => {
         try {
-            const res = await fetch("http://localhost:5000/api/current-player");
+            const res = await fetch(`${API}/api/current-player`);
 
             const text = await res.text(); // get raw text
             if (!text) {
@@ -111,7 +112,7 @@ const AdminPanel = () => {
             return;
         }
 
-        await fetch("http://localhost:5000/api/current-bid", {
+        await fetch(`${API}/api/current-bid`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -159,7 +160,7 @@ const AdminPanel = () => {
         };
 
         // 1. Update current-player
-        await fetch("http://localhost:5000/api/current-player", {
+        await fetch(`${API}/api/current-player`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer)
@@ -167,7 +168,7 @@ const AdminPanel = () => {
 
         // ✅ 2. PUT only relevant fields to players/:id
 
-        await fetch(`http://localhost:5000/api/players/${currentPlayer.id}`, {
+        await fetch(`${API}/api/players/${currentPlayer.id}`, {
             method: "PUT", // updating the db
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -194,21 +195,21 @@ const AdminPanel = () => {
             budget: team.budget - bidAmount
         };
 
-        await fetch(`http://localhost:5000/api/teams/${team.id}`, {
+        await fetch(`${API}/api/teams/${team.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedTeam)
         });
 
         // Notify sold
-        await fetch("http://localhost:5000/api/notify-sold", {
+        await fetch(`${API}/api/notify-sold`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer),
         });
 
         // Also notify general player change
-        await fetch("http://localhost:5000/api/notify-player-change", {
+        await fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer),
@@ -245,20 +246,20 @@ const AdminPanel = () => {
             sold_price: 0
         };
 
-        await fetch("http://localhost:5000/api/current-player", {
+        await fetch(`${API}/api/current-player`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer)
         });
 
-        await fetch(`http://localhost:5000/api/players/${currentPlayer.id}`, {
+        await fetch(`${API}/api/players/${currentPlayer.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer)
         });
 
         // ✅ Notify spectators to refresh
-        await fetch("http://localhost:5000/api/notify-player-change", {
+        await fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer),
@@ -272,7 +273,7 @@ const AdminPanel = () => {
     const handleNextPlayer = async () => {
         const tournamentId = CONFIG.TOURNAMENT_ID;
 
-        const res = await fetch(`http://localhost:5000/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+        const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
         const allPlayers = await res.json();
 
         const unprocessedPlayers = allPlayers.filter(
@@ -289,7 +290,7 @@ const AdminPanel = () => {
         const nextBasic = unprocessedPlayers[0];
 
         // ✅ Fetch full enriched player details (with full image + base price)
-        const detailedRes = await fetch(`http://localhost:5000/api/players/${nextBasic.id}`);
+        const detailedRes = await fetch(`${API}/api/players/${nextBasic.id}`);
         const nextPlayer = await detailedRes.json();
         nextPlayer.base_price = computeBasePrice(nextPlayer);
 
@@ -301,7 +302,7 @@ const AdminPanel = () => {
         }]);
 
         // Set current-player
-        await fetch("http://localhost:5000/api/current-player", {
+        await fetch(`${API}/api/current-player`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(nextPlayer)
@@ -309,7 +310,7 @@ const AdminPanel = () => {
 
 
         // Reset current bid
-        await fetch("http://localhost:5000/api/current-bid", {
+        await fetch(`${API}/api/current-bid`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -319,7 +320,7 @@ const AdminPanel = () => {
         });
 
         // Notify Spectators
-        await fetch("http://localhost:5000/api/notify-player-change", {
+        await fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(nextPlayer),
@@ -335,7 +336,7 @@ const AdminPanel = () => {
 
     const handleSearchById = async () => {
         try {
-            const res = await fetch(`http://localhost:5000/api/players/${searchId}`);
+            const res = await fetch(`${API}/api/players/${searchId}`);
             const player = await res.json();
 
             // ✅ Validate tournament_id
@@ -358,13 +359,13 @@ const AdminPanel = () => {
 
             console.log("📦 About to update current player:", playerWithStatus);
 
-            await fetch("http://localhost:5000/api/current-player", {
+            await fetch(`${API}/api/current-player`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(playerWithStatus),
             });
 
-            await fetch("http://localhost:5000/api/notify-player-change", {
+            await fetch(`${API}/api/notify-player-change`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(playerWithStatus),
@@ -389,11 +390,11 @@ const AdminPanel = () => {
             const tournamentId = CONFIG.TOURNAMENT_ID;
 
             // 1️⃣ Reset All Players
-            const playersRes = await fetch(`http://localhost:5000/api/players?tournament_id=${tournamentId}`);
+            const playersRes = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
             const players = await playersRes.json();
 
             for (const player of players) {
-                await fetch(`http://localhost:5000/api/players/${player.id}`, {
+                await fetch(`${API}/api/players/${player.id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -407,25 +408,25 @@ const AdminPanel = () => {
             // 2️⃣ Reset All Teams
             // Fetch auction_money from tournament table and reset all teams
 
-            const tournamentRes = await fetch(`http://localhost:5000/api/tournaments/${tournamentId}`);
+            const tournamentRes = await fetch(`${API}/api/tournaments/${tournamentId}`);
             const tournament = await tournamentRes.json();
             const auctionMoney = tournament.auction_money || 0;
 
             // Call backend reset route (which also updates team stats)
 
-            await fetch("http://localhost:5000/api/reset-auction", {
+            await fetch(`${API}/api/reset-auction`, {
                 method: "POST"
             });
 
 
 
             // 3️⃣ Reset Current Player
-            await fetch("http://localhost:5000/api/current-player", {
+            await fetch(`${API}/api/current-player`, {
                 method: "POST",
             });
 
             // 4️⃣ Reset Current Bid
-            await fetch("http://localhost:5000/api/current-bid", {
+            await fetch(`${API}/api/current-bid`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -445,13 +446,13 @@ const AdminPanel = () => {
 
 
     const resetUnsoldPlayers = async () => {
-        const playersRes = await fetch(`http://localhost:5000/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+        const playersRes = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
         const playersData = await playersRes.json();
         let changes = 0;
 
         for (const player of playersData) {
             if (["FALSE", "false", false].includes(player.sold_status)) {
-                await fetch(`http://localhost:5000/api/players/${player.id}`, {
+                await fetch(`${API}/api/players/${player.id}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -478,14 +479,14 @@ const AdminPanel = () => {
         const { type, player, teamName, bidAmount, previousBid, previousTeam } = lastAction;
 
         // Restore current-player
-        await fetch("http://localhost:5000/api/current-player", {
+        await fetch(`${API}/api/current-player`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(player)
         });
 
         // Restore current-bid
-        await fetch("http://localhost:5000/api/current-bid", {
+        await fetch(`${API}/api/current-bid`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -509,7 +510,7 @@ const AdminPanel = () => {
             const updatedBudget = team.budget - bidAmount;
 
             // Re-add player to team
-            await fetch(`http://localhost:5000/api/teams/${team.id}`, {
+            await fetch(`${API}/api/teams/${team.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -520,7 +521,7 @@ const AdminPanel = () => {
             });
 
             // Restore player's status
-            await fetch(`http://localhost:5000/api/players/${player.id}`, {
+            await fetch(`${API}/api/players/${player.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -536,7 +537,7 @@ const AdminPanel = () => {
             setSelectedTeam(previousTeam);
             setBidAmount(previousBid);
 
-            await fetch("http://localhost:5000/api/current-bid", {
+            await fetch(`${API}/api/current-bid`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -550,7 +551,7 @@ const AdminPanel = () => {
 
 
         if (type === "unsold") {
-            await fetch(`http://localhost:5000/api/players/${player.id}`, {
+            await fetch(`${API}/api/players/${player.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -593,7 +594,7 @@ const AdminPanel = () => {
                     budget: team.budget + (currentPlayer.sold_price || 0)
                 };
 
-                await fetch(`http://localhost:5000/api/players/${currentPlayer.id}/reopen`, {
+                await fetch(`${API}/api/players/${currentPlayer.id}/reopen`, {
                 method: "POST"
                 });
             }
@@ -609,14 +610,14 @@ const AdminPanel = () => {
         };
 
         // 4. Update current player table
-        await fetch("http://localhost:5000/api/current-player", {
+        await fetch(`${API}/api/current-player`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(reopenedPlayer),
         });
 
         // 5. Reset current bid
-        await fetch("http://localhost:5000/api/current-bid", {
+        await fetch(`${API}/api/current-bid`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -626,7 +627,7 @@ const AdminPanel = () => {
         });
 
         // 6. Notify spectators to update
-        await fetch("http://localhost:5000/api/notify-player-change", {
+        await fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(reopenedPlayer),
@@ -644,12 +645,12 @@ const AdminPanel = () => {
 
     const clearCurrentPlayer = async () => {
         try {
-            await fetch("http://localhost:5000/api/current-player/reset", {
+            await fetch(`${API}/api/current-player/reset`, {
                 method: "POST",
             });
 
             // 👇 Notify Spectator
-            await fetch("http://localhost:5000/api/notify-player-change", {
+            await fetch(`${API}/api/notify-player-change`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: null }),
@@ -742,7 +743,7 @@ const AdminPanel = () => {
 
                                     setBidAmount(newBid);
 
-                                    await fetch("http://localhost:5000/api/current-bid", {
+                                    await fetch(`${API}/api/current-bid`, {
                                         method: "PUT",
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({
@@ -772,7 +773,7 @@ const AdminPanel = () => {
                             alert("Select a team first");
                             return;
                         }
-                        await fetch("http://localhost:5000/api/show-team", {
+                        await fetch(`${API}/api/show-team`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ team_id: team.id })
@@ -786,7 +787,7 @@ const AdminPanel = () => {
                 <button
                     className="bg-gray-300 hover:bg-gray-200 text-black font-bold px-3 py-1 ml-3 rounded"
                     onClick={async () => {
-                        await fetch("http://localhost:5000/api/show-team", {
+                        await fetch(`${API}/api/show-team`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ team_id: null })
@@ -800,7 +801,7 @@ const AdminPanel = () => {
                     <button
                         className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-3 py-1 rounded"
                         onClick={async () => {
-                            await fetch("http://localhost:5000/api/start-team-loop", {
+                            await fetch(`${API}/api/start-team-loop`, {
                                 method: "POST",
                             });
                             alert("✅ Team loop started");
@@ -812,7 +813,7 @@ const AdminPanel = () => {
                     <button
                         className="bg-red-400 hover:bg-red-300 text-black font-bold px-3 py-1 rounded"
                         onClick={async () => {
-                            await fetch("http://localhost:5000/api/stop-team-loop", {
+                            await fetch(`${API}/api/stop-team-loop`, {
                                 method: "POST",
                             });
                             alert("⏹️ Team loop stopped");
@@ -956,7 +957,7 @@ const AdminPanel = () => {
                 />
                 <button
                     onClick={async () => {
-                        await fetch("http://localhost:5000/api/custom-message", {
+                        await fetch(`${API}/api/custom-message`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ message: customMessage }),
@@ -975,6 +976,3 @@ const AdminPanel = () => {
 };
 
 export default AdminPanel;
-
-
-
