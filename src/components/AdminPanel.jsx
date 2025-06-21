@@ -36,7 +36,7 @@ const AdminPanel = () => {
     // Function to update theme
 
     const updateTheme = async () => {
-  await fetch(`${API}api/theme`, {
+  await fetch(`${API}/api/theme`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ theme: selectedTheme }),
