@@ -1,24 +1,11 @@
-// config.js (ESM format for backend)
+// backend/config.js
 import dotenv from 'dotenv';
 dotenv.config();
 
-// src/components/config.js (Frontend only)
-
-const isProduction = process.env.NODE_ENV === 'production';
-
-const API_BASE_URL = isProduction
-  ? 'https://cricket-auction-live.onrender.com'
-  : 'http://localhost:5000';
-
-const TOURNAMENT_ID =
-  process.env.REACT_APP_TOURNAMENT_ID || process.env.TOURNAMENT_ID || 1;
-
 const CONFIG = {
-  TOURNAMENT_ID: Number(TOURNAMENT_ID),
-  API_BASE_URL
+  PORT: process.env.PORT || 5000,
+  DATABASE_URL: process.env.DATABASE_URL,
+  TOURNAMENT_ID: Number(process.env.TOURNAMENT_ID || 1)
 };
 
 export default CONFIG;
-
-
-

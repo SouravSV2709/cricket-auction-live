@@ -13,8 +13,9 @@ dotenv.config();
 const TOURNAMENT_ID = CONFIG.TOURNAMENT_ID;
 
 
+
 const app = express();
-const port = process.env.PORT || 5000;
+const port = CONFIG.PORT;
 
 const server = http.createServer(app);
 const io = new Server(server, {
