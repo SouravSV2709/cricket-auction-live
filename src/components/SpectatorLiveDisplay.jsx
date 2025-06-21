@@ -221,7 +221,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         fetchTournament();
         fetchAllPlayers();
 
-        const socket = io("API");
+        const socket = io(API);
 
         socket.on("playerSold", () => setTimeout(fetchPlayer, 300));
         socket.on("playerChanged", () => setTimeout(fetchPlayer, 300));
