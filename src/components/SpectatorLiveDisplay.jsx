@@ -223,8 +223,8 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
         const socket = io(API);
 
-        socket.on("playerSold", () => setTimeout(fetchPlayer, 300));
-        socket.on("playerChanged", () => setTimeout(fetchPlayer, 300));
+        socket.on("playerSold", () => setTimeout(fetchPlayer, 100));
+        socket.on("playerChanged", () => setTimeout(fetchPlayer, 100));
         socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
 
         return () => socket.disconnect();
