@@ -6,6 +6,8 @@ import LiveOnlyView from './components/LiveOnlyView';
 import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import CONFIG from './components/config';
 
+const API = CONFIG.API_BASE_URL;
+
 
 function App() {
   const [players, setPlayers] = useState([]);
@@ -18,10 +20,10 @@ function App() {
   const fetchData = async () => {
     try {
       const [playersRes, currentPlayerRes, currentBidRes, teamsRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`),
-        fetch(`http://localhost:5000/api/current-player`),
-        fetch(`http://localhost:5000/api/current-bid`),
-        fetch(`http://localhost:5000/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
+        fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`),
+        fetch(`${API}/api/current-player`),
+        fetch(`${API}/api/current-bid`),
+        fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
       ]);
 
       const players = await playersRes.json();
