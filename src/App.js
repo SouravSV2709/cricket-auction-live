@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminPanel from './components/AdminPanel';
-import LiveDisplayAuction from './components/LiveDisplayAuction';
-import LiveOnlyView from './components/LiveOnlyView';
 import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import CONFIG from './components/config';
 
@@ -75,32 +73,9 @@ useEffect(() => {
       <Routes>
         <Route path="/" element={<AdminPanel />} />
         <Route
-          path="/live"
-          element={
-            <LiveDisplayAuction
-              player={currentPlayer}
-              highestBid={currentBid.bid_amount}
-              leadingTeam={currentBid.team_name}
-              auctionStatus={currentPlayer?.status}
-              teamSummaries={teams}
-            />
-          }
-        />
-        <Route
           path="/spectator"
           element={
             <SpectatorLiveDisplay
-              player={currentPlayer}
-              highestBid={currentBid.bid_amount}
-              leadingTeam={currentBid.team_name}
-              teamSummaries={teams}
-            />
-          }
-        />
-        <Route
-          path="/liveonly"
-          element={
-            <LiveOnlyView
               player={currentPlayer}
               highestBid={currentBid.bid_amount}
               leadingTeam={currentBid.team_name}
