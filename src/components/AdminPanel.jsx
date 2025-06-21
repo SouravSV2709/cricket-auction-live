@@ -201,6 +201,17 @@ const AdminPanel = () => {
             body: JSON.stringify(updatedTeam)
         });
 
+        // Reset current bid in DB
+
+        await fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bid_amount: 0, team_name: "" })
+            });
+            setBidAmount(0);
+            setSelectedTeam('');
+
+
         // Notify sold
         await fetch(`${API}/api/notify-sold`, {
             method: "POST",
@@ -251,6 +262,16 @@ const AdminPanel = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer)
         });
+
+        // Reset current bid in DB
+
+        await fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bid_amount: 0, team_name: "" })
+            });
+            setBidAmount(0);
+            setSelectedTeam('');
 
         await fetch(`${API}/api/players/${currentPlayer.id}`, {
             method: "PUT",
