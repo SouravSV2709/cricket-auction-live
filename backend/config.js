@@ -7,7 +7,7 @@ dotenv.config();
 const isProduction = process.env.NODE_ENV === 'production';
 
 const API_BASE_URL = isProduction
-  ? 'https://cricket-backend.onrender.com'
+  ? 'https://cricket-auction-live.onrender.com'
   : 'http://localhost:5000';
 
 const TOURNAMENT_ID =
