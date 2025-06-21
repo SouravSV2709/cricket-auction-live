@@ -567,7 +567,9 @@ console.log(`🎯 Players reset: ${resetPlayersRes.rowCount}`);
   }
 });
 
-
+app.get('/api/ping', (req, res) => {
+  res.json({ message: 'pong' });
+});
 
 // ✅ Start server
 server.listen(port, () => {
