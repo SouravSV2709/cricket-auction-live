@@ -523,21 +523,21 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                     className="relative z-10 animate-bounce-in"
                                 />
                                 <p className="text-xl font-bold text-center">{teamName}</p>
-                                <div className="bg-green-700 px-6 py-3 rounded-lg shadow-lg text-center">
+                                <div className="bg-green-700 px-6 py-3 rounded-lg shadow-lg text-center mt-2">
                                     <p className="text-xl font-bold text-white">
-                                        🎉 ₹{player.sold_price.toLocaleString()}
+                                      🎉 Sold Amount: ₹{player.sold_price.toLocaleString()}
                                     </p>
-                                </div>
                                 {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
-                                <div className="bg-black bg-opacity-50 p-4 rounded-lg text-center text-white border border-purple-400">
-                                    <p className="text-md font-semibold">
+                                <div>
+                                    <p className="text-xl font-bold text-white">
                                     🧑‍🤝‍🧑 Players Bought: {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 14}
                                     </p>
-                                    <p className="text-md font-semibold mt-1">
+                                    <p className="text-xl font-bold text-white">
                                     🚀 Max Bid Allowed: ₹{team.max_bid_allowed.toLocaleString()}
                                     </p>
                                 </div>
                                 )}
+                                </div>
                             </div>
                         )}
 
@@ -549,10 +549,26 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                         ₹{(highestBid || 0).toLocaleString()}
                                     </p>
                                 </div>
-                                <div className="bg-purple-900 px-10 py-6 rounded-xl shadow-xl w-full text-center">
-                                    <p className="text-lg uppercase text-blue-300">Leading Team</p>
-                                    <p className="text-3xl font-bold">{leadingTeam || "—"}</p>
-                                </div>
+                                {(() => {
+                                    const leadingTeamObj = teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim());
+                                    const leadingTeamLogo = leadingTeamObj?.logo;
+                                    return (
+                                        <div className="bg-purple-900 px-10 py-6 rounded-xl shadow-xl w-full text-center">
+                                        <p className="text-lg uppercase text-blue-300">Leading Team</p>
+                                        {leadingTeamLogo && (
+                                            <img
+                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=w-40,h-40`}
+                                            alt={leadingTeamObj.name}
+                                            className="mx-auto mb-2 rounded-full w-15 h-15 object-contain inline-block align-middle"
+                                            />
+                                        )}
+                                        <span className="text-xl font-bold ml-2 align-middle inline-block">
+                                            {leadingTeam || "—"}
+                                        </span>
+                                        </div>
+                                    );
+                                    })()}
+
                             </>
                         )}
 
