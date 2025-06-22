@@ -89,7 +89,7 @@ async function updateTeamStats(teamId, tournamentId) {
       ? remainingPurse - (remaining - 1) * minBasePrice
       : 0;
 
-      console.log(`🔁 Team ${teamId} Stats:
+    console.log(`🔁 Team ${teamId} Stats:
         Total Budget: ${totalBudget}
         Total Spent: ${totalSpent}
         Players Bought: ${boughtCount}
@@ -538,7 +538,7 @@ app.post("/api/reset-auction", async (req, res) => {
       RETURNING id
     `, [tournamentId]);
 
-console.log(`🎯 Players reset: ${resetPlayersRes.rowCount}`);
+    console.log(`🎯 Players reset: ${resetPlayersRes.rowCount}`);
 
     // 2. Reset team budgets (optional: reset to initial value)
     const tournamentRes = await pool.query(
@@ -549,9 +549,9 @@ console.log(`🎯 Players reset: ${resetPlayersRes.rowCount}`);
     const budget = tournamentRes.rows[0]?.auction_money || 0;
 
     await pool.query(
-  `UPDATE teams SET budget = $1 WHERE tournament_id = $2`,
-  [budget, tournamentId]
-);
+      `UPDATE teams SET budget = $1 WHERE tournament_id = $2`,
+      [budget, tournamentId]
+    );
 
 
     // 3. Recalculate team stats for each team
@@ -560,9 +560,17 @@ console.log(`🎯 Players reset: ${resetPlayersRes.rowCount}`);
       [tournamentId]
     );
 
-    for (const row of teamRes.rows) {
-      await updateTeamStats(row.id, tournamentId);
-    }
+    await Promise.all(
+      teamRes.rows.map(row => updateTeamStats(row.id, tournamentId))
+    );
+
+    // 4. Reset current player
+    await pool.query("DELETE FROM current_player");
+
+    // 5. Reset current bid
+    await pool.query("DELETE FROM current_bid");
+    await pool.query("INSERT INTO current_bid (bid_amount, team_name) VALUES (0, '')");
+
 
     res.json({ message: "✅ Auction has been reset and team stats updated." });
   } catch (err) {

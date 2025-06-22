@@ -587,7 +587,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                     <img
                                         src={unsoldClip}
                                         alt="UNSOLD Reaction"
-                                        className="w-full rounded-xl border-4 border-red-600 shadow-xl object-cover"
+                                        className="w-full rounded-xl shadow-xl object-cover"
                                     />
                                 )}
                             </div>

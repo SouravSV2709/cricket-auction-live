@@ -136,16 +136,16 @@ const AdminPanel = () => {
 
 
     const fetchCurrentPlayer = async () => {
-    try {
-        const res = await fetch(`${API}/api/current-player`);
-        const data = await res.json(); // ✅ only this is needed
-        console.log("Auction Serial:", data.auction_serial);
-        setCurrentPlayer(data);
-    } catch (error) {
-        console.error("Failed to fetch current player:", error);
-        setCurrentPlayer(null);
-    }
-};
+        try {
+            const res = await fetch(`${API}/api/current-player`);
+            const data = await res.json(); // ✅ only this is needed
+            console.log("Auction Serial:", data.auction_serial);
+            setCurrentPlayer(data);
+        } catch (error) {
+            console.error("Failed to fetch current player:", error);
+            setCurrentPlayer(null);
+        }
+    };
 
 
 
@@ -448,62 +448,23 @@ const AdminPanel = () => {
 
     const resetAuction = async () => {
         try {
-            const tournamentId = CONFIG.TOURNAMENT_ID;
-
-            // 1️⃣ Reset All Players
-            const playersRes = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
-            const players = await playersRes.json();
-
-            for (const player of players) {
-                await fetch(`${API}/api/players/${player.id}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sold_status: null,
-                        sold_price: null,
-                        team_id: null
-                    })
-                });
-            }
-
-            // 2️⃣ Reset All Teams
-            // Fetch auction_money from tournament table and reset all teams
-
-            const tournamentRes = await fetch(`${API}/api/tournaments/${tournamentId}`);
-            const tournament = await tournamentRes.json();
-            const auctionMoney = tournament.auction_money || 0;
-
-            // Call backend reset route (which also updates team stats)
-
             await fetch(`${API}/api/reset-auction`, {
                 method: "POST"
             });
 
-
-
-            // 3️⃣ Reset Current Player
-            await fetch(`${API}/api/current-player`, {
-                method: "POST",
-            });
-
-            // 4️⃣ Reset Current Bid
-            await fetch(`${API}/api/current-bid`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    bid_amount: 0,
-                    team_name: ""
-                })
-            });
-
             alert("✅ Auction has been fully reset.");
             fetchPlayers(); // Refresh player list
-
+            fetchTeams(CONFIG.TOURNAMENT_ID); // Optional
+            fetchCurrentPlayer(); // Optional
+            setBidAmount(0);
+            setSelectedTeam('');
         } catch (err) {
             console.error("❌ Failed to reset auction:", err);
             alert("❌ Error occurred while resetting the auction.");
         }
     };
+
+
 
 
     const resetUnsoldPlayers = async () => {
@@ -831,35 +792,51 @@ const AdminPanel = () => {
             </div>
 
 
-            
-                <div className="flex items-center space-x-4">
-                    <label className="flex items-center cursor-pointer">
-                        <span className="mr-2 text-sm">Show Team Squad</span>
-                        <input
-                            type="checkbox"
-                            checked={isTeamViewActive}
-                            onChange={async () => {
-                                const team = teams.find(t => t.name === selectedTeam);
-                                if (!team) return;
 
-                                await fetch(`${API}/api/show-team`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ team_id: isTeamViewActive ? null : team.id })
-                                });
+            <div className="flex items-center space-x-4">
+                <label className="flex items-center cursor-pointer">
+                    <span className="mr-2 text-sm">Show Team Squad</span>
+                    <input
+                        type="checkbox"
+                        checked={isTeamViewActive}
+                        onChange={async () => {
+                            const team = teams.find(t => t.name === selectedTeam);
+                            if (!team) return;
 
-                                setIsTeamViewActive(!isTeamViewActive);
-                            }}
-                            className="sr-only"
-                        />
-                        <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-gray-400'} relative`}>
-                            <div
-                                className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
-                                    }`}
-                            ></div>
-                        </div>
-                    </label>
-                </div>
+                            await fetch(`${API}/api/show-team`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ team_id: isTeamViewActive ? null : team.id })
+                            });
+
+                            setIsTeamViewActive(!isTeamViewActive);
+                        }}
+                        className="sr-only"
+                    />
+                    <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-gray-400'} relative`}>
+                        <div
+                            className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
+                                }`}
+                        ></div>
+                    </div>
+                </label>
+
+                <button
+                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
+                    onClick={markAsSold}
+                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                >
+                    ✅ Mark as SOLD
+                </button>
+
+                <button
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded shadow"
+                    onClick={markAsUnsold}
+                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                >
+                    ❌ Mark as UNSOLD
+                </button>
+            </div>
 
 
 
@@ -892,6 +869,20 @@ const AdminPanel = () => {
                     >
                         🔍 Show Player
                     </button>
+                    <button
+                        className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
+                        onClick={handleNextPlayer}
+                    >
+                        ➡️ Next Player
+                    </button>
+
+                    <button
+                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
+                        onClick={clearCurrentPlayer}
+                    >
+                        🚫 Clear Current Player
+                    </button>
+
                 </div>
             </div>
 
@@ -915,29 +906,30 @@ const AdminPanel = () => {
                 <p>No current player selected.</p>
             )}
 
+            <div className="mt-8 mb-6">
+                <h3 className="text-lg font-semibold mb-2">📢 Custom Spectator Message</h3>
+                <textarea
+                    rows="3"
+                    placeholder="Enter message to show on spectator screen"
+                    className="w-full p-3 rounded text-black"
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                />
+                <button
+                    onClick={async () => {
+                        await fetch(`${API}/api/custom-message`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ message: customMessage }),
+                        });
+                        alert("Custom message broadcasted.");
+                    }}
+                    className="mt-2 bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded shadow font-bold"
+                >
+                    🚀 Show on Spectator
+                </button>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-                <button
-                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
-                    onClick={markAsSold}
-                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
-                >
-                    ✅ Mark as SOLD
-                </button>
-
-                <button
-                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded shadow"
-                    onClick={markAsUnsold}
-                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
-                >
-                    ❌ Mark as UNSOLD
-                </button>
-
-                <button
-                    className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
-                    onClick={handleNextPlayer}
-                >
-                    ➡️ Next Player
-                </button>
 
                 <button
                     className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded shadow"
@@ -992,37 +984,6 @@ const AdminPanel = () => {
                     }}
                 >
                     {resetInProgress ? "⏳ Resetting..." : "🔁 Reset Auction"}
-                </button>
-
-
-                <button
-                    className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
-                    onClick={clearCurrentPlayer}
-                >
-                    🚫 Clear Current Player
-                </button>
-            </div>
-
-            <div className="mt-8 mb-6">
-                <h3 className="text-lg font-semibold mb-2">📢 Custom Spectator Message</h3>
-                <textarea
-                    rows="3"
-                    placeholder="Enter message to show on spectator screen"
-                    className="w-full p-3 rounded text-black"
-                    onChange={(e) => setCustomMessage(e.target.value)}
-                />
-                <button
-                    onClick={async () => {
-                        await fetch(`${API}/api/custom-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ message: customMessage }),
-                        });
-                        alert("Custom message broadcasted.");
-                    }}
-                    className="mt-2 bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded shadow font-bold"
-                >
-                    🚀 Show on Spectator
                 </button>
             </div>
         </div>
