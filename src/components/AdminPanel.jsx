@@ -136,23 +136,17 @@ const AdminPanel = () => {
 
 
     const fetchCurrentPlayer = async () => {
-        try {
-            const res = await fetch(`${API}/api/current-player`);
+    try {
+        const res = await fetch(`${API}/api/current-player`);
+        const data = await res.json(); // ✅ only this is needed
+        console.log("Auction Serial:", data.auction_serial);
+        setCurrentPlayer(data);
+    } catch (error) {
+        console.error("Failed to fetch current player:", error);
+        setCurrentPlayer(null);
+    }
+};
 
-            const text = await res.text(); // get raw text
-            if (!text) {
-                console.warn("Empty response from /api/current-player");
-                setCurrentPlayer(null);
-                return;
-            }
-
-            const data = JSON.parse(text); // parse manually
-            setCurrentPlayer(data);
-        } catch (error) {
-            console.error("Failed to fetch current player:", error);
-            setCurrentPlayer(null);
-        }
-    };
 
 
     const updateCurrentBid = async () => {
@@ -413,6 +407,7 @@ const AdminPanel = () => {
 
             const playerWithStatus = {
                 id: player.id,
+                serial: player.auction_serial,
                 name: player.name || "Unknown",
                 role: player.role || "Unknown",
                 base_price: computeBasePrice(player),
@@ -905,6 +900,8 @@ const AdminPanel = () => {
             {currentPlayer ? (
                 <div className="mb-6">
                     <h3 className="text-xl font-semibold mb-2">Current Player:</h3>
+                    <p>ID: {currentPlayer.id}</p>
+                    <p>Auction-serial: {currentPlayer.auction_serial}</p>
                     <p>Name: {currentPlayer.name}</p>
                     <p>Role: {currentPlayer.role}</p>
                     <p>Base Price: ₹{currentPlayer.base_price}</p>

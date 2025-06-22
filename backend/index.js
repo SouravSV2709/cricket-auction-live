@@ -262,7 +262,10 @@ app.get('/api/teams', async (req, res) => {
 // ✅ GET current player
 app.get('/api/current-player', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM current_player LIMIT 1");
+    const result = await pool.query(`SELECT cp.*, p.auction_serial
+      FROM current_player cp
+      JOIN players p ON cp.id = p.id
+      LIMIT 1`);
     res.json(result.rows[0]);
   } catch (err) {
     console.error("🔥 Error fetching current player:", err);
