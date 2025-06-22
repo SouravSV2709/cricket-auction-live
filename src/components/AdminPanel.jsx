@@ -23,6 +23,10 @@ const AdminPanel = () => {
     const [customMessage, setCustomMessage] = useState('');
     const [resetInProgress, setResetInProgress] = useState(false);
     const [selectedTheme, setSelectedTheme] = useState("default");
+    const [isTeamViewActive, setIsTeamViewActive] = useState(false);
+    const [isTeamLoopActive, setIsTeamLoopActive] = useState(false);
+
+
 
 
 
@@ -33,18 +37,59 @@ const AdminPanel = () => {
         fetchCurrentPlayer();
     }, []);
 
+    // Auto reset team view when new player selected
+
+    useEffect(() => {
+        const resetTeamView = async () => {
+            try {
+                // Only emit if a team view was active
+                if (isTeamViewActive) {
+                    await fetch(`${API}/api/show-team`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ team_id: null }),
+                    });
+                    setIsTeamViewActive(false);
+                }
+            } catch (err) {
+                console.error("❌ Failed to reset team view:", err);
+            }
+        };
+
+        resetTeamView();
+    }, [currentPlayer?.id]);
+
+    // Auto reset team loop when new player is selected
+
+    useEffect(() => {
+        const stopTeamLoop = async () => {
+            if (isTeamLoopActive) {
+                await fetch(`${API}/api/stop-team-loop`, {
+                    method: "POST",
+                });
+                setIsTeamLoopActive(false);
+            }
+        };
+
+        stopTeamLoop();
+    }, [currentPlayer?.id]);
+
+
+
+
+
     // Function to update theme
 
     const updateTheme = async () => {
-  await fetch(`${API}/api/theme`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ theme: selectedTheme }),
-  });
-  alert(`🎨 Theme updated to: ${selectedTheme}`);
-};
+        await fetch(`${API}/api/theme`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ theme: selectedTheme }),
+        });
+        alert(`🎨 Theme updated to: ${selectedTheme}`);
+    };
 
-    
+
     const fetchPlayers = async () => {
         try {
             const tournamentId = CONFIG.TOURNAMENT_ID; // replace this with dynamic value if needed
@@ -60,21 +105,30 @@ const AdminPanel = () => {
     const fetchTeams = async (tournamentId) => {
         try {
             const res = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
+
+            if (!res.ok) {
+                console.error("❌ Failed to fetch teams. Status:", res.status);
+                setTeams([]);
+                return;
+            }
+
             const text = await res.text();
             if (!text) {
-                console.warn("Empty response from /api/teams");
+                console.warn("⚠️ Empty response from /api/teams");
                 setTeams([]);
                 return;
             }
+
             const data = JSON.parse(text);
             if (!Array.isArray(data)) {
-                console.error("Expected array, got:", data);
+                console.error("❌ Expected an array, got:", data);
                 setTeams([]);
                 return;
             }
+
             setTeams(data);
         } catch (error) {
-            console.error("Failed to fetch teams:", error);
+            console.error("❌ Failed to fetch teams:", error);
             setTeams([]);
         }
     };
@@ -207,9 +261,9 @@ const AdminPanel = () => {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ bid_amount: 0, team_name: "" })
-            });
-            setBidAmount(0);
-            setSelectedTeam('');
+        });
+        setBidAmount(0);
+        setSelectedTeam('');
 
 
         // Notify sold
@@ -263,15 +317,6 @@ const AdminPanel = () => {
             body: JSON.stringify(updatedPlayer)
         });
 
-        // Reset current bid in DB
-
-        await fetch(`${API}/api/current-bid`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bid_amount: 0, team_name: "" })
-            });
-            setBidAmount(0);
-            setSelectedTeam('');
 
         await fetch(`${API}/api/players/${currentPlayer.id}`, {
             method: "PUT",
@@ -616,7 +661,7 @@ const AdminPanel = () => {
                 };
 
                 await fetch(`${API}/api/players/${currentPlayer.id}/reopen`, {
-                method: "POST"
+                    method: "POST"
                 });
             }
         }
@@ -689,166 +734,141 @@ const AdminPanel = () => {
         <div className="p-6 bg-gray-900 min-h-screen text-white">
             <h2 className="text-2xl font-bold mb-4">🔧 Admin Auction Panel</h2>
 
-            {currentPlayer ? (
-                <div className="mb-6">
-                    <h3 className="text-xl font-semibold mb-2">Current Player:</h3>
-                    <p>Name: {currentPlayer.name}</p>
-                    <p>Role: {currentPlayer.role}</p>
-                    <p>Base Price: ₹{currentPlayer.base_price}</p>
-                    {currentPlayer.sold_status && (
-                        <p className="mt-1 text-yellow-300">
-                            Status: {String(currentPlayer.sold_status).toUpperCase()}
-                        </p>
-                    )}
-                </div>
-            ) : (
-                <p>No current player selected.</p>
-            )}
-
             {/* UI to select theme */}
 
-           <div className="my-4">
-    <label className="block mb-2 font-bold text-lg">🎨 Select Theme:</label>
-    <div className="inline-grid grid-cols-3 md:grid-cols-8 gap-2">
-      {Object.entries(THEMES).map(([key, style]) => (
-        <div
-          key={key}
-          className={`cursor-pointer rounded-xl transition-all duration-300 ${
-            selectedTheme === key ? 'scale-105' : 'border-transparent'
-          }`}
-          style={{
-            background: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
-          }}
-          onClick={() => setSelectedTheme(key)}
-        >
-          <div className="items-center">
-          <div className={`w-10 h-10 rounded-md bg-gradient-to-br ${style.bg} flex`}>
-          </div>
-          <p className={`${key} text-xs font-bold`}>
-            {key.toUpperCase()}
-          </p>
-          </div>
-        </div>
-      ))}
-    </div>
-    <div><button
-      onClick={updateTheme}
-      className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
-    >
-      ✅ Apply Theme
-    </button></div>
-  </div>
+            <div className="my-4">
+                <label className="block mb-2 font-bold text-lg">🎨 Select Theme:</label>
+                <div className="inline-grid grid-cols-4 md:grid-cols-10 gap-2">
+                    {Object.entries(THEMES).map(([key, style]) => (
+                        <div
+                            key={key}
+                            className={`cursor-pointer rounded-xl transition-all duration-300 ${selectedTheme === key ? 'scale-105' : 'border-transparent'
+                                }`}
+                            style={{
+                                background: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
+                            }}
+                            onClick={() => setSelectedTheme(key)}
+                        >
+                            <div className="items-center">
+                                <div className={`w-10 h-10 rounded-md bg-gradient-to-br ${style.bg} flex`}>
+                                </div>
+                                <p className={`${key} text-xs font-bold`}>
+                                    {key.toUpperCase()}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div><button
+                    onClick={updateTheme}
+                    className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
+                >
+                    ✅ Apply Theme
+                </button></div>
+            </div>
 
             <div className="mb-4">
-                <h3 className="text-lg font-semibold">Select Team:</h3>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-base font-semibold">Select Team:</h3>
+                    <label className="flex items-center cursor-pointer">
+                        <span className="mr-2 text-sm">Team Loop</span>
+                        <input
+                            type="checkbox"
+                            checked={isTeamLoopActive}
+                            onChange={async () => {
+                                if (!isTeamLoopActive) {
+                                    await fetch(`${API}/api/start-team-loop`, { method: "POST" });
+                                } else {
+                                    await fetch(`${API}/api/stop-team-loop`, { method: "POST" });
+                                }
+                                setIsTeamLoopActive(!isTeamLoopActive);
+                            }}
+                            className="sr-only"
+                        />
+                        <div className={`w-10 h-5 rounded-full ${isTeamLoopActive ? 'bg-yellow-400' : 'bg-gray-400'} relative`}>
+                            <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamLoopActive ? 'translate-x-5' : ''}`}></div>
+                        </div>
+                    </label>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
                     {teams.map(team => (
                         <button
                             key={team.id}
                             onClick={async () => {
                                 setSelectedTeam(team.name);
-
-                                // Only run bidding logic if a player is currently selected
                                 if (currentPlayer) {
                                     const newBid = Math.max(bidAmount + 100, currentPlayer.base_price);
-
-                                    setUndoStack(prev => [
-                                        ...prev,
-                                        {
-                                            type: "bid",
-                                            player: currentPlayer,
-                                            previousBid: bidAmount,
-                                            previousTeam: selectedTeam
-                                        }
-                                    ]);
-
+                                    setUndoStack(prev => [...prev, {
+                                        type: "bid",
+                                        player: currentPlayer,
+                                        previousBid: bidAmount,
+                                        previousTeam: selectedTeam
+                                    }]);
                                     setBidAmount(newBid);
-
                                     await fetch(`${API}/api/current-bid`, {
                                         method: "PUT",
                                         headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({
-                                            bid_amount: newBid,
-                                            team_name: team.name
-                                        })
+                                        body: JSON.stringify({ bid_amount: newBid, team_name: team.name })
                                     });
                                 }
                             }}
-
-                            className={`px-3 py-1 rounded ${selectedTeam === team.name
-                                ? "bg-green-500 text-black font-bold"
-                                : "bg-gray-700"
-                                }`}
+                            className={`flex items-center justify-start gap-1 px-2 py-1 rounded-md border text-xs font-medium transition
+          ${selectedTeam === team.name ? "border-green-400 bg-green-900 text-white scale-105" : "border-gray-700 bg-gray-800 text-gray-200"}
+          hover:bg-indigo-700 hover:scale-105`}
                         >
-                            {team.name}
+                            {team.logo && (
+                                <img
+                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                    alt={team.name}
+                                    className="w-5 h-5 rounded-full"
+                                />
+                            )}
+                            <span className="truncate">{team.name}</span>
                         </button>
                     ))}
                 </div>
+
+                {selectedTeam && (
+                    <div className="mt-2 text-sm text-green-300">
+                        ✅ Selected: <strong>{selectedTeam}</strong>
+                    </div>
+                )}
             </div>
-            <div>
-                <button
-                    className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-3 py-1 rounded"
-                    onClick={async () => {
-                        const team = teams.find(t => t.name === selectedTeam);
-                        if (!team) {
-                            alert("Select a team first");
-                            return;
-                        }
-                        await fetch(`${API}/api/show-team`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ team_id: team.id })
-                        });
-                        alert(`✅ ${team.name} squad will be shown on Spectator.`);
-                    }}
-                >
-                    🧢 Show Team Squad
-                </button>
 
-                <button
-                    className="bg-gray-300 hover:bg-gray-200 text-black font-bold px-3 py-1 ml-3 rounded"
-                    onClick={async () => {
-                        await fetch(`${API}/api/show-team`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ team_id: null })
-                        });
-                        alert("🎬 Back to live auction view");
-                    }}
-                >
-                    🔙 Exit Team View
-                </button>
-                <div className="mt-4 space-x-4">
-                    <button
-                        className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-3 py-1 rounded"
-                        onClick={async () => {
-                            await fetch(`${API}/api/start-team-loop`, {
-                                method: "POST",
-                            });
-                            alert("✅ Team loop started");
-                        }}
-                    >
-                        🔁 Enable Team Loop
-                    </button>
 
-                    <button
-                        className="bg-red-400 hover:bg-red-300 text-black font-bold px-3 py-1 rounded"
-                        onClick={async () => {
-                            await fetch(`${API}/api/stop-team-loop`, {
-                                method: "POST",
-                            });
-                            alert("⏹️ Team loop stopped");
-                        }}
-                    >
-                        ⏹️ Disable Team Loop
-                    </button>
+            
+                <div className="flex items-center space-x-4">
+                    <label className="flex items-center cursor-pointer">
+                        <span className="mr-2 text-sm">Show Team Squad</span>
+                        <input
+                            type="checkbox"
+                            checked={isTeamViewActive}
+                            onChange={async () => {
+                                const team = teams.find(t => t.name === selectedTeam);
+                                if (!team) return;
+
+                                await fetch(`${API}/api/show-team`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ team_id: isTeamViewActive ? null : team.id })
+                                });
+
+                                setIsTeamViewActive(!isTeamViewActive);
+                            }}
+                            className="sr-only"
+                        />
+                        <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-gray-400'} relative`}>
+                            <div
+                                className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
+                                    }`}
+                            ></div>
+                        </div>
+                    </label>
                 </div>
 
-            </div>
 
 
-
-            <div className="mb-4">
+            <div className="mb-4 mt-4">
                 <label className="block mb-1">Bid Amount (₹)</label>
                 <input
                     type="number"
@@ -879,6 +899,24 @@ const AdminPanel = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Selected player details */}
+
+            {currentPlayer ? (
+                <div className="mb-6">
+                    <h3 className="text-xl font-semibold mb-2">Current Player:</h3>
+                    <p>Name: {currentPlayer.name}</p>
+                    <p>Role: {currentPlayer.role}</p>
+                    <p>Base Price: ₹{currentPlayer.base_price}</p>
+                    {currentPlayer.sold_status && (
+                        <p className="mt-1 text-yellow-300">
+                            Status: {String(currentPlayer.sold_status).toUpperCase()}
+                        </p>
+                    )}
+                </div>
+            ) : (
+                <p>No current player selected.</p>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
                 <button
