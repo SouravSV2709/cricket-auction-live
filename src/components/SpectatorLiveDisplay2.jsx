@@ -87,35 +87,53 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
     const fetchPlayer = async () => {
-        try {
-            const res = await fetch(`${API}/api/current-player`);
-            const basic = await res.json();
-            if (!basic?.id) {
-                setPlayer(null);
-                setUnsoldClip(null);
-                return;
-            }
-            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
-            const fullPlayer = await fullRes.json();
-            fullPlayer.base_price = computeBasePrice(fullPlayer);
-            setPlayer(fullPlayer);
-            fetchTeams();
-            triggerConfettiIfSold(fullPlayer);
+try {
+    const [playerRes, teamsRes] = await Promise.all([
+    fetch(`${API}/api/current-player`),
+    fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`)
+    ]);
 
-            if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
-                unsoldAudio.volume = 1.0;
-                unsoldAudio.currentTime = 0;
-                unsoldAudio.play().catch(err => console.warn("Autoplay blocked for UNSOLD:", err));
-                const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
-                setUnsoldClip(randomClip);
-            } else {
-                setUnsoldClip(null);
-            }
-        } catch (err) {
-            setPlayer(null);
-            setUnsoldClip(null);
-        }
-    };
+    const basic = await playerRes.json();
+    const teams = await teamsRes.json();
+
+    setTeamSummaries(teams); // Update global state
+
+    if (!basic?.id) {
+    setPlayer(null);
+    setUnsoldClip(null);
+    return;
+    }
+
+    const fullRes = await fetch(`${API}/api/players/${basic.id}`);
+    const fullPlayer = await fullRes.json();
+    fullPlayer.base_price = computeBasePrice(fullPlayer);
+
+    // 🔁 Add team name and logo to player
+    const team = teams.find(t => t.id === fullPlayer.team_id);
+    if (team) {
+    fullPlayer.team_name = team.name;
+    fullPlayer.team_logo = team.logo;
+    }
+
+    setPlayer(fullPlayer);
+    triggerConfettiIfSold(fullPlayer);
+
+    if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
+    unsoldAudio.volume = 1.0;
+    unsoldAudio.currentTime = 0;
+    unsoldAudio.play().catch(err => console.warn("Autoplay blocked for UNSOLD:", err));
+    const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
+    setUnsoldClip(randomClip);
+    } else {
+    setUnsoldClip(null);
+    }
+} catch (err) {
+    console.error("❌ Error in fetchPlayer", err);
+    setPlayer(null);
+    setUnsoldClip(null);
+}
+};
+
 
     const fetchAllPlayers = async () => {
         try {
@@ -166,18 +184,21 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const isUnsold = ["FALSE", "false", false].includes(player?.sold_status);
 
     return (
-  <div className="relative w-screen h-screen overflow-hidden bg-black">
-    <PlayerCard
-      player={player}
-      isSold={isSold}
-      isUnsold={isUnsold}
-      soldPrice={player?.sold_price}
-      currentBid={highestBid}
-      biddingTeam={leadingTeam}
-      biddingTeamLogo={
-        teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
-      }
-    />
+  <div className="relative w-screen h-screen">
+    {player && player.profile_image && (
+  <PlayerCard
+    player={player}
+    isSold={isSold}
+    isUnsold={isUnsold}
+    soldPrice={player?.sold_price}
+    currentBid={highestBid}
+    biddingTeam={leadingTeam}
+    biddingTeamLogo={
+      teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
+    }
+  />
+)}
+
     {unsoldClip && isUnsold && (
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-xl">
         {unsoldClip.endsWith(".mp4") ? (
