@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AdminPanel from './components/AdminPanel';
 import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
+import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
 import CONFIG from './components/config';
 
 const API = CONFIG.API_BASE_URL;
@@ -76,6 +77,17 @@ useEffect(() => {
           path="/spectator"
           element={
             <SpectatorLiveDisplay
+              player={currentPlayer}
+              highestBid={currentBid.bid_amount}
+              leadingTeam={currentBid.team_name}
+              teamSummaries={teams}
+            />
+          }
+        />
+        <Route
+          path="/spectator2"
+          element={
+            <SpectatorLiveDisplay2
               player={currentPlayer}
               highestBid={currentBid.bid_amount}
               leadingTeam={currentBid.team_name}
