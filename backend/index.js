@@ -523,6 +523,16 @@ app.post('/api/players/:id/reopen', async (req, res) => {
   }
 });
 
+// Get all players by slug
+
+app.get('/api/tournaments/slug/:slug', async (req, res) => {
+  const { slug } = req.params;
+const result = await pool.query('SELECT * FROM tournaments WHERE slug = $1', [slug]);
+  if (result.rowCount === 0) return res.status(404).json({ error: 'Tournament not found' });
+  res.json(result.rows[0]);
+});
+
+
 
 // Auction reset logic
 

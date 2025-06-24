@@ -4,6 +4,7 @@ import AdminPanel from './components/AdminPanel';
 import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
 import CONFIG from './components/config';
+import AllPlayerCards from './components/AllPlayerCards';
 
 const API = CONFIG.API_BASE_URL;
 
@@ -46,27 +47,27 @@ function App() {
   }, []);
 
   const clapAudio = new Audio("clapping.wav");
-let audioUnlocked = false;
+  let audioUnlocked = false;
 
-const unlockAudio = () => {
-  if (!audioUnlocked) {
-    clapAudio.play().then(() => {
-      clapAudio.pause(); // immediately pause
-      clapAudio.currentTime = 0;
-      audioUnlocked = true;
-    }).catch(() => {});
-  }
-};
-
-useEffect(() => {
-  window.addEventListener("click", unlockAudio, { once: true });
-  window.addEventListener("keydown", unlockAudio, { once: true });
-
-  return () => {
-    window.removeEventListener("click", unlockAudio);
-    window.removeEventListener("keydown", unlockAudio);
+  const unlockAudio = () => {
+    if (!audioUnlocked) {
+      clapAudio.play().then(() => {
+        clapAudio.pause(); // immediately pause
+        clapAudio.currentTime = 0;
+        audioUnlocked = true;
+      }).catch(() => { });
+    }
   };
-}, []);
+
+  useEffect(() => {
+    window.addEventListener("click", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
 
 
   return (
@@ -94,6 +95,10 @@ useEffect(() => {
               teamSummaries={teams}
             />
           }
+        />
+        <Route
+          path="/player-cards/:tournamentSlug"
+          element={<AllPlayerCards />}
         />
       </Routes>
     </Router>
