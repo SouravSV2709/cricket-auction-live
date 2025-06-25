@@ -48,11 +48,11 @@ const AllPlayerCards = () => {
 
     return (
         <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative">
-            <div className="absolute top-2 right-2 z-50">
+            <div className="absolute top-2 right-2 z-50 mb-4">
                 <img
                     src="/AuctionArena2.png"
                     alt="Auction Arena"
-                    className="w-20 h-20 object-contain"
+                    className="w-12 h-12 object-contain"
                 />
             </div>
 
@@ -65,13 +65,13 @@ const AllPlayerCards = () => {
                     />
                 )}
                 <h1 className="text-xl font-bold text-center">
-                    {tournamentName} – Player Cards
+                    {tournamentName}
                 </h1>
             </div>
 
 
             {/* 🔍 Filter Section */}
-            <div className="flex flex-wrap justify-center gap-4 mb-6">
+<div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-wrap justify-center gap-4">
                 <input
                     type="text"
                     placeholder="Filter by Serial Number"
@@ -110,6 +110,17 @@ const AllPlayerCards = () => {
                         </option>
                     ))}
                 </select>
+                <button
+    onClick={() => {
+        setFilterSerial("");
+        setFilterName("");
+        setFilterRole("");
+        setFilterDistrict("");
+    }}
+    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+>
+    Clear Filters
+</button>
             </div>
 
 
@@ -126,7 +137,7 @@ const AllPlayerCards = () => {
                     .map((player) => (
                         <div
                             key={player.id}
-                            className="relative rounded-xl text-center font-sans"
+    className="relative rounded-xl text-center font-sans transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-yellow-300 animate-fade-in"
                             style={{
                                 backgroundImage: 'url("/goldenbg.png")',
                                 backgroundSize: 'contain',
