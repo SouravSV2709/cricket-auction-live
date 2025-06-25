@@ -169,16 +169,16 @@ const AllPlayerCards = () => {
                             </div>
 
                             {tournamentLogo && (
-                                <div className="flex justify-center items-center gap-2 mt-3">
+                                <div className="flex justify-center items-center gap-2 mt-3 animate-pulse">
                                     <img
                                         src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
                                         alt="Tournament Logo"
-                                        className="w-10 h-10 object-contain rounded-lg"
+                                        className="w-14 h-14 object-contain rounded-lg"
                                     />
                                     <img
                                         src="/AuctionArena2.png"
                                         alt="Auction Arena"
-                                        className="w-7 h-7 object-contain"
+                                        className="w-10 h-10 object-contain"
                                     />
                                 </div>
                             )}
@@ -186,7 +186,7 @@ const AllPlayerCards = () => {
                     ))}
             </div>
             {/* LIVE AUCTION FOOTER */}
-                <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1">
+                <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-2">
                     🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                 </div>
         </div>
