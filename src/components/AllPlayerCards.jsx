@@ -71,7 +71,7 @@ const AllPlayerCards = () => {
 
 
             {/* 🔍 Filter Section */}
-<div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-wrap justify-center gap-4">
+            <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-wrap justify-center gap-4">
                 <input
                     type="text"
                     placeholder="Filter by Serial Number"
@@ -111,16 +111,16 @@ const AllPlayerCards = () => {
                     ))}
                 </select>
                 <button
-    onClick={() => {
-        setFilterSerial("");
-        setFilterName("");
-        setFilterRole("");
-        setFilterDistrict("");
-    }}
-    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
->
-    Clear Filters
-</button>
+                    onClick={() => {
+                        setFilterSerial("");
+                        setFilterName("");
+                        setFilterRole("");
+                        setFilterDistrict("");
+                    }}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                >
+                    Clear Filters
+                </button>
             </div>
 
 
@@ -137,7 +137,7 @@ const AllPlayerCards = () => {
                     .map((player) => (
                         <div
                             key={player.id}
-    className="relative rounded-xl text-center font-sans transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-yellow-300 animate-fade-in"
+                            className="relative rounded-xl text-center font-sans transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-yellow-300 animate-fade-in"
                             style={{
                                 backgroundImage: 'url("/goldenbg.png")',
                                 backgroundSize: 'contain',
@@ -146,7 +146,7 @@ const AllPlayerCards = () => {
                                 height: '360px'
                             }}
                         >
-                            <div className="flex justify-center items-center text-black">
+                            <div className="flex justify-center items-center text-black mt-8">
                                 <div className="text-black text-lg font-bold mr-5">
                                     {player.auction_serial || "-"}
                                 </div>
@@ -154,12 +154,20 @@ const AllPlayerCards = () => {
                                     <img
                                         src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
                                         alt={player.name}
-                                        className="w-20 h-32 object-contain mx-auto rounded-lg"
+                                        className="w-20 h-35 object-contain mx-auto rounded-lg"
+                                        style={{
+                                            WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent 100%)",
+                                            maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
+                                            WebkitMaskSize: "100% 100%",
+                                            maskSize: "100% 100%",
+                                            WebkitMaskRepeat: "no-repeat",
+                                            maskRepeat: "no-repeat",
+                                        }}
                                     />
                                 </div>
                             </div>
 
-                            <div className="text-xs items-center justify-center font-bold text-black uppercase">
+                            <div className="text-xs items-center justify-center font-bold text-black uppercase mt-5">
                                 {player.name}
                             </div>
 
@@ -186,9 +194,9 @@ const AllPlayerCards = () => {
                     ))}
             </div>
             {/* LIVE AUCTION FOOTER */}
-                <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
-                </div>
+            <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-2">
+                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+            </div>
         </div>
     );
 
