@@ -47,7 +47,7 @@ const AllPlayerCards = () => {
 
 
     return (
-        <div className="min-h-screen text-black p-2 bg-gradient-to-br from-yellow-100 to-black relative">
+        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative">
             <div className="absolute top-2 right-2 z-50">
                 <img
                     src="/AuctionArena2.png"
