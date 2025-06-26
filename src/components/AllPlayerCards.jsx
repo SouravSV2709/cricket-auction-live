@@ -52,7 +52,7 @@ const AllPlayerCards = () => {
                 <img
                     src="/AuctionArena2.png"
                     alt="Auction Arena"
-                    className="w-12 h-12 object-contain"
+                    className="w-12 h-12 object-contain animate-pulse"
                 />
             </div>
 
@@ -61,7 +61,7 @@ const AllPlayerCards = () => {
                     <img
                         src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
                         alt="Tournament Logo"
-                        className="w-40 h-40 object-contain"
+                        className="w-40 h-40 object-contain animate-pulse"
                     />
                 )}
                 <h1 className="text-xl font-bold text-center">
@@ -123,6 +123,15 @@ const AllPlayerCards = () => {
                 </button>
             </div>
 
+            <div className="text-center text-bold text-sm text-gray-800 font-medium mb-2">
+                Count: {players.filter((player) =>
+                    (filterSerial === "" || player.auction_serial?.toString().includes(filterSerial)) &&
+                    (filterName === "" || player.name.toLowerCase().includes(filterName.toLowerCase())) &&
+                    (filterRole === "" || player.role?.toLowerCase().includes(filterRole.toLowerCase())) &&
+                    (filterDistrict === "" || player.district?.toLowerCase() === filterDistrict.toLowerCase())
+                ).length} players
+                </div>
+
 
             {/* 🧾 Player Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-1 bg-transparent break-inside-avoid">
@@ -132,8 +141,8 @@ const AllPlayerCards = () => {
                         (filterName === "" || player.name.toLowerCase().includes(filterName.toLowerCase())) &&
                         (filterRole === "" || player.role?.toLowerCase().includes(filterRole.toLowerCase())) &&
                         (filterDistrict === "" || player.district?.toLowerCase() === filterDistrict.toLowerCase())
-
                     )
+
                     .map((player) => (
                         <div
                             key={player.id}
@@ -146,15 +155,15 @@ const AllPlayerCards = () => {
                                 height: '360px'
                             }}
                         >
-                            <div className="flex justify-center items-center text-black mt-8">
+                            <div className="flex justify-center items-center text-black mt-2">
                                 <div className="text-black text-lg font-bold mr-5">
                                     {player.auction_serial || "-"}
                                 </div>
                                 <div className="mt-10">
                                     <img
-                                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
+                                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-400,fo-face,z-1`}
                                         alt={player.name}
-                                        className="w-20 h-35 object-contain mx-auto rounded-lg"
+                                        className="w-20 h-45 object-contain mx-auto rounded-lg"
                                         style={{
                                             WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent 100%)",
                                             maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
@@ -167,7 +176,7 @@ const AllPlayerCards = () => {
                                 </div>
                             </div>
 
-                            <div className="text-xs items-center justify-center font-bold text-black uppercase mt-5">
+                            <div className="text-xs items-center justify-center font-bold text-black uppercase mt-3">
                                 {player.name}
                             </div>
 
@@ -177,7 +186,7 @@ const AllPlayerCards = () => {
                             </div>
 
                             {tournamentLogo && (
-                                <div className="flex justify-center items-center gap-2 mt-3 animate-pulse">
+                                <div className="flex justify-center items-center gap-2 mt-1 animate-pulse">
                                     <img
                                         src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
                                         alt="Tournament Logo"
@@ -194,7 +203,7 @@ const AllPlayerCards = () => {
                     ))}
             </div>
             {/* LIVE AUCTION FOOTER */}
-            <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-2">
+            <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-4">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
             </div>
         </div>
