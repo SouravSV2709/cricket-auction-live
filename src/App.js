@@ -5,6 +5,8 @@ import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
 import CONFIG from './components/config';
 import AllPlayerCards from './components/AllPlayerCards';
+import AllTeamCards from './components/AllTeamCards';
+
 
 const API = CONFIG.API_BASE_URL;
 
@@ -100,6 +102,11 @@ function App() {
           path="/player-cards/:tournamentSlug"
           element={<AllPlayerCards />}
         />
+
+        <Route path="/team-cards/:tournamentSlug" 
+        element={<AllTeamCards />} 
+        />
+
       </Routes>
     </Router>
   );
