@@ -289,6 +289,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                         alt={team.name}
                         className="w-14 h- object-contain mb-2 rounded-xl border border-white shadow-md"
                     />
+                    
                 )}
                 <h1 className="text-2xl font-extrabold text-center mb-4">{team.name}</h1>
                 <div>
@@ -369,9 +370,17 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                             className="text-center"
                         >
                             <img
-                                src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=h-300,w-300,fo-face,z-0.4`}
-                                alt={player.name}
-                                className="w-24 h-24 object-cover rounded-full mx-auto mb-2 border-2 border-white"
+                            src={
+                                player.profile_image
+                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-300,fo-face,z-0.4`
+                                : "/no-image-found.png"
+                            }
+                            alt={player.name}
+                            onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "/no-image-found.png";
+                            }}
+                            className="w-24 h-24 object-cover rounded-full mx-auto mb-2 border-2 border-white"
                             />
                             <p className="text-lg font-bold">{player.name}</p>
                             <p className="text-sm text-gray-300">{player.role}</p>
@@ -479,6 +488,10 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                         <img
                             src={player.profile_image}
                             alt={player.name}
+                            onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
+                                    }}
                             className="w-96 h-96 object-cover rounded-3xl border-4 border-white shadow-2xl"
                         />
                         <h1 className="text-2xl font-extrabold mt-6">{player.name}</h1>
@@ -581,7 +594,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                         muted
                                         playsInline
                                         loop
-                                        className="w-full rounded-xl border-4 border-red-600 shadow-xl"
+                                        className="w-full rounded-xl border-4 shadow-xl"
                                     />
                                 ) : (
                                     <img

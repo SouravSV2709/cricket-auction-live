@@ -40,6 +40,10 @@ const PlayerCard = ({
           }
           alt={player.name}
           className="w-20 h-35 object-contain mx-auto rounded-lg"
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
+        }}
           style={{
             WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent 100%)",
             maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
