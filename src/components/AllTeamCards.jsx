@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import CONFIG from "../components/config";
+import { Listbox } from "@headlessui/react";
+import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import clsx from "clsx";
 
 const API = CONFIG.API_BASE_URL;
 
@@ -8,7 +11,7 @@ const AllTeamCards = () => {
     const { tournamentSlug } = useParams();
     const [players, setPlayers] = useState([]);
     const [teams, setTeams] = useState([]);
-    const [selectedTeamId, setSelectedTeamId] = useState("");
+    const [selectedTeam, setSelectedTeam] = useState(null);
     const [tournamentName, setTournamentName] = useState("Loading...");
     const [tournamentLogo, setTournamentLogo] = useState(null);
 
@@ -31,8 +34,7 @@ const AllTeamCards = () => {
                 const filteredPlayers = playerData.filter(p => p.payment_success && p.deleted_at == null);
                 setPlayers(filteredPlayers);
                 setTeams(teamData);
-
-                if (teamData.length > 0) setSelectedTeamId(teamData[0].id); // Default team
+                if (teamData.length > 0) setSelectedTeam(teamData[0]);
             } catch (err) {
                 console.error("❌ Error loading data:", err);
             }
@@ -41,17 +43,18 @@ const AllTeamCards = () => {
         fetchData();
     }, [tournamentSlug]);
 
-    const selectedTeam = teams.find(team => team.id === selectedTeamId);
-    const teamPlayers = players.filter(player => player.team_id === selectedTeamId);
+    const teamPlayers = selectedTeam
+        ? players.filter(player => player.team_id === selectedTeam.id)
+        : [];
 
     return (
-        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-24">
+        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
             {/* Header */}
-            <div className="absolute top-2 right-2 z-50">
+            <div className="absolute top-2 left-2 z-50 mb-4">
                 <img src="/AuctionArena2.png" alt="Auction Arena" className="w-12 h-12 object-contain animate-pulse" />
             </div>
 
-            <div className="flex items-center justify-center mb-4 mt-6 gap-2">
+            <div className="flex items-center justify-center mx-8 my-8">
                 {tournamentLogo && (
                     <img
                         src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
@@ -59,22 +62,64 @@ const AllTeamCards = () => {
                         className="w-28 h-28 object-contain"
                     />
                 )}
-                <h1 className="text-xl font-bold text-center text-black">{tournamentName}</h1>
+                <h1 className="text-xl font-bold text-center">{tournamentName}</h1>
             </div>
 
             {/* Team Selector */}
             <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-wrap justify-center gap-4">
-                <select
-                    value={selectedTeamId}
-                    onChange={(e) => setSelectedTeamId(parseInt(e.target.value))}
-                    className="p-3 rounded-lg border text-black shadow-lg w-64 text-center"
-                >
-                    {teams.map(team => (
-                        <option key={team.id} value={team.id}>
-                            {team.name}
-                        </option>
-                    ))}
-                </select>
+                <div className="w-64">
+                    <Listbox value={selectedTeam} onChange={setSelectedTeam}>
+                        <div className="relative">
+                            <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-500 flex items-center gap-2">
+                                {selectedTeam?.logo && (
+                                    <img
+                                        src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${selectedTeam.logo}`}
+                                        alt={selectedTeam.name}
+                                        className="w-6 h-6 object-contain"
+                                    />
+                                )}
+                                <span className="block truncate">{selectedTeam?.name || "Select Team"}</span>
+                                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                                </span>
+                            </Listbox.Button>
+
+                            <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                {teams.map((team) => (
+                                    <Listbox.Option
+                                        key={team.id}
+                                        className={({ active }) =>
+                                            clsx("relative cursor-pointer select-none py-2 pl-12 pr-4 flex items-center gap-2", {
+                                                "bg-yellow-100 text-yellow-900": active,
+                                                "text-gray-900": !active,
+                                            })
+                                        }
+                                        value={team}
+                                    >
+                                        {({ selected }) => (
+                                            <>
+                                                <img
+                                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                    alt={team.name}
+                                                    className="w-6 h-6 object-contain absolute left-2 top-2"
+                                                />
+                                                <span className={clsx("block truncate", { "font-medium": selected })}>
+                                                    {team.name}
+                                                </span>
+                                                {selected && (
+                                                    <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-yellow-600">
+                                                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+                                    </Listbox.Option>
+
+                                ))}
+                            </Listbox.Options>
+                        </div>
+                    </Listbox>
+                </div>
             </div>
 
             {/* Selected Team Title */}
@@ -138,7 +183,7 @@ const AllTeamCards = () => {
                                 <div>🎉 Sold Amount: ₹{player.sold_price.toLocaleString()}</div>
                             </div>
 
-                             {tournamentLogo && (
+                            {tournamentLogo && (
                                 <div className="flex justify-center items-center gap-2 mt-1 animate-pulse">
                                     <img
                                         src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
