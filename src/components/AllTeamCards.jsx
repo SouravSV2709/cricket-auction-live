@@ -4,6 +4,7 @@ import CONFIG from "../components/config";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import clsx from "clsx";
+import Navbar from "../components/Navbar";
 
 const API = CONFIG.API_BASE_URL;
 
@@ -49,10 +50,9 @@ const AllTeamCards = () => {
 
     return (
         <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
-            {/* Header */}
-            <div className="absolute top-2 left-2 z-50 mb-4">
-                <img src="/AuctionArena2.png" alt="Auction Arena" className="w-12 h-12 object-contain animate-pulse" />
-            </div>
+
+           <Navbar tournamentSlug={tournamentSlug} />
+           <div className="pt-16">
 
             <div className="flex items-center justify-center mx-8 my-8">
                 {tournamentLogo && (
@@ -205,6 +205,7 @@ const AllTeamCards = () => {
             {/* Footer */}
             <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-4">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+            </div>
             </div>
         </div>
     );
