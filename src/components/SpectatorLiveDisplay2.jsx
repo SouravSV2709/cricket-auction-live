@@ -61,15 +61,15 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const triggerConfettiIfSold = (playerData) => {
         if (["TRUE", "true", true].includes(playerData?.sold_status)) {
-            if (currentSoldAudio) {
-                currentSoldAudio.pause();
-                currentSoldAudio.currentTime = 0;
-            }
+            // if (currentSoldAudio) {
+            //     currentSoldAudio.pause();
+            //     currentSoldAudio.currentTime = 0;
+            // }
 
-            const selectedSrc = getRandomSoldAudio();
-            currentSoldAudio = new Audio(selectedSrc);
-            currentSoldAudio.volume = 1.0;
-            currentSoldAudio.play().catch(err => console.warn("Autoplay prevented:", err));
+            // const selectedSrc = getRandomSoldAudio();
+            // currentSoldAudio = new Audio(selectedSrc);
+            // currentSoldAudio.volume = 1.0;
+            // currentSoldAudio.play().catch(err => console.warn("Autoplay prevented:", err));
 
             setTimeout(() => {
                 const duration = 3000;
@@ -77,8 +77,8 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                 const frame = () => {
                     confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
                     confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-                    confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-                    confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+                    // confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
+                    // confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 };
                 frame();
@@ -87,52 +87,52 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
     const fetchPlayer = async () => {
-try {
-    const [playerRes, teamsRes] = await Promise.all([
-    fetch(`${API}/api/current-player`),
-    fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`)
-    ]);
+        try {
+            const [playerRes, teamsRes] = await Promise.all([
+                fetch(`${API}/api/current-player`),
+                fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`)
+            ]);
 
-    const basic = await playerRes.json();
-    const teams = await teamsRes.json();
+            const basic = await playerRes.json();
+            const teams = await teamsRes.json();
 
-    setTeamSummaries(teams); // Update global state
+            setTeamSummaries(teams); // Update global state
 
-    if (!basic?.id) {
-    setPlayer(null);
-    setUnsoldClip(null);
-    return;
-    }
+            if (!basic?.id) {
+                setPlayer(null);
+                setUnsoldClip(null);
+                return;
+            }
 
-    const fullRes = await fetch(`${API}/api/players/${basic.id}`);
-    const fullPlayer = await fullRes.json();
-    fullPlayer.base_price = computeBasePrice(fullPlayer);
+            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
+            const fullPlayer = await fullRes.json();
+            fullPlayer.base_price = computeBasePrice(fullPlayer);
 
-    // 🔁 Add team name and logo to player
-    const team = teams.find(t => t.id === fullPlayer.team_id);
-    if (team) {
-    fullPlayer.team_name = team.name;
-    fullPlayer.team_logo = team.logo;
-    }
+            // 🔁 Add team name and logo to player
+            const team = teams.find(t => t.id === fullPlayer.team_id);
+            if (team) {
+                fullPlayer.team_name = team.name;
+                fullPlayer.team_logo = team.logo;
+            }
 
-    setPlayer(fullPlayer);
-    triggerConfettiIfSold(fullPlayer);
+            setPlayer(fullPlayer);
+            triggerConfettiIfSold(fullPlayer);
 
-    if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
-    unsoldAudio.volume = 1.0;
-    unsoldAudio.currentTime = 0;
-    unsoldAudio.play().catch(err => console.warn("Autoplay blocked for UNSOLD:", err));
-    const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
-    setUnsoldClip(randomClip);
-    } else {
-    setUnsoldClip(null);
-    }
-} catch (err) {
-    console.error("❌ Error in fetchPlayer", err);
-    setPlayer(null);
-    setUnsoldClip(null);
-}
-};
+            // if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
+            //     unsoldAudio.volume = 1.0;
+            //     unsoldAudio.currentTime = 0;
+            //     unsoldAudio.play().catch(err => console.warn("Autoplay blocked for UNSOLD:", err));
+            //     const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
+            //     setUnsoldClip(randomClip);
+            // } else {
+            //     setUnsoldClip(null);
+            // }
+        } catch (err) {
+            console.error("❌ Error in fetchPlayer", err);
+            setPlayer(null);
+            setUnsoldClip(null);
+        }
+    };
 
 
     const fetchAllPlayers = async () => {
@@ -140,7 +140,7 @@ try {
             const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
             const data = await res.json();
             setPlayerList(data);
-        } catch {}
+        } catch { }
     };
 
     const fetchTeams = async () => {
@@ -148,7 +148,7 @@ try {
             const res = await fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`);
             const data = await res.json();
             setTeamSummaries(data);
-        } catch {}
+        } catch { }
     };
 
     const fetchTournament = async () => {
@@ -184,42 +184,23 @@ try {
     const isUnsold = ["FALSE", "false", false].includes(player?.sold_status);
 
     return (
-  <div className="relative w-screen h-screen">
-    {player && player.profile_image && (
-  <PlayerCard
-    player={player}
-    isSold={isSold}
-    isUnsold={isUnsold}
-    soldPrice={player?.sold_price}
-    currentBid={highestBid}
-    biddingTeam={leadingTeam}
-    biddingTeamLogo={
-      teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
-    }
-  />
-)}
+        <div className="relative w-screen h-screen">
+            {player && player.profile_image && (
+                <PlayerCard
+                    player={player}
+                    isSold={isSold}
+                    isUnsold={isUnsold}
+                    soldPrice={player?.sold_price}
+                    currentBid={highestBid}
+                    biddingTeam={leadingTeam}
+                    biddingTeamLogo={
+                        teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
+                    }
+                />
+            )}
 
-    {unsoldClip && isUnsold && (
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-xl">
-        {unsoldClip.endsWith(".mp4") ? (
-          <video
-            src={unsoldClip}
-            autoPlay
-            muted
-            loop
-            className="w-full rounded-xl border-4 border-red-600 shadow-xl"
-          />
-        ) : (
-          <img
-            src={unsoldClip}
-            alt="UNSOLD Reaction"
-            className="w-full rounded-xl shadow-xl object-cover"
-          />
-        )}
-      </div>
-    )}
-  </div>
-);
+        </div>
+    );
 
 };
 

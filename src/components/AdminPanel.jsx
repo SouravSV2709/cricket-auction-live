@@ -986,6 +986,9 @@ const AdminPanel = () => {
                     {resetInProgress ? "⏳ Resetting..." : "🔁 Reset Auction"}
                 </button>
             </div>
+            <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
+                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+            </footer>
         </div>
 
 

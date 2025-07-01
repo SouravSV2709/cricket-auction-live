@@ -609,9 +609,9 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                     </div>
                 </div>
 
-                <div className="text-center text-sm tracking-widest bg-black border-t border-purple-600 text-white animate-pulse">
-                    🔴 LIVE AUCTION | Powered by Auction Arena 🧨
-                </div>
+                <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
+                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
             </div>
         ));
 };

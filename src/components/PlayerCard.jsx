@@ -124,10 +124,18 @@ const PlayerCard = ({
             )}
             <p className="text-white text-lg font-semibold">{biddingTeam}</p>
           </div>
-        ) : (
+        ) : !isUnsold && !isSold ? (
           <div className="text-white bg-purple-900 px-3 py-2 rounded-lg shadow-md">
             <p className="text-sm italic text-gray-300">Waiting for a bid...</p>
           </div>
+        ) : (
+          <div>
+          <img
+            src="/duck.gif"
+            alt="Sad Duck"
+            className="w-24 h-24 object-contain mx-auto"
+          />
+        </div>
         )}
       </div>
 

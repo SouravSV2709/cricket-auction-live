@@ -203,9 +203,9 @@ const AllTeamCards = () => {
             </div>
 
             {/* Footer */}
-            <div className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1 mt-4">
+            <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
-            </div>
+            </footer>
             </div>
         </div>
     );
