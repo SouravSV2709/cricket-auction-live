@@ -17,6 +17,10 @@ const AllTeamCards = () => {
     const [tournamentLogo, setTournamentLogo] = useState(null);
 
     useEffect(() => {
+          document.title = "Teams | Auction Arena";
+        }, []);
+
+    useEffect(() => {
         const fetchData = async () => {
             try {
                 const tournamentRes = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);

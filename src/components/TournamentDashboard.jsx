@@ -14,6 +14,10 @@ const TournamentDashboard = () => {
     const [tournamentLogo, setTournamentLogo] = useState(null);
 
     useEffect(() => {
+      document.title = "Home-Dashboard | Auction Arena";
+    }, []);
+
+    useEffect(() => {
         const fetchTournament = async () => {
             try {
                 const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
@@ -61,7 +65,7 @@ const TournamentDashboard = () => {
 
 
     return (
-        <div className="min-h-full bg-gradient-to-br from-yellow-100 to-black text-black pt-16 pb-0">
+        <div className="min-h-screen bg-gradient-to-br from-yellow-100 to-black text-black pt-16 pb-0">
             <Navbar tournamentSlug={tournamentSlug} />
 
             <div className="flex items-center justify-center mt-1">
@@ -77,7 +81,7 @@ const TournamentDashboard = () => {
 
             <div className="p-1 mt-1 rounded-xl overflow-hidden shadow-2xl border border-yellow-300">
                 <table className="w-full text-sm table-auto bg-white">
-                    <thead className="bg-gradient-to-r from-yellow-300 to-orange-400 text-black text-xs uppercase tracking-wide text-center text-wrap justify-center">
+                    <thead className="bg-gradient-to-r from-yellow-300 to-orange-400 text-black text-xs uppercase tracking-wide text-center text-wrap justify-center mb-2">
                         <tr>
                             <th>Team</th>
                             <th>💰 Purse</th>

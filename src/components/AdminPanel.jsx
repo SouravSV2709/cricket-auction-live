@@ -28,7 +28,9 @@ const AdminPanel = () => {
 
 
 
-
+    useEffect(() => {
+        document.title = "Admin Panel | Auction Arena";
+    }, []);
 
     useEffect(() => {
         const tournamentId = CONFIG.TOURNAMENT_ID;

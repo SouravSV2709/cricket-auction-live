@@ -45,6 +45,10 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [theme, setTheme] = useState('default');
 
     useEffect(() => {
+      document.title = "Live1 | Auction Arena";
+    }, []);
+
+    useEffect(() => {
         fetch(`${API}/api/theme`)
             .then(res => res.json())
             .then(data => setTheme(data.theme || "default"));

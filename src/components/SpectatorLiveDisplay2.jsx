@@ -6,6 +6,8 @@ import THEMES from '../components/themes';
 import { io } from "socket.io-client";
 import PlayerCard from "../components/PlayerCard";
 
+
+
 const API = CONFIG.API_BASE_URL;
 
 let currentSoldAudio = null;
@@ -42,6 +44,10 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [theme, setTheme] = useState('default');
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
+
+    useEffect(() => {
+  document.title = "Live2 | Auction Arena";
+}, []);
 
     useEffect(() => {
         fetch(`${API}/api/theme`)

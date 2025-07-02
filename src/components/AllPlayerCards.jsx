@@ -21,6 +21,10 @@ const AllPlayerCards = () => {
     const [filterDistrict, setFilterDistrict] = useState("");
 
     useEffect(() => {
+          document.title = "Players | Auction Arena";
+        }, []);
+
+    useEffect(() => {
         const fetchPlayers = async () => {
             try {
                 const tournamentRes = await fetch(
