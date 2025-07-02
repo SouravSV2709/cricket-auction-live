@@ -61,7 +61,7 @@ const TournamentDashboard = () => {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-yellow-100 to-black text-black pt-16 pb-0">
+        <div className="min-h-full bg-gradient-to-br from-yellow-100 to-black text-black pt-16 pb-0">
             <Navbar tournamentSlug={tournamentSlug} />
 
             <div className="flex items-center justify-center mt-1">
@@ -76,13 +76,13 @@ const TournamentDashboard = () => {
             </div>
 
             <div className="p-1 mt-1 rounded-xl overflow-hidden shadow-2xl border border-yellow-300">
-                <table className="w-full text-sm text-left table-auto bg-white">
-                    <thead className="bg-gradient-to-r from-yellow-300 to-orange-400 text-black text-xs uppercase tracking-wide">
+                <table className="w-full text-sm table-auto bg-white">
+                    <thead className="bg-gradient-to-r from-yellow-300 to-orange-400 text-black text-xs uppercase tracking-wide text-center text-wrap justify-center">
                         <tr>
-                            <th className="py-3 px-4">Team</th>
-                            <th className="py-3 px-4">💰 Purse</th>
-                            <th className="py-3 px-4">🚀 Max Bid</th>
-                            <th className="py-3 px-4">🎯 Slots</th>
+                            <th>Team</th>
+                            <th>💰 Purse</th>
+                            <th>🚀 Max Bid</th>
+                            <th>🎯 Slots</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -112,13 +112,12 @@ const TournamentDashboard = () => {
                     </tbody>
                 </table>
             </div>
-
-
             <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
             </footer>
-
         </div>
+
+
     );
 };
 

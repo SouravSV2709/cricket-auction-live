@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
+import { useParams } from "react-router-dom";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
@@ -99,52 +100,57 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
     const fetchPlayer = async () => {
-        try {
-            const res = await fetch(`${API}/api/current-player`);
-            const basic = await res.json();
+  try {
+    const res = await fetch(`${API}/api/current-player`);
 
-            if (!basic?.id) {
-                setPlayer(null); // Show "Live Auction Starts soon..."
-                setUnsoldClip(null); // Clear previous clip
-                return;
-            }
+    let basic = null;
+    if (res.ok) {
+      const text = await res.text();
+      if (text) {
+        basic = JSON.parse(text);
+      }
+    }
 
-            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
-            const fullPlayer = await fullRes.json();
-            fullPlayer.base_price = computeBasePrice(fullPlayer);
-            setPlayer(fullPlayer);
-            fetchTeams(); // ⬅️ Refresh team stats live after player is sold
+    if (!basic?.id) {
+      setPlayer(null); // Show "Live Auction Starts soon..."
+      setUnsoldClip(null); // Clear previous clip
+      return;
+    }
 
+    const fullRes = await fetch(`${API}/api/players/${basic.id}`);
+    const fullPlayer = await fullRes.json();
+    fullPlayer.base_price = computeBasePrice(fullPlayer);
+    setPlayer(fullPlayer);
 
-            // 🎉 SOLD animation/sound
-            triggerConfettiIfSold(fullPlayer);
+    fetchTeams(); // Refresh team stats live
 
-            // ❌ UNSOLD logic
-            if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
-                try {
-                    unsoldAudio.volume = 1.0;
-                    unsoldAudio.currentTime = 0;
-                    unsoldAudio.play().catch(err => {
-                        console.warn("Autoplay blocked for UNSOLD:", err);
-                    });
+    // 🎉 SOLD animation/sound
+    triggerConfettiIfSold(fullPlayer);
 
-                    // 🔁 Random UNSOLD media
-                    const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
-                    setUnsoldClip(randomClip);
+    // ❌ UNSOLD logic
+    if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
+      try {
+        unsoldAudio.volume = 1.0;
+        unsoldAudio.currentTime = 0;
+        unsoldAudio.play().catch(err => {
+          console.warn("Autoplay blocked for UNSOLD:", err);
+        });
 
-                } catch (e) {
-                    console.error("UNSOLD audio error:", e);
-                }
-            } else {
-                setUnsoldClip(null); // Reset if not UNSOLD
-            }
+        const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
+        setUnsoldClip(randomClip);
+      } catch (e) {
+        console.error("UNSOLD audio error:", e);
+      }
+    } else {
+      setUnsoldClip(null); // Reset if not UNSOLD
+    }
 
-        } catch (err) {
-            console.error("Failed to fetch full player info", err);
-            setPlayer(null);
-            setUnsoldClip(null);
-        }
-    };
+  } catch (err) {
+    console.error("Failed to fetch full player info", err);
+    setPlayer(null);
+    setUnsoldClip(null);
+  }
+};
 
 
 
@@ -171,6 +177,12 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
+    const { tournamentSlug } = useParams();
+    const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
+    const [teams, setTeams] = useState([]);
+    const [players, setPlayers] = useState([]);
+    
+
 
     const fetchTournament = async () => {
         try {
@@ -189,7 +201,34 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         }
     };
 
-    fetchTournament();
+    useEffect(() => {
+            const fetchTournament = async () => {
+                try {
+                    const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+                    const data = await res.json();
+                    setTournamentName(data.title || tournamentSlug);
+                    setTournamentLogo(data.logo);
+                    setTotalPlayersToBuy(data.total_players_to_buy || 14); // fallback default
+                    const tournamentId = data.id;
+    
+                    const [teamRes, playerRes] = await Promise.all([
+                        fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
+                        fetch(`${API}/api/players?tournament_id=${tournamentId}`)
+                    ]);
+    
+                    const teamData = await teamRes.json();
+                    const playerData = await playerRes.json();
+    
+                    // Filter only sold players
+                    const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
+    
+                    setPlayers(soldPlayers);
+                    setTeams(teamData);
+                } catch (err) {
+                    console.error("❌ Failed to load dashboard data:", err);
+                }
+            };
+        }, [tournamentSlug]);
 
     useEffect(() => {
         if (!player) return;

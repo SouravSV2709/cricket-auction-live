@@ -138,14 +138,27 @@ const AdminPanel = () => {
     const fetchCurrentPlayer = async () => {
         try {
             const res = await fetch(`${API}/api/current-player`);
-            const data = await res.json(); // ✅ only this is needed
-            console.log("Auction Serial:", data.auction_serial);
-            setCurrentPlayer(data);
+
+            let data = null;
+            if (res.ok) {
+                const text = await res.text();
+                if (text) {
+                    data = JSON.parse(text);
+                }
+            }
+
+            if (data) {
+                console.log("Auction Serial:", data.auction_serial);
+                setCurrentPlayer(data);
+            } else {
+                setCurrentPlayer(null);
+            }
         } catch (error) {
             console.error("Failed to fetch current player:", error);
             setCurrentPlayer(null);
         }
     };
+
 
 
 

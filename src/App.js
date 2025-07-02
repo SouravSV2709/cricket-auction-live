@@ -21,27 +21,41 @@ function App() {
   const tournamentId = 1; // or dynamic from login/session
 
   const fetchData = async () => {
-    try {
-      const [playersRes, currentPlayerRes, currentBidRes, teamsRes] = await Promise.all([
-        fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`),
-        fetch(`${API}/api/current-player`),
-        fetch(`${API}/api/current-bid`),
-        fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
-      ]);
+  try {
+    const [playersRes, currentPlayerRes, currentBidRes, teamsRes] = await Promise.all([
+      fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`),
+      fetch(`${API}/api/current-player`),
+      fetch(`${API}/api/current-bid`),
+      fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
+    ]);
 
-      const players = await playersRes.json();
-      const currentPlayer = await currentPlayerRes.json();
-      const currentBid = await currentBidRes.json();
-      const teams = await teamsRes.json();
+    const players = await playersRes.json();
 
-      setPlayers(players);
-      setCurrentPlayer(currentPlayer);
-      setCurrentBid(currentBid);
-      setTeams(teams);
-    } catch (err) {
-      console.error("Failed to fetch data from backend", err);
+    // Safely parse currentPlayer
+    let currentPlayer = null;
+    if (currentPlayerRes.ok) {
+      const text = await currentPlayerRes.text();
+      if (text) currentPlayer = JSON.parse(text);
     }
-  };
+
+    // Safely parse currentBid
+    let currentBid = { bid_amount: 0, team_name: '' };
+    if (currentBidRes.ok) {
+      const text = await currentBidRes.text();
+      if (text) currentBid = JSON.parse(text);
+    }
+
+    const teams = await teamsRes.json();
+
+    setPlayers(players);
+    setCurrentPlayer(currentPlayer);
+    setCurrentBid(currentBid);
+    setTeams(teams);
+  } catch (err) {
+    console.error("Failed to fetch data from backend", err);
+  }
+};
+
 
   useEffect(() => {
     fetchData();
@@ -76,9 +90,9 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<AdminPanel />} />
+        <Route path="/:tournamentSlug" element={<AdminPanel />} />
         <Route
-          path="/spectator"
+          path="/spectator/:tournamentSlug"
           element={
             <SpectatorLiveDisplay
               player={currentPlayer}
@@ -89,7 +103,7 @@ function App() {
           }
         />
         <Route
-          path="/spectator2"
+          path="/spectator2/:tournamentSlug"
           element={
             <SpectatorLiveDisplay2
               player={currentPlayer}

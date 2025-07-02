@@ -77,8 +77,8 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                 const frame = () => {
                     confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
                     confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-                    // confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-                    // confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+                    confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
+                    confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 };
                 frame();
@@ -93,10 +93,17 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                 fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`)
             ]);
 
-            const basic = await playerRes.json();
             const teams = await teamsRes.json();
+            setTeamSummaries(teams);
 
-            setTeamSummaries(teams); // Update global state
+            // Handle empty response for current-player
+            let basic = null;
+            if (playerRes.ok) {
+                const text = await playerRes.text();
+                if (text) {
+                    basic = JSON.parse(text);
+                }
+            }
 
             if (!basic?.id) {
                 setPlayer(null);
@@ -108,7 +115,6 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
             const fullPlayer = await fullRes.json();
             fullPlayer.base_price = computeBasePrice(fullPlayer);
 
-            // 🔁 Add team name and logo to player
             const team = teams.find(t => t.id === fullPlayer.team_id);
             if (team) {
                 fullPlayer.team_name = team.name;
@@ -118,21 +124,13 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
             setPlayer(fullPlayer);
             triggerConfettiIfSold(fullPlayer);
 
-            // if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
-            //     unsoldAudio.volume = 1.0;
-            //     unsoldAudio.currentTime = 0;
-            //     unsoldAudio.play().catch(err => console.warn("Autoplay blocked for UNSOLD:", err));
-            //     const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
-            //     setUnsoldClip(randomClip);
-            // } else {
-            //     setUnsoldClip(null);
-            // }
         } catch (err) {
             console.error("❌ Error in fetchPlayer", err);
             setPlayer(null);
             setUnsoldClip(null);
         }
     };
+
 
 
     const fetchAllPlayers = async () => {
