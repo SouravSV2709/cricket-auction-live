@@ -6,6 +6,7 @@ import CONFIG from '../components/config';
 import THEMES from '../components/themes';
 import Lottie from "lottie-react";
 import { io } from "socket.io-client";
+import BackgroundEffect from "../components/BackgroundEffect";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -45,7 +46,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [theme, setTheme] = useState('default');
 
     useEffect(() => {
-      document.title = "Live1 | Auction Arena";
+        document.title = "Live1 | Auction Arena";
     }, []);
 
     useEffect(() => {
@@ -56,7 +57,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         const socket = io(API);
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme));
         return () => socket.disconnect();
-        }, []);
+    }, []);
 
 
     const computeBasePrice = (player) => {
@@ -104,57 +105,57 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
     const fetchPlayer = async () => {
-  try {
-    const res = await fetch(`${API}/api/current-player`);
+        try {
+            const res = await fetch(`${API}/api/current-player`);
 
-    let basic = null;
-    if (res.ok) {
-      const text = await res.text();
-      if (text) {
-        basic = JSON.parse(text);
-      }
-    }
+            let basic = null;
+            if (res.ok) {
+                const text = await res.text();
+                if (text) {
+                    basic = JSON.parse(text);
+                }
+            }
 
-    if (!basic?.id) {
-      setPlayer(null); // Show "Live Auction Starts soon..."
-      setUnsoldClip(null); // Clear previous clip
-      return;
-    }
+            if (!basic?.id) {
+                setPlayer(null); // Show "Live Auction Starts soon..."
+                setUnsoldClip(null); // Clear previous clip
+                return;
+            }
 
-    const fullRes = await fetch(`${API}/api/players/${basic.id}`);
-    const fullPlayer = await fullRes.json();
-    fullPlayer.base_price = computeBasePrice(fullPlayer);
-    setPlayer(fullPlayer);
+            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
+            const fullPlayer = await fullRes.json();
+            fullPlayer.base_price = computeBasePrice(fullPlayer);
+            setPlayer(fullPlayer);
 
-    fetchTeams(); // Refresh team stats live
+            fetchTeams(); // Refresh team stats live
 
-    // 🎉 SOLD animation/sound
-    triggerConfettiIfSold(fullPlayer);
+            // 🎉 SOLD animation/sound
+            triggerConfettiIfSold(fullPlayer);
 
-    // ❌ UNSOLD logic
-    if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
-      try {
-        unsoldAudio.volume = 1.0;
-        unsoldAudio.currentTime = 0;
-        unsoldAudio.play().catch(err => {
-          console.warn("Autoplay blocked for UNSOLD:", err);
-        });
+            // ❌ UNSOLD logic
+            if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
+                try {
+                    unsoldAudio.volume = 1.0;
+                    unsoldAudio.currentTime = 0;
+                    unsoldAudio.play().catch(err => {
+                        console.warn("Autoplay blocked for UNSOLD:", err);
+                    });
 
-        const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
-        setUnsoldClip(randomClip);
-      } catch (e) {
-        console.error("UNSOLD audio error:", e);
-      }
-    } else {
-      setUnsoldClip(null); // Reset if not UNSOLD
-    }
+                    const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
+                    setUnsoldClip(randomClip);
+                } catch (e) {
+                    console.error("UNSOLD audio error:", e);
+                }
+            } else {
+                setUnsoldClip(null); // Reset if not UNSOLD
+            }
 
-  } catch (err) {
-    console.error("Failed to fetch full player info", err);
-    setPlayer(null);
-    setUnsoldClip(null);
-  }
-};
+        } catch (err) {
+            console.error("Failed to fetch full player info", err);
+            setPlayer(null);
+            setUnsoldClip(null);
+        }
+    };
 
 
 
@@ -185,7 +186,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
-    
+
 
 
     const fetchTournament = async () => {
@@ -206,33 +207,33 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
     useEffect(() => {
-            const fetchTournament = async () => {
-                try {
-                    const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
-                    const data = await res.json();
-                    setTournamentName(data.title || tournamentSlug);
-                    setTournamentLogo(data.logo);
-                    setTotalPlayersToBuy(data.total_players_to_buy || 14); // fallback default
-                    const tournamentId = data.id;
-    
-                    const [teamRes, playerRes] = await Promise.all([
-                        fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
-                        fetch(`${API}/api/players?tournament_id=${tournamentId}`)
-                    ]);
-    
-                    const teamData = await teamRes.json();
-                    const playerData = await playerRes.json();
-    
-                    // Filter only sold players
-                    const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
-    
-                    setPlayers(soldPlayers);
-                    setTeams(teamData);
-                } catch (err) {
-                    console.error("❌ Failed to load dashboard data:", err);
-                }
-            };
-        }, [tournamentSlug]);
+        const fetchTournament = async () => {
+            try {
+                const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+                const data = await res.json();
+                setTournamentName(data.title || tournamentSlug);
+                setTournamentLogo(data.logo);
+                setTotalPlayersToBuy(data.total_players_to_buy || 14); // fallback default
+                const tournamentId = data.id;
+
+                const [teamRes, playerRes] = await Promise.all([
+                    fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
+                    fetch(`${API}/api/players?tournament_id=${tournamentId}`)
+                ]);
+
+                const teamData = await teamRes.json();
+                const playerData = await playerRes.json();
+
+                // Filter only sold players
+                const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
+
+                setPlayers(soldPlayers);
+                setTeams(teamData);
+            } catch (err) {
+                console.error("❌ Failed to load dashboard data:", err);
+            }
+        };
+    }, [tournamentSlug]);
 
     useEffect(() => {
         if (!player) return;
@@ -325,36 +326,40 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
             : null;
 
         return (
-                <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} p-6 overflow-hidden flex flex-col items-center justify-start relative animate-fade-in-up`}>
-                {teamLogoUrl && (
-                    <img
-                        src={teamLogoUrl}
-                        alt={team.name}
-                        className="w-14 h- object-contain mb-2 rounded-xl border border-white shadow-md"
-                    />
-                    
-                )}
-                <h1 className="text-2xl font-extrabold text-center mb-4">{team.name}</h1>
-                <div>
-                    <p className="text-red-500 font-bold text-3xl mb-4 items-center justify-center">
+            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+                {/* Background Layer – Particle Animation */}
+                <BackgroundEffect theme={theme} />
+
+                {/* Content Layer */}
+                <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
+                    {teamLogoUrl && (
+                        <img
+                            src={teamLogoUrl}
+                            alt={team.name}
+                            className="w-14 h-14 object-contain mb-2 rounded-xl border border-white shadow-md"
+                        />
+                    )}
+
+                    <h1 className="text-2xl font-extrabold text-center mb-4">{team.name}</h1>
+
+                    <p className="text-red-500 font-bold text-3xl mb-4 text-center">
                         {customMessage || "No players yet!"}
                     </p>
-                </div>
-                {/* TOURNAMENT LOGO (BOTTOM RIGHT) */}
-                {tournamentLogo && (
-                    <img
-                        src={tournamentLogo}
-                        alt="Tournament Logo"
-                        className="w-16 h-16 object-contain absolute bottom-12 right-4 opacity-70"
-                    />
-                )}
 
-                {/* LIVE AUCTION FOOTER */}
-                <div className="text-center text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1">
-                    🔴 LIVE AUCTION | Powered by Auction Arena 🧨
-                </div>
+                    {tournamentLogo && (
+                        <img
+                            src={tournamentLogo}
+                            alt="Tournament Logo"
+                            className="w-16 h-16 object-contain absolute bottom-12 right-4 opacity-70"
+                        />
+                    )}
 
+                    <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
+                </div>
             </div>
+
         );
     }
 
@@ -391,19 +396,25 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
             : null;
 
         return (
-            <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} p-6 overflow-hidden flex flex-col items-center justify-start relative
-             animate-fade-in-up`}>
-                {/* TEAM LOGO */}
-                {teamLogoUrl && (
-                    <img
-                        src={teamLogoUrl}
-                        alt={team.name}
-                        className="w-14 h- object-contain mb-2 rounded-xl border border-white shadow-md"
-                    />
-                )}
+            // <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} p-6 overflow-hidden flex flex-col items-center justify-start relative
+            //  animate-fade-in-up`}>
+            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+                {/* Background Layer – Particle Animation */}
+                <BackgroundEffect theme={theme} />
 
-                {/* SQUAD TITLE */}
-                <h1 className="text-2xl font-extrabold text-center mb-4">{team.name}</h1>
+                {/* TEAM LOGO */}
+                <div className="flex flex-col items-center mt-6 mb-4">
+                    {teamLogoUrl && (
+                        <img
+                            src={teamLogoUrl}
+                            alt={team.name}
+                            className="w-20 h-20 object-contain mb-2 rounded-xl border border-white shadow-md"
+                        />
+                    )}
+
+                    <h1 className="text-2xl font-extrabold text-center">{team.name}</h1>
+                </div>
+
 
                 {/* PLAYER GRID */}
                 <div className="grid grid-cols-5 gap-4 justify-center flex-1">
@@ -413,17 +424,17 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                             className="text-center"
                         >
                             <img
-                            src={
-                                player.profile_image
-                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-300,fo-face,z-0.4`
-                                : "/no-image-found.png"
-                            }
-                            alt={player.name}
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "/no-image-found.png";
-                            }}
-                            className="w-24 h-24 object-cover rounded-full mx-auto mb-2 border-2 border-white"
+                                src={
+                                    player.profile_image
+                                        ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-300,fo-face,z-0.4`
+                                        : "/no-image-found.png"
+                                }
+                                alt={player.name}
+                                onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "/no-image-found.png";
+                                }}
+                                className="w-24 h-24 object-cover rounded-full mx-auto mb-2 border-2 border-white"
                             />
                             <p className="text-lg font-bold">{player.name}</p>
                             <p className="text-sm text-gray-300">{player.role}</p>
@@ -441,9 +452,9 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                 )}
 
                 {/* LIVE AUCTION FOOTER */}
-                <div className="text-center text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1">
-                    🔴 LIVE AUCTION | Powered by Auction Arena 🧨
-                </div>
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
             </div>
         );
     }
@@ -452,22 +463,30 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     if (!player) {
         return (
 
-            <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
-                <div>
-                    {tournamentLogo && (
-                        <img
-                            src={tournamentLogo}
-                            alt="Tournament Logo"
-                            className="w-64 h-64 object-contain animate-shake"
-                        />
-                    )}
+            // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
+            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+                {/* Background Layer – Particle Animation */}
+                <BackgroundEffect theme={theme} />
+
+                <div className="flex flex-col items-center justify-center text-5xl font-extrabold text-center px-10">
+                    <div>
+
+                        {tournamentLogo && (
+                            <img
+                                src={tournamentLogo}
+                                alt="Tournament Logo"
+                                className="w-64 h-64 object-contain animate-shake"
+                            />
+                        )}
+                    </div>
+                    <div className="animate-pulse ">
+                        Live Auction Starts soon...
+                    </div>
                 </div>
-                <div className="animate-pulse">
-                    Live Auction Starts soon...
-                </div>
-                <div className="text-center text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse absolute bottom-0 w-full py-1">
-                    🔴 LIVE AUCTION | Powered by Auction Arena 🧨
-                </div>
+
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
             </div>
         );
     }
@@ -476,25 +495,38 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const teamName = team?.name || leadingTeam || "Unknown";
     const teamLogoId = team?.logo;
 
+    const isWaitingForBid =
+        !["TRUE", "true", true].includes(player?.sold_status) &&
+        (!highestBid || Number(highestBid) === 0);
+
     return (
         customMessage ? (
-            <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
-                <div>
-                    {tournamentLogo && (
-                        <img
-                            src={tournamentLogo}
-                            alt="Tournament Logo"
-                            className="w-64 h-64 object-contain animate-shake"
-                        />
-                    )}
-                </div>
-                <div>
-                    <div className="broadcast-message">{customMessage}</div>
+            // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
+            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+                {/* Background Layer – Particle Animation */}
+                <BackgroundEffect theme={theme} />
+
+                <div className="flex flex-col items-center justify-center text-5xl font-extrabold text-center px-10">
+                    <div>
+                        {tournamentLogo && (
+                            <img
+                                src={tournamentLogo}
+                                alt="Tournament Logo"
+                                className="w-64 h-64 object-contain animate-shake"
+                            />
+                        )}
+                    </div>
+                    <div>
+                        <div className="broadcast-message">{customMessage}</div>
+                    </div>
                 </div>
             </div>
 
         ) : (
-            <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+            // <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+                {/* Background Layer – Particle Animation */}
+                <BackgroundEffect theme={theme} />
 
                 <div className="flex items-center justify-between px-6 py-4 border-b border-purple-700">
                     {/* Left: Auction Arena Logo */}
@@ -517,7 +549,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
                 <div
                     key={player.id} // forces re-render
-                    className="flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-6 animate-fade-in-up"
+                    className="flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 animate-fade-in-up"
                 >
                     <div className="w-1/3 flex flex-col items-center justify-center relative">
                         {["TRUE", "true", true].includes(player?.sold_status) && (
@@ -532,38 +564,36 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                             src={player.profile_image}
                             alt={player.name}
                             onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
-                                    }}
-                            className="w-96 h-96 object-cover rounded-3xl border-4 border-white shadow-2xl"
+                                e.target.onerror = null;
+                                e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
+                            }}
+                            className="w-[48rem] h-[48rem] object-cover rounded-3xl border-4 border-white shadow-2xl"
                         />
                         <h1 className="text-2xl font-extrabold mt-6">{player.name}</h1>
                         <p className="text-xl font-bold mt-2">({player.nickname || "-"})</p>
                     </div>
 
-                    <div className="w-1/3 flex flex-col justify-center items-center space-y-8">
+                    <div className="w-1/3 flex flex-col justify-center items-center space-y-10">
                         <div>
                             {tournamentLogo && (
                                 <img
                                     src={tournamentLogo}
                                     alt="Tournament Logo"
-                                    className="w-64 h-64 object-contain animate-shake"
+                                    className="w-[20rem] h-[20rem] object-contain animate-shake"
                                 />
                             )}
                         </div>
-
-                        <div className="bg-purple-800 rounded-xl shadow-lg uppercase w-full text-center text-yellow-200">
-                            <p className="text-sm font-bold">Serial No: {player.auction_serial}</p>
-                            <p className="text-sm font-bold">Role: {player.role}</p>
-                            <p className="text-sm font-bold">Batting-hand: {player.batting_hand || "NA"}</p>
-                            <p className="text-sm font-bold">Bowling-hand: {player.bowling_hand || "NA"}</p>
-                            <p className="text-sm font-bold">District: {player.district || "-"}</p>
-
+                        <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">Serial No: {player.auction_serial}</p>
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">Role: {player.role}</p>
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">Batting-hand: {player.batting_hand || "NA"}</p>
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">Bowling-hand: {player.bowling_hand || "NA"}</p>
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">District: {player.district || "-"}</p>
 
                         </div>
-                        <div className="bg-purple-800 px-5 py-2 rounded-xl shadow-lg w-full text-center">
-                            <p className="text-sm uppercase text-yeimallow-300">Base Price</p>
-                            <p className="text-sm font-bold text-yellow-200">
+                        <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">Base Price</p>
+                            <p className="text-sm uppercase tracking-wider font-bold drop-shadow-sm">
                                 ₹{(player.base_price || 0).toLocaleString()}
                             </p>
                         </div>
@@ -578,58 +608,75 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                     alt={teamName}
                                     className="relative z-10 animate-bounce-in"
                                 />
-                                <p className="text-xl font-bold text-center">{teamName}</p>
-                                <div className="bg-green-700 px-6 py-3 rounded-lg shadow-lg text-center mt-2">
-                                    <p className="text-xl font-bold text-white">
-                                      🎉 Sold Amount: ₹{player.sold_price.toLocaleString()}
+                                <p className="text-xl font-bold text-center mb-2 mt-1">{teamName}</p>
+
+                                <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
+                                    <p className="text-xl uppercase tracking-wider font-bold drop-shadow-sm">
+                                        🎉 Sold Amount: ₹{player.sold_price.toLocaleString()}
                                     </p>
-                                {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
-                                <div>
-                                    <p className="text-xl font-bold text-white">
-                                    🧑‍🤝‍🧑 Players Bought: {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 14}
-                                    </p>
-                                    <p className="text-xl font-bold text-white">
-                                    🚀 Max Bid Allowed: ₹{team.max_bid_allowed.toLocaleString()}
-                                    </p>
-                                </div>
-                                )}
+                                    {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
+                                        <div>
+                                            <p className="text-xl uppercase tracking-wider font-bold drop-shadow-sm">
+                                                🧑‍🤝‍🧑 Players Bought: {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 14}
+                                            </p>
+                                            <p className="text-xl uppercase tracking-wider font-bold drop-shadow-sm">
+                                                🚀 Max Bid Allowed: ₹{team.max_bid_allowed.toLocaleString()}
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
 
+
                         {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
-                            <>
-                                <div className="bg-purple-900 px-10 py-6 rounded-xl shadow-xl w-full text-center">
-                                    <p className="text-lg uppercase text-green-300">Current Bid</p>
-                                    <p className="text-4xl font-extrabold text-green-400">
-                                        ₹{(highestBid || 0).toLocaleString()}
+                            isWaitingForBid ? (
+                                <div className="text-center">
+                                    <img
+                                        src="/waitingbid.gif"
+                                        alt="Waiting for a Bid"
+                                        className="w-[20rem] h-[20rem] object-contain mx-auto mb-4"
+                                    />
+                                    <p className="text-2xl text-yellow-300 font-bold animate-pulse">
+                                        Waiting for a Bid...
                                     </p>
                                 </div>
-                                {(() => {
-                                    const leadingTeamObj = teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim());
-                                    const leadingTeamLogo = leadingTeamObj?.logo;
-                                    return (
-                                        <div className="bg-purple-900 px-10 py-6 rounded-xl shadow-xl w-full text-center">
-                                        <p className="text-lg uppercase text-blue-300">Leading Team</p>
-                                        {leadingTeamLogo && (
-                                            <img
-                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=w-40,h-40`}
-                                            alt={leadingTeamObj.name}
-                                            className="mx-auto mb-2 rounded-full w-15 h-15 object-contain inline-block align-middle"
-                                            />
-                                        )}
-                                        <span className="text-xl font-bold ml-2 align-middle inline-block">
-                                            {leadingTeam || "—"}
-                                        </span>
-                                        </div>
-                                    );
-                                    })()}
+                            ) : (
+                                <>
+                                    <div className="bg-green-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
+                                        <p className="text-lg uppercase text-green-bold">Current Bid</p>
+                                        <p className="text-4xl uppercase text-green-bold animate-pulse">
+                                            ₹{(highestBid || 0).toLocaleString()}
+                                        </p>
+                                    </div>
 
-                            </>
+                                    {(() => {
+                                        const leadingTeamObj = teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim());
+                                        const leadingTeamLogo = leadingTeamObj?.logo;
+                                        return (
+                                            <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
+                                                <p className="text-2xl uppercase tracking-wider font-bold drop-shadow-sm">Leading Team</p>
+                                                {leadingTeamLogo && (
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=w-400,h-400`}
+                                                        alt={leadingTeamObj.name}
+                                                        className="mx-auto mb-2 rounded-full w-[20rem] h-[20rem] object-contain inline-block align-middle"
+                                                    />
+                                                )}
+                                                <div className="text-4xl uppercase text-green-bold">
+                                                    {leadingTeam || "—"}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </>
+                            )
                         )}
 
+
+
                         {["FALSE", "false", false].includes(player?.sold_status) && unsoldClip && (
-                            <div className="relative w-full px-4">
+                            <div className="relative w-[30rem] h-[30rem] px-4">
                                 {unsoldClip.endsWith('.mp4') ? (
                                     <video
                                         src={unsoldClip}
@@ -637,7 +684,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                         muted
                                         playsInline
                                         loop
-                                        className="w-full rounded-xl border-4 shadow-xl"
+                                        className="w-[30rem] h-[30rem] rounded-xl border-4 shadow-xl"
                                     />
                                 ) : (
                                     <img
@@ -646,15 +693,20 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                                         className="w-full rounded-xl shadow-xl object-cover"
                                     />
                                 )}
+
+                                <p className="text-2xl text-red-300 font-bold animate-pulse text-center justify-center mt-2">
+                                        Player went Unsold...
+                                    </p>
                             </div>
                         )}
 
                     </div>
                 </div>
 
-                <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                 </footer>
+
             </div>
         ));
 };
