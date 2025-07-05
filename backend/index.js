@@ -54,6 +54,52 @@ app.post('/api/theme', (req, res) => {
   res.json({ message: "Theme updated", theme });
 });
 
+// Get bid increment for a tournament
+
+app.get('/api/bid-increments/:tournament_id', async (req, res) => {
+  const { tournament_id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM bid_increments WHERE tournament_id = $1 ORDER BY min_value ASC`,
+      [tournament_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ Failed to fetch bid increments:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST bid increments (replace existing for that tournament)
+
+app.post('/api/bid-increments/:tournament_id', async (req, res) => {
+  const { tournament_id } = req.params;
+  const increments = req.body; // [{ min_value, max_value, increment }, ...]
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(`DELETE FROM bid_increments WHERE tournament_id = $1`, [tournament_id]);
+
+    for (const { min_value, max_value, increment } of increments) {
+      await client.query(`
+        INSERT INTO bid_increments (tournament_id, min_value, max_value, increment)
+        VALUES ($1, $2, $3, $4)
+      `, [tournament_id, min_value, max_value || null, increment]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: "Bid increments updated." });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error("❌ Failed to update bid increments:", err);
+    res.status(500).json({ error: "Update failed" });
+  } finally {
+    client.release();
+  }
+});
+
 // Updating Max bid for team
 
 async function updateTeamStats(teamId, tournamentId) {

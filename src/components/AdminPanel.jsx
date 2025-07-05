@@ -25,6 +25,10 @@ const AdminPanel = () => {
     const [selectedTheme, setSelectedTheme] = useState("default");
     const [isTeamViewActive, setIsTeamViewActive] = useState(false);
     const [isTeamLoopActive, setIsTeamLoopActive] = useState(false);
+    const [bidIncrements, setBidIncrements] = useState([]);
+    const [showBidConfig, setShowBidConfig] = useState(false);
+    const [showThemeSelector, setShowThemeSelector] = useState(false);
+
 
 
 
@@ -77,6 +81,25 @@ const AdminPanel = () => {
     }, [currentPlayer?.id]);
 
 
+    useEffect(() => {
+        const fetchBidIncrements = async () => {
+            try {
+                const res = await fetch(`${API}/api/bid-increments/${CONFIG.TOURNAMENT_ID}`);
+                const data = await res.json();
+                setBidIncrements(data.length > 0 ? data : [
+                    { min_value: 0, max_value: 3000, increment: 100 },
+                    { min_value: 3000, max_value: 5000, increment: 500 },
+                    { min_value: 5000, max_value: null, increment: 1000 }
+                ]);
+            } catch (err) {
+                console.error("❌ Failed to fetch bid increments:", err);
+            }
+        };
+
+        fetchBidIncrements();
+    }, []);
+
+
 
 
 
@@ -90,6 +113,25 @@ const AdminPanel = () => {
         });
         alert(`🎨 Theme updated to: ${selectedTheme}`);
     };
+
+    // Function to update increment
+
+    const getDynamicBidIncrement = (bid) => {
+        // Loop through all bid rules
+        for (let rule of bidIncrements) {
+            const min = rule.min_value ?? 0;
+            const max = rule.max_value;
+
+            // If max is null, it means open-ended range
+            if (max === null && bid >= min) return rule.increment;
+
+            // If within range
+            if (bid >= min && bid < max) return rule.increment;
+        }
+
+        return 100; // fallback if nothing matches
+    };
+
 
 
     const fetchPlayers = async () => {
@@ -707,36 +749,152 @@ const AdminPanel = () => {
 
             {/* UI to select theme */}
 
-            <div className="my-4">
-                <label className="block mb-2 font-bold text-lg">🎨 Select Theme:</label>
-                <div className="inline-grid grid-cols-4 md:grid-cols-10 gap-2">
-                    {Object.entries(THEMES).map(([key, style]) => (
-                        <div
-                            key={key}
-                            className={`cursor-pointer rounded-xl transition-all duration-300 ${selectedTheme === key ? 'scale-105' : 'border-transparent'
-                                }`}
-                            style={{
-                                background: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
-                            }}
-                            onClick={() => setSelectedTheme(key)}
-                        >
-                            <div className="items-center">
-                                <div className={`w-10 h-10 rounded-md bg-gradient-to-br ${style.bg} flex`}>
-                                </div>
-                                <p className={`${key} text-xs font-bold`}>
-                                    {key.toUpperCase()}
-                                </p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-                <div><button
-                    onClick={updateTheme}
-                    className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
+            <div className="my-6 border border-gray-700 rounded bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-gray-700 hover:bg-gray-600 rounded-t flex justify-between items-center"
+                    onClick={() => setShowThemeSelector(prev => !prev)}
                 >
-                    ✅ Apply Theme
-                </button></div>
+                    <h3 className="text-lg font-bold text-pink-300">🎨 Theme Settings</h3>
+                    <span className="text-white text-xl">
+                        {showThemeSelector ? '−' : '+'}
+                    </span>
+                </div>
+
+                {showThemeSelector && (
+                    <div className="p-4">
+                        <label className="block mb-2 font-bold text-base">Select Theme:</label>
+                        <div className="inline-grid grid-cols-4 md:grid-cols-10 gap-2">
+                            {Object.entries(THEMES).map(([key, style]) => (
+                                <div
+                                    key={key}
+                                    className={`cursor-pointer rounded-xl transition-all duration-300 ${selectedTheme === key ? 'scale-105' : 'border-transparent'
+                                        }`}
+                                    style={{
+                                        background: `linear-gradient(to bottom right, var(--tw-gradient-stops))`,
+                                    }}
+                                    onClick={() => setSelectedTheme(key)}
+                                >
+                                    <div className="items-center">
+                                        <div className={`w-10 h-10 rounded-md bg-gradient-to-br ${style.bg} flex`}></div>
+                                        <p className={`${key} text-xs font-bold`}>
+                                            {key.toUpperCase()}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={updateTheme}
+                            className="mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
+                        >
+                            ✅ Apply Theme
+                        </button>
+                    </div>
+                )}
             </div>
+
+
+            {/* Set Bid increment */}
+
+            <div className="my-6 border border-gray-700 rounded bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-gray-700 hover:bg-gray-600 rounded-t flex justify-between items-center"
+                    onClick={() => setShowBidConfig(prev => !prev)}
+                >
+                    <h3 className="text-lg font-bold text-yellow-300">📈 Bid Increment Settings</h3>
+                    <span className="text-white text-xl">
+                        {showBidConfig ? '−' : '+'}
+                    </span>
+                </div>
+
+                {showBidConfig && (
+                    <div className="p-4 space-y-4">
+                        {bidIncrements.map((range, idx) => (
+                            <div key={idx} className="grid grid-cols-3 gap-4 items-center">
+                                <input
+                                    type="number"
+                                    placeholder="Min"
+                                    value={range.min_value}
+                                    className="p-2 rounded text-black"
+                                    onChange={e => {
+                                        const newRanges = [...bidIncrements];
+                                        newRanges[idx].min_value = parseInt(e.target.value) || 0;
+                                        setBidIncrements(newRanges);
+                                    }}
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Max"
+                                    value={range.max_value ?? ''}
+                                    className="p-2 rounded text-black"
+                                    onChange={e => {
+                                        const newRanges = [...bidIncrements];
+                                        const val = e.target.value.trim();
+                                        newRanges[idx].max_value = val === '' ? null : parseInt(val);
+                                        setBidIncrements(newRanges);
+                                    }}
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Increment"
+                                    value={range.increment}
+                                    className="p-2 rounded text-black"
+                                    onChange={e => {
+                                        const newRanges = [...bidIncrements];
+                                        newRanges[idx].increment = parseInt(e.target.value) || 0;
+                                        setBidIncrements(newRanges);
+                                    }}
+                                />
+                            </div>
+                        ))}
+
+                        <div className="flex gap-4 mt-4">
+                            <button
+                                className="bg-green-600 hover:bg-green-500 text-white font-bold px-3 py-1 rounded"
+                                onClick={() =>
+                                    setBidIncrements([...bidIncrements, { min_value: 0, max_value: null, increment: 100 }])
+                                }
+                            >
+                                ➕ Add Range
+                            </button>
+
+                            <button
+                                className="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-1 rounded"
+                                onClick={() => setBidIncrements(bidIncrements.slice(0, -1))}
+                                disabled={bidIncrements.length <= 1}
+                            >
+                                🗑️ Remove Last
+                            </button>
+
+                            <button
+                                className="ml-auto bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1 rounded"
+                                onClick={async () => {
+                                    try {
+                                        const res = await fetch(`${API}/api/bid-increments/${CONFIG.TOURNAMENT_ID}`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify(bidIncrements),
+                                        });
+
+                                        if (res.ok) {
+                                            alert("✅ Bid increments saved!");
+                                        } else {
+                                            alert("❌ Failed to save bid increments.");
+                                        }
+                                    } catch (err) {
+                                        console.error("❌ Save failed:", err);
+                                    }
+                                }}
+                            >
+                                💾 Save Settings
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+
 
             <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
@@ -768,7 +926,8 @@ const AdminPanel = () => {
                             onClick={async () => {
                                 setSelectedTeam(team.name);
                                 if (currentPlayer) {
-                                    const newBid = Math.max(bidAmount + 100, currentPlayer.base_price);
+                                    const increment = getDynamicBidIncrement(bidAmount);
+                                    const newBid = Math.max(bidAmount + increment, currentPlayer.base_price);
                                     setUndoStack(prev => [...prev, {
                                         type: "bid",
                                         player: currentPlayer,
@@ -866,6 +1025,14 @@ const AdminPanel = () => {
                         setBidAmount(value);
                     }}
                 />
+                <div className="text-sm text-gray-400 mt-1">
+                    Bid Increments:
+                    {bidIncrements.map((r, i) => (
+                        <div key={i}>
+                            ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <div className="mb-6">
