@@ -28,6 +28,8 @@ const AdminPanel = () => {
     const [bidIncrements, setBidIncrements] = useState([]);
     const [showBidConfig, setShowBidConfig] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
+    const [isLiveAuctionActive, setIsLiveAuctionActive] = useState(true);
+
 
 
 
@@ -747,6 +749,12 @@ const AdminPanel = () => {
         <div className="p-6 bg-gray-900 min-h-screen text-white">
             <h2 className="text-2xl font-bold mb-4">🔧 Admin Auction Panel</h2>
 
+            {isTeamViewActive && (
+                <div className="mb-4 p-3 bg-yellow-200 border-l-4 border-yellow-600 text-yellow-800 rounded shadow animate-pulse">
+                ⚠️ <strong>Squad View Mode Enabled:</strong> Live Auction, Player Search, and Bid Controls are temporarily disabled.
+            </div>
+            )}
+            
             {/* UI to select theme */}
 
             <div className="my-6 border border-gray-700 rounded bg-gray-800">
@@ -925,7 +933,19 @@ const AdminPanel = () => {
                             key={team.id}
                             onClick={async () => {
                                 setSelectedTeam(team.name);
-                                if (currentPlayer) {
+                                
+                                if (isTeamViewActive) {
+                                    // Show the selected team’s squad
+                                    await fetch(`${API}/api/show-team`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ team_id: team.id })
+                                    });
+
+                                    // Turn off live auction since we’re viewing squad
+                                    setIsLiveAuctionActive(false);
+                                    }
+                                if (isTeamViewActive === false && currentPlayer) {
                                     const increment = getDynamicBidIncrement(bidAmount);
                                     const newBid = Math.max(bidAmount + increment, currentPlayer.base_price);
                                     setUndoStack(prev => [...prev, {
@@ -977,16 +997,30 @@ const AdminPanel = () => {
                             const team = teams.find(t => t.name === selectedTeam);
                             if (!team) return;
 
+                            const newState = !isTeamViewActive;
+
+                            if (newState) {
+                            // Turn off live auction if Show Squad is being activated
+                            setIsLiveAuctionActive(false);
                             await fetch(`${API}/api/show-team`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ team_id: isTeamViewActive ? null : team.id })
+                                body: JSON.stringify({ team_id: team.id })
                             });
+                            } else {
+                            // If turning off Show Squad, re-enable Live Auction
+                            setIsLiveAuctionActive(true);
+                            await fetch(`${API}/api/show-team`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ team_id: null })
+                            });
+                            }
 
-                            setIsTeamViewActive(!isTeamViewActive);
+                            setIsTeamViewActive(newState);
                         }}
                         className="sr-only"
-                    />
+                        />
                     <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-gray-400'} relative`}>
                         <div
                             className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
@@ -994,6 +1028,35 @@ const AdminPanel = () => {
                         ></div>
                     </div>
                 </label>
+
+                <label className="flex items-center cursor-pointer space-x-2">
+                    <span className="text-sm">Live Auction</span>
+                    <input
+                        type="checkbox"
+                        checked={isLiveAuctionActive}
+                        onChange={async () => {
+                        const newState = !isLiveAuctionActive;
+
+                        // If turning on Live Auction, turn off Show Squad
+                        if (newState) {
+                            await fetch(`${API}/api/show-team`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ team_id: null })
+                            });
+                            setIsTeamViewActive(false);
+                        }
+
+                        setIsLiveAuctionActive(newState);
+                        }}
+                        className="sr-only"
+                    />
+                    <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-blue-500' : 'bg-gray-400'} relative`}>
+                        <div
+                        className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}
+                        ></div>
+                    </div>
+                    </label>
 
                 <button
                     className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
@@ -1024,15 +1087,16 @@ const AdminPanel = () => {
                         const value = parseInt(e.target.value, 10) || 0;
                         setBidAmount(value);
                     }}
+                    disabled={isTeamViewActive}
                 />
-                <div className="text-sm text-gray-400 mt-1">
+                <div className={`text-sm mt-1 ${isTeamViewActive ? 'text-gray-600' : 'text-gray-400'}`}>
                     Bid Increments:
                     {bidIncrements.map((r, i) => (
                         <div key={i}>
-                            ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
+                        ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
                         </div>
                     ))}
-                </div>
+                    </div>
             </div>
 
             <div className="mb-6">
@@ -1048,12 +1112,14 @@ const AdminPanel = () => {
                     <button
                         onClick={handleSearchById}
                         className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold shadow"
+                        disabled={isTeamViewActive}
                     >
                         🔍 Show Player
                     </button>
                     <button
                         className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
                         onClick={handleNextPlayer}
+                        disabled={isTeamViewActive}
                     >
                         ➡️ Next Player
                     </button>
@@ -1061,6 +1127,7 @@ const AdminPanel = () => {
                     <button
                         className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
                         onClick={clearCurrentPlayer}
+                        disabled={isTeamViewActive}
                     >
                         🚫 Clear Current Player
                     </button>
