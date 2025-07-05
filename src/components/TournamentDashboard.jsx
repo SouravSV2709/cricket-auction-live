@@ -79,9 +79,9 @@ const TournamentDashboard = () => {
                 <h1 className="text-2xl font-bold my-2 text-center">{tournamentName}</h1>
             </div>
 
-            <div className="p-1 mt-1 rounded-xl overflow-hidden shadow-2xl border border-yellow-300">
+            <div className=" mt-1 rounded-xl overflow-hidden shadow-2xl border border-yellow-300">
                 <table className="w-full text-sm table-auto bg-white">
-                    <thead className="bg-gradient-to-r from-yellow-300 to-orange-400 text-black text-xs uppercase tracking-wide text-center text-wrap justify-center mb-2">
+                    <thead className="bg-gradient-to-r from-yellow-300 to-orange-400 text-black text-xs uppercase tracking-wide text-center justify-center mb-2">
                         <tr>
                             <th>Team</th>
                             <th>💰 Purse</th>

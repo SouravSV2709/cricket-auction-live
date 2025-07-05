@@ -233,7 +233,7 @@ const AllPlayerCards = () => {
                             >
                                 <div className="flex justify-center items-center text-black mt-2">
                                     <div className="text-black text-lg font-bold mr-5">
-                                        {player.auction_serial || "-"}
+                                        {player.id || "-"}
                                     </div>
                                     <div className="mt-10">
                                         <img
