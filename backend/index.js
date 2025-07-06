@@ -37,6 +37,12 @@ const pool = new Pool({
 // Log connections
 io.on("connection", (socket) => {
   console.log("✅ Spectator connected via Socket.IO");
+
+  socket.on("bidUpdated", (data) => {
+    console.log("📢 Broadcasting bidUpdated:", data);
+    io.emit("bidUpdated", data); // <--- THIS is what was missing
+  });
+
 });
 
 // Adding themes to the layout

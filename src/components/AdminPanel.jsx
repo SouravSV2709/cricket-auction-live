@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import { useRef } from "react";
 import confetti from "canvas-confetti"; // 🎆 Confetti library
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
@@ -515,6 +517,66 @@ const AdminPanel = () => {
         }
     };
 
+    const socketRef = useRef(null);
+
+    // Inside useEffect, connect only once
+    useEffect(() => {
+        socketRef.current = io(API);
+        window.socket = socketRef.current;
+
+        return () => {
+            socketRef.current.disconnect();
+
+        };
+    }, []);
+
+    const handleTeamClick = (team) => {
+  if (isTeamViewActive) {
+    socketRef.current?.emit("showTeam", {
+      team_id: team.id,
+      empty: team.players?.length === 0
+    });
+    return;
+  }
+
+  if (!isLiveAuctionActive || !currentPlayer) return;
+
+  const base = Number(currentPlayer.base_price || computeBasePrice(currentPlayer));
+
+  console.log("📦 Raw bidAmount state value:", bidAmount, typeof bidAmount);
+  let currentBid = typeof bidAmount === 'number' ? bidAmount : parseInt(bidAmount, 10) || 0;
+  console.log("✅ Parsed currentBid:", currentBid, typeof currentBid);
+
+  if (currentBid < base) {
+    console.log("⏫ Starting from base price:", base);
+    currentBid = base;
+  }
+
+  const increment = getDynamicBidIncrement(currentBid);
+  console.log("➕ Increment to apply:", increment);
+
+  const newBid = currentBid + increment;
+  console.log("💰 New bid to set:", newBid);
+
+  setBidAmount(newBid);
+  setSelectedTeam(team.name);
+
+  fetch(`${API}/api/current-bid`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bid_amount: newBid,
+      team_name: team.name
+    })
+  });
+
+  socketRef.current?.emit("bidUpdated", {
+    bid_amount: newBid,
+    team_name: team.name
+  });
+};
+
+
 
 
     const resetAuction = async () => {
@@ -943,37 +1005,7 @@ const AdminPanel = () => {
                     {teams.map(team => (
                         <button
                             key={team.id}
-                            onClick={async () => {
-                                setSelectedTeam(team.name);
-
-                                if (isTeamViewActive) {
-                                    // Show the selected team’s squad
-                                    await fetch(`${API}/api/show-team`, {
-                                        method: "POST",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ team_id: team.id })
-                                    });
-
-                                    // Turn off live auction since we’re viewing squad
-                                    setIsLiveAuctionActive(false);
-                                }
-                                if (isTeamViewActive === false && currentPlayer) {
-                                    const increment = getDynamicBidIncrement(bidAmount);
-                                    const newBid = Math.max(bidAmount + increment, currentPlayer.base_price);
-                                    setUndoStack(prev => [...prev, {
-                                        type: "bid",
-                                        player: currentPlayer,
-                                        previousBid: bidAmount,
-                                        previousTeam: selectedTeam
-                                    }]);
-                                    setBidAmount(newBid);
-                                    await fetch(`${API}/api/current-bid`, {
-                                        method: "PUT",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ bid_amount: newBid, team_name: team.name })
-                                    });
-                                }
-                            }}
+                            onClick={() => handleTeamClick(team)}
                             className={`flex items-center justify-start gap-1 px-2 py-1 rounded-md border text-xs font-medium transition
           ${selectedTeam === team.name ? "border-green-400 bg-green-900 text-white scale-105" : "border-gray-700 bg-gray-800 text-gray-200"}
           hover:bg-indigo-700 hover:scale-105`}

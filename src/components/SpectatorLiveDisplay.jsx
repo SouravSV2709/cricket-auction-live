@@ -34,7 +34,7 @@ const unsoldMedia = [
 const unsoldAudio = new Audio('/sounds/unsold4.mp3');
 
 
-const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
+const SpectatorLiveDisplay = () => {
     const [player, setPlayer] = useState(null);
     const [teamSummaries, setTeamSummaries] = useState([]);
     const { width, height } = useWindowSize();
@@ -44,6 +44,8 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [unsoldClip, setUnsoldClip] = useState(null);
     const [customView, setCustomView] = useState(null);
     const [theme, setTheme] = useState('default');
+    const [highestBid, setHighestBid] = useState(0);
+    const [leadingTeam, setLeadingTeam] = useState("");
 
     useEffect(() => {
         document.title = "Live1 | Auction Arena";
@@ -295,6 +297,13 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                 setCustomView(null); // fallback
             }
         });
+
+        socket.on("bidUpdated", ({ bid_amount, team_name }) => {
+            console.log("🎯 bidUpdated received:", bid_amount, team_name);
+            setHighestBid(bid_amount);
+            setLeadingTeam(team_name);
+        });
+
 
         return () => socket.disconnect();
     }, []);
