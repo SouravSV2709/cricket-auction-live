@@ -447,55 +447,65 @@ const AdminPanel = () => {
 
 
     const handleSearchById = async () => {
-        try {
-            const res = await fetch(`${API}/api/players/${searchId}`);
-            const player = await res.json();
+    try {
+        const res = await fetch(`${API}/api/players/${searchId}`);
+        const player = await res.json();
 
-            // ✅ Validate tournament_id
-            if (player.tournament_id !== CONFIG.TOURNAMENT_ID) {
-                alert("❌ Player not found in this tournament.");
-                return;
-            }
+        // ✅ Validate tournament_id
+        if (player.tournament_id !== CONFIG.TOURNAMENT_ID) {
+            alert("❌ Player not found in this tournament.");
+            return;
+        }
 
-            const playerWithStatus = {
-                id: player.id,
-                serial: player.auction_serial,
-                name: player.name || "Unknown",
-                role: player.role || "Unknown",
-                base_price: computeBasePrice(player),
-                profile_image: player.profile_image || `https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg`,
-                sold_status: player.sold_status ?? null,
-                team_id: player.team_id ?? null,
-                sold_price: player.sold_price ?? 0
-            };
+        const playerWithStatus = {
+            id: player.id,
+            serial: player.auction_serial,
+            name: player.name || "Unknown",
+            role: player.role || "Unknown",
+            base_price: computeBasePrice(player),
+            profile_image: player.profile_image || `https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg`,
+            sold_status: player.sold_status ?? null,
+            team_id: player.team_id ?? null,
+            sold_price: player.sold_price ?? 0
+        };
 
+        console.log("📦 About to update current player:", playerWithStatus);
 
-            console.log("📦 About to update current player:", playerWithStatus);
-
-            await fetch(`${API}/api/current-player`, {
+        // ✅ Perform updates in parallel
+        await Promise.all([
+            fetch(`${API}/api/current-player`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(playerWithStatus),
-            });
-
-            await fetch(`${API}/api/notify-player-change`, {
-                method: "POST",
+            }),
+            fetch(`${API}/api/current-bid`, {
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(playerWithStatus),
-            });
+                body: JSON.stringify({
+                    bid_amount: 0,
+                    team_name: ""
+                })
+            }),
+        ]);
 
-            console.log("✅ Notified spectators of player change");
+        // 🔔 Notify spectators (non-blocking)
+        fetch(`${API}/api/notify-player-change`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(playerWithStatus),
+        });
 
-            await fetchCurrentPlayer(); // Refresh Admin UI
-            setBidAmount(0);
-            setSelectedTeam('');
+        // ✅ Update Admin UI
+        await fetchCurrentPlayer();
+        setBidAmount(0);
+        setSelectedTeam('');
 
+    } catch (err) {
+        console.error("❌ Error in handleSearchById:", err);
+        alert("❌ Failed to find player. Please try again.");
+    }
+};
 
-        } catch (err) {
-            console.error("❌ Error in handleSearchById:", err);
-            alert("❌ Failed to find player. Please try again.");
-        }
-    };
 
 
     const resetAuction = async () => {
