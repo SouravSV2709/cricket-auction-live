@@ -268,13 +268,13 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         const socket = io(API);
 
         socket.on("playerSold", () => {
-            setTimeout(() => {
-                fetchPlayer();
-                fetchAllPlayers(); // 🆕 refresh player list
-                fetchTeams();      // 🆕 refresh teams (including updated budgets/max_bid)
-            }, 100);
+            fetchPlayer();
+            fetchAllPlayers();
+            fetchTeams();
         });
-        socket.on("playerChanged", () => setTimeout(fetchPlayer, 100));
+
+        socket.on("playerChanged", fetchPlayer);
+
         socket.on("customMessageUpdate", (msg) => {
             if (msg === "__SHOW_TEAM_STATS__") {
                 setCustomView("team-stats");
