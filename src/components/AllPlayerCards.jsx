@@ -19,10 +19,13 @@ const AllPlayerCards = () => {
     const [filterRole, setFilterRole] = useState("");
     const [filterName, setFilterName] = useState("");
     const [filterDistrict, setFilterDistrict] = useState("");
+    const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+
+
 
     useEffect(() => {
-          document.title = "Players | Auction Arena";
-        }, []);
+        document.title = "Players | Auction Arena";
+    }, []);
 
     useEffect(() => {
         const fetchPlayers = async () => {
@@ -47,7 +50,6 @@ const AllPlayerCards = () => {
                 console.error("❌ Error loading players:", err);
             }
         };
-
         fetchPlayers();
     }, [tournamentSlug]);
 
@@ -204,7 +206,7 @@ const AllPlayerCards = () => {
                 </div>
 
                 {/* 🧾 Player Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-1 bg-transparent break-inside-avoid">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-1 px-1">
                     {players
                         .filter(
                             (player) =>
@@ -222,24 +224,36 @@ const AllPlayerCards = () => {
                         .map((player) => (
                             <div
                                 key={player.id}
-                                className="relative rounded-xl text-center font-sans transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-yellow-300 animate-fade-in"
+                                onMouseEnter={() => {
+                                    if (window.innerWidth > 768) setSelectedPlayerId(player.id);
+                                }}
+                                onClick={() => {
+                                    if (window.innerWidth <= 768) {
+                                        setSelectedPlayerId((prevId) => (prevId === player.id ? null : player.id));
+                                    }
+                                }}
+                                className={`relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer
+                                    ${selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"}
+                                `}
                                 style={{
                                     backgroundImage: 'url("/goldenbg.png")',
                                     backgroundSize: "contain",
                                     backgroundPosition: "center",
                                     backgroundRepeat: "no-repeat",
-                                    height: "360px",
+                                    height: "320px",
                                 }}
                             >
-                                <div className="flex justify-center items-center text-black mt-2">
-                                    <div className="text-black text-lg font-bold mr-5">
-                                        {player.id || "-"}
+                                <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100 transition-transform duration-500 ease-in-out">
+                                <div className="absolute top-8 left-8 sm:top-10 sm:left-10 md:top-12 md:left-12">
+                                    <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs md:text-sm font-bold px-2 py-1 rounded-full shadow-lg tracking-wide">
+                                        #{player.id}
+                                    </span>
                                     </div>
-                                    <div className="mt-10">
+                                    <div className="mt-2">
                                         <img
-                                            src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-400,fo-face,z-1`}
+                                            src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
                                             alt={player.name}
-                                            className="w-20 h-45 object-contain mx-auto rounded-lg"
+                                            className="w-32 h-32 object-contain mx-auto rounded-full"
                                             onError={(e) => {
                                                 e.target.onerror = null;
                                                 e.target.src = "/no-image-found.png";
@@ -256,19 +270,20 @@ const AllPlayerCards = () => {
                                             }}
                                         />
                                     </div>
-                                </div>
+                                
 
-                                <div className="text-xs items-center justify-center font-bold text-black uppercase mt-3">
+                                <div className="text-xs items-center justify-center font-bold text-black uppercase mt-1">
                                     {player.name}
                                 </div>
 
-                                <div className="justify-center items-center text-xs text-black font-semibold gap-2 mt-1">
+                                <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}
+                                >
                                     <div>🏏Role: {player.role || "-"}</div>
                                     <div>📍District: {player.district || "-"}</div>
                                 </div>
 
                                 {tournamentLogo && (
-                                    <div className="flex justify-center items-center gap-2 mt-1 animate-pulse">
+                                    <div className="flex justify-center items-center gap-1 animate-pulse">
                                         <img
                                             src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
                                             alt="Tournament Logo"
@@ -280,14 +295,16 @@ const AllPlayerCards = () => {
                                             className="w-10 h-10 object-contain"
                                         />
                                     </div>
+                                    
                                 )}
+                                </div>
                             </div>
                         ))}
                 </div>
 
                 {/* Footer */}
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
-                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                 </footer>
             </div>
         </div>

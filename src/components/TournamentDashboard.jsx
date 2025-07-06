@@ -116,7 +116,7 @@ const TournamentDashboard = () => {
                     </tbody>
                 </table>
             </div>
-            <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
+            <footer className="float bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
             </footer>
         </div>
