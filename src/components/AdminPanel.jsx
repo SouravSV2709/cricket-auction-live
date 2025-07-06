@@ -231,116 +231,116 @@ const AdminPanel = () => {
         alert("Bid updated.");
     };
 
-   const markAsSold = async () => {
-    if (!selectedTeam || bidAmount === 0) {
-        alert("Cannot mark as sold without a valid bid and team.");
-        return;
-    }
+    const markAsSold = async () => {
+        if (!selectedTeam || bidAmount === 0) {
+            alert("Cannot mark as sold without a valid bid and team.");
+            return;
+        }
 
-    if (bidAmount < (currentPlayer.base_price || 0)) {
-        alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
-        return;
-    }
+        if (bidAmount < (currentPlayer.base_price || 0)) {
+            alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
+            return;
+        }
 
-    const team = teams.find(t => t.name === selectedTeam);
-    if (!team) {
-        alert("Team not found!");
-        return;
-    }
+        const team = teams.find(t => t.name === selectedTeam);
+        if (!team) {
+            alert("Team not found!");
+            return;
+        }
 
-    const teamId = team.id;
+        const teamId = team.id;
 
-    // Save undo
-    setUndoStack(prev => [...prev, {
-        type: "sold",
-        player: currentPlayer,
-        teamName: selectedTeam,
-        bidAmount,
-    }]);
+        // Save undo
+        setUndoStack(prev => [...prev, {
+            type: "sold",
+            player: currentPlayer,
+            teamName: selectedTeam,
+            bidAmount,
+        }]);
 
-    // Prepare data
-    const updatedPlayer = {
-        ...currentPlayer,
-        sold_status: "TRUE",
-        team_id: teamId,
-        sold_price: bidAmount,
-        base_price: currentPlayer.base_price || computeBasePrice(currentPlayer)
-    };
+        // Prepare data
+        const updatedPlayer = {
+            ...currentPlayer,
+            sold_status: "TRUE",
+            team_id: teamId,
+            sold_price: bidAmount,
+            base_price: currentPlayer.base_price || computeBasePrice(currentPlayer)
+        };
 
-    const newPlayer = {
-        id: currentPlayer.id,
-        name: currentPlayer.name,
-        role: currentPlayer.role,
-        base_price: currentPlayer.base_price,
-        profile_image: currentPlayer.profile_image,
-        sold_price: bidAmount,
-        sold_status: "TRUE"
-    };
+        const newPlayer = {
+            id: currentPlayer.id,
+            name: currentPlayer.name,
+            role: currentPlayer.role,
+            base_price: currentPlayer.base_price,
+            profile_image: currentPlayer.profile_image,
+            sold_price: bidAmount,
+            sold_status: "TRUE"
+        };
 
-    const updatedTeam = {
-        ...team,
-        players: [...(team.players || []), newPlayer],
-        budget: team.budget - bidAmount
-    };
+        const updatedTeam = {
+            ...team,
+            players: [...(team.players || []), newPlayer],
+            budget: team.budget - bidAmount
+        };
 
-    // ✅ Perform critical updates in parallel
-    await Promise.all([
-        fetch(`${API}/api/current-player`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer)
-        }),
-        fetch(`${API}/api/players/${currentPlayer.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                sold_status: "TRUE",
-                team_id: teamId,
-                sold_price: bidAmount
+        // ✅ Perform critical updates in parallel
+        await Promise.all([
+            fetch(`${API}/api/current-player`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedPlayer)
+            }),
+            fetch(`${API}/api/players/${currentPlayer.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sold_status: "TRUE",
+                    team_id: teamId,
+                    sold_price: bidAmount
+                })
+            }),
+            fetch(`${API}/api/teams/${team.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedTeam)
+            }),
+            fetch(`${API}/api/current-bid`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bid_amount: 0, team_name: "" })
             })
-        }),
-        fetch(`${API}/api/teams/${team.id}`, {
-            method: "PUT",
+        ]);
+
+        // 🚀 Fire notifications (non-blocking, async side-effects)
+        fetch(`${API}/api/notify-sold`, {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedTeam)
-        }),
-        fetch(`${API}/api/current-bid`, {
-            method: "PUT",
+            body: JSON.stringify(updatedPlayer),
+        });
+
+        fetch(`${API}/api/notify-player-change`, {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bid_amount: 0, team_name: "" })
-        })
-    ]);
+            body: JSON.stringify(updatedPlayer),
+        });
 
-    // 🚀 Fire notifications (non-blocking, async side-effects)
-    fetch(`${API}/api/notify-sold`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedPlayer),
-    });
+        // 🎉 Visual feedback
+        confetti({
+            particleCount: 150,
+            spread: 100,
+            origin: { y: 0.6 },
+            colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
+        });
 
-    fetch(`${API}/api/notify-player-change`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedPlayer),
-    });
+        alert("🎉 Player SOLD and team updated!");
 
-    // 🎉 Visual feedback
-    confetti({
-        particleCount: 150,
-        spread: 100,
-        origin: { y: 0.6 },
-        colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
-    });
-
-    alert("🎉 Player SOLD and team updated!");
-
-    // 🔄 Update local state
-    setBidAmount(0);
-    setSelectedTeam('');
-    fetchPlayers();
-    fetchTeams(CONFIG.TOURNAMENT_ID);
-    fetchCurrentPlayer();
-};
+        // 🔄 Update local state
+        setBidAmount(0);
+        setSelectedTeam('');
+        fetchPlayers();
+        fetchTeams(CONFIG.TOURNAMENT_ID);
+        fetchCurrentPlayer();
+    };
 
 
     const markAsUnsold = async () => {
@@ -385,126 +385,135 @@ const AdminPanel = () => {
     const handleNextPlayer = async () => {
         const tournamentId = CONFIG.TOURNAMENT_ID;
 
-        const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
-        const allPlayers = await res.json();
+        try {
+            // 1. Get all players once
+            const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
+            const allPlayers = await res.json();
 
-        const unprocessedPlayers = allPlayers.filter(
-            p =>
-                !["TRUE", "FALSE", true, false, "true", "false"].includes(p.sold_status) &&
-                !p.deleted_at // make sure deleted_at is null or undefined
-        );
+            // 2. Filter unprocessed players
+            const unprocessedPlayers = allPlayers.filter(
+                p =>
+                    !["TRUE", "FALSE", true, false, "true", "false"].includes(p.sold_status) &&
+                    !p.deleted_at
+            );
 
-        if (unprocessedPlayers.length === 0) {
-            alert("✅ All players have been auctioned.");
-            return;
+            if (unprocessedPlayers.length === 0) {
+                alert("✅ All players have been auctioned.");
+                return;
+            }
+
+            // ✅ 3. Pick a random player from unprocessed ones
+            const nextBasic = unprocessedPlayers[Math.floor(Math.random() * unprocessedPlayers.length)];
+
+            // 4. Fetch full details
+            const detailedRes = await fetch(`${API}/api/players/${nextBasic.id}`);
+            const nextPlayer = await detailedRes.json();
+            nextPlayer.base_price = computeBasePrice(nextPlayer);
+
+            // 5. Save undo state
+            setUndoStack(prev => [...prev, {
+                type: "next",
+                player: currentPlayer
+            }]);
+
+            // 6. Update current player and bid in parallel
+            await Promise.all([
+                fetch(`${API}/api/current-player`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(nextPlayer)
+                }),
+                fetch(`${API}/api/current-bid`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        bid_amount: 0,
+                        team_name: ""
+                    })
+                })
+            ]);
+
+            // 7. Notify spectator screen (non-blocking)
+            fetch(`${API}/api/notify-player-change`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(nextPlayer),
+            });
+
+            // 8. Update admin UI
+            setPlayers(allPlayers);
+            setCurrentPlayer(nextPlayer);
+            setBidAmount(0);
+            setSelectedTeam('');
+
+        } catch (err) {
+            console.error("❌ Error in handleNextPlayer:", err);
+            alert("❌ Could not load next player.");
         }
-
-        const nextBasic = unprocessedPlayers[0];
-
-        // ✅ Fetch full enriched player details (with full image + base price)
-        const detailedRes = await fetch(`${API}/api/players/${nextBasic.id}`);
-        const nextPlayer = await detailedRes.json();
-        nextPlayer.base_price = computeBasePrice(nextPlayer);
-
-
-        // Save undo
-        setUndoStack(prev => [...prev, {
-            type: "next",
-            player: currentPlayer
-        }]);
-
-        // Set current-player
-        await fetch(`${API}/api/current-player`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nextPlayer)
-        });
-
-
-        // Reset current bid
-        await fetch(`${API}/api/current-bid`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                bid_amount: 0,
-                team_name: ""
-            })
-        });
-
-        // Notify Spectators
-        await fetch(`${API}/api/notify-player-change`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(nextPlayer),
-        });
-
-
-        setPlayers(allPlayers);
-        setCurrentPlayer(nextPlayer); // ✅ Proper data with full image and base price
-        setBidAmount(0);
-        setSelectedTeam('');
     };
 
 
+
+
     const handleSearchById = async () => {
-    try {
-        const res = await fetch(`${API}/api/players/${searchId}`);
-        const player = await res.json();
+        try {
+            const res = await fetch(`${API}/api/players/${searchId}`);
+            const player = await res.json();
 
-        // ✅ Validate tournament_id
-        if (player.tournament_id !== CONFIG.TOURNAMENT_ID) {
-            alert("❌ Player not found in this tournament.");
-            return;
-        }
+            // ✅ Validate tournament_id
+            if (player.tournament_id !== CONFIG.TOURNAMENT_ID) {
+                alert("❌ Player not found in this tournament.");
+                return;
+            }
 
-        const playerWithStatus = {
-            id: player.id,
-            serial: player.auction_serial,
-            name: player.name || "Unknown",
-            role: player.role || "Unknown",
-            base_price: computeBasePrice(player),
-            profile_image: player.profile_image || `https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg`,
-            sold_status: player.sold_status ?? null,
-            team_id: player.team_id ?? null,
-            sold_price: player.sold_price ?? 0
-        };
+            const playerWithStatus = {
+                id: player.id,
+                serial: player.auction_serial,
+                name: player.name || "Unknown",
+                role: player.role || "Unknown",
+                base_price: computeBasePrice(player),
+                profile_image: player.profile_image || `https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg`,
+                sold_status: player.sold_status ?? null,
+                team_id: player.team_id ?? null,
+                sold_price: player.sold_price ?? 0
+            };
 
-        console.log("📦 About to update current player:", playerWithStatus);
+            console.log("📦 About to update current player:", playerWithStatus);
 
-        // ✅ Perform updates in parallel
-        await Promise.all([
-            fetch(`${API}/api/current-player`, {
-                method: "PUT",
+            // ✅ Perform updates in parallel
+            await Promise.all([
+                fetch(`${API}/api/current-player`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(playerWithStatus),
+                }),
+                fetch(`${API}/api/current-bid`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        bid_amount: 0,
+                        team_name: ""
+                    })
+                }),
+            ]);
+
+            // 🔔 Notify spectators (non-blocking)
+            fetch(`${API}/api/notify-player-change`, {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(playerWithStatus),
-            }),
-            fetch(`${API}/api/current-bid`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    bid_amount: 0,
-                    team_name: ""
-                })
-            }),
-        ]);
+            });
 
-        // 🔔 Notify spectators (non-blocking)
-        fetch(`${API}/api/notify-player-change`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(playerWithStatus),
-        });
+            // ✅ Update Admin UI
+            await fetchCurrentPlayer();
+            setBidAmount(0);
+            setSelectedTeam('');
 
-        // ✅ Update Admin UI
-        await fetchCurrentPlayer();
-        setBidAmount(0);
-        setSelectedTeam('');
-
-    } catch (err) {
-        console.error("❌ Error in handleSearchById:", err);
-        alert("❌ Failed to find player. Please try again.");
-    }
-};
+        } catch (err) {
+            console.error("❌ Error in handleSearchById:", err);
+            alert("❌ Failed to find player. Please try again.");
+        }
+    };
 
 
 
@@ -754,10 +763,10 @@ const AdminPanel = () => {
 
             {isTeamViewActive && (
                 <div className="mb-4 p-3 bg-yellow-200 border-l-4 border-yellow-600 text-yellow-800 rounded shadow animate-pulse">
-                ⚠️ <strong>Squad View Mode Enabled:</strong> Live Auction, Player Search, and Bid Controls are temporarily disabled.
-            </div>
+                    ⚠️ <strong>Squad View Mode Enabled:</strong> Live Auction, Player Search, and Bid Controls are temporarily disabled.
+                </div>
             )}
-            
+
             {/* UI to select theme */}
 
             <div className="my-6 border border-gray-700 rounded bg-gray-800">
@@ -936,7 +945,7 @@ const AdminPanel = () => {
                             key={team.id}
                             onClick={async () => {
                                 setSelectedTeam(team.name);
-                                
+
                                 if (isTeamViewActive) {
                                     // Show the selected team’s squad
                                     await fetch(`${API}/api/show-team`, {
@@ -947,7 +956,7 @@ const AdminPanel = () => {
 
                                     // Turn off live auction since we’re viewing squad
                                     setIsLiveAuctionActive(false);
-                                    }
+                                }
                                 if (isTeamViewActive === false && currentPlayer) {
                                     const increment = getDynamicBidIncrement(bidAmount);
                                     const newBid = Math.max(bidAmount + increment, currentPlayer.base_price);
@@ -1003,27 +1012,27 @@ const AdminPanel = () => {
                             const newState = !isTeamViewActive;
 
                             if (newState) {
-                            // Turn off live auction if Show Squad is being activated
-                            setIsLiveAuctionActive(false);
-                            await fetch(`${API}/api/show-team`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ team_id: team.id })
-                            });
+                                // Turn off live auction if Show Squad is being activated
+                                setIsLiveAuctionActive(false);
+                                await fetch(`${API}/api/show-team`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ team_id: team.id })
+                                });
                             } else {
-                            // If turning off Show Squad, re-enable Live Auction
-                            setIsLiveAuctionActive(true);
-                            await fetch(`${API}/api/show-team`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ team_id: null })
-                            });
+                                // If turning off Show Squad, re-enable Live Auction
+                                setIsLiveAuctionActive(true);
+                                await fetch(`${API}/api/show-team`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ team_id: null })
+                                });
                             }
 
                             setIsTeamViewActive(newState);
                         }}
                         className="sr-only"
-                        />
+                    />
                     <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-gray-400'} relative`}>
                         <div
                             className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
@@ -1038,28 +1047,28 @@ const AdminPanel = () => {
                         type="checkbox"
                         checked={isLiveAuctionActive}
                         onChange={async () => {
-                        const newState = !isLiveAuctionActive;
+                            const newState = !isLiveAuctionActive;
 
-                        // If turning on Live Auction, turn off Show Squad
-                        if (newState) {
-                            await fetch(`${API}/api/show-team`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ team_id: null })
-                            });
-                            setIsTeamViewActive(false);
-                        }
+                            // If turning on Live Auction, turn off Show Squad
+                            if (newState) {
+                                await fetch(`${API}/api/show-team`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ team_id: null })
+                                });
+                                setIsTeamViewActive(false);
+                            }
 
-                        setIsLiveAuctionActive(newState);
+                            setIsLiveAuctionActive(newState);
                         }}
                         className="sr-only"
                     />
                     <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-blue-500' : 'bg-gray-400'} relative`}>
                         <div
-                        className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}
+                            className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}
                         ></div>
                     </div>
-                    </label>
+                </label>
 
                 <button
                     className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
@@ -1096,10 +1105,10 @@ const AdminPanel = () => {
                     Bid Increments:
                     {bidIncrements.map((r, i) => (
                         <div key={i}>
-                        ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
+                            ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
                         </div>
                     ))}
-                    </div>
+                </div>
             </div>
 
             <div className="mb-6">
@@ -1183,30 +1192,30 @@ const AdminPanel = () => {
                 <button
                     onClick={async () => {
                         await fetch(`${API}/api/custom-message`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ message: "__SHOW_TEAM_STATS__" }),
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ message: "__SHOW_TEAM_STATS__" }),
                         });
                         alert("📊 Showing Team Statistics...");
                     }}
                     className="bg-teal-500 hover:bg-teal-400 text-black font-bold px-4 py-2 m-2 rounded shadow"
-                    >
+                >
                     📊 Show Team Stats
-                    </button>
+                </button>
 
-                    <button
-                        onClick={async () => {
-                            await fetch(`${API}/api/custom-message`, {
+                <button
+                    onClick={async () => {
+                        await fetch(`${API}/api/custom-message`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__" }),
-                            });
-                            alert("✅ Cleared custom view. Back to live mode.");
-                        }}
-                        className="bg-red-500 hover:bg-red-400 text-white font-bold px-4 py-2 m-1 rounded shadow"
-                        >
-                        🔄 Clear Custom View
-                        </button>
+                        });
+                        alert("✅ Cleared custom view. Back to live mode.");
+                    }}
+                    className="bg-red-500 hover:bg-red-400 text-white font-bold px-4 py-2 m-1 rounded shadow"
+                >
+                    🔄 Clear Custom View
+                </button>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
@@ -1254,7 +1263,7 @@ const AdminPanel = () => {
                         try {
                             setResetInProgress(true);
                             await resetAuction();
-                        // 🔔 Notify spectators to refresh team stats
+                            // 🔔 Notify spectators to refresh team stats
                             await fetch(`${API}/api/custom-message`, {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
