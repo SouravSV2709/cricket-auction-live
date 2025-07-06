@@ -244,7 +244,7 @@ const AllPlayerCards = () => {
                                 }}
                             >
                                 <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100 transition-transform duration-500 ease-in-out">
-                                <div className="absolute top-8 left-8 sm:top-10 sm:left-10 md:top-12 md:left-12">
+                                <div className="absolute top-12 left-8 sm:top-12 sm:left-10 md:top-12 md:left-12">
                                     <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs md:text-sm font-bold px-2 py-1 rounded-full shadow-lg tracking-wide">
                                         #{player.id}
                                     </span>
@@ -253,7 +253,7 @@ const AllPlayerCards = () => {
                                         <img
                                             src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
                                             alt={player.name}
-                                            className="w-32 h-32 object-contain mx-auto rounded-full"
+                                            className={`object-contain mx-auto rounded-full ${selectedPlayerId === player.id ? "w-24 h-24 sm:w-24 sm:h-24 md:w-32 md:h-32"  : "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24"}`}
                                             onError={(e) => {
                                                 e.target.onerror = null;
                                                 e.target.src = "/no-image-found.png";
@@ -278,8 +278,8 @@ const AllPlayerCards = () => {
 
                                 <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}
                                 >
-                                    <div>🏏Role: {player.role || "-"}</div>
-                                    <div>📍District: {player.district || "-"}</div>
+                                    <div>Role: {player.role || "-"}</div>
+                                    <div>District: {player.district || "-"}</div>
                                 </div>
 
                                 {tournamentLogo && (
