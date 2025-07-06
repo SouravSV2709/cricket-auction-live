@@ -1176,6 +1176,34 @@ const AdminPanel = () => {
                 >
                     🚀 Show on Spectator
                 </button>
+
+                <button
+                    onClick={async () => {
+                        await fetch(`${API}/api/custom-message`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ message: "__SHOW_TEAM_STATS__" }),
+                        });
+                        alert("📊 Showing Team Statistics...");
+                    }}
+                    className="bg-teal-500 hover:bg-teal-400 text-black font-bold px-4 py-2 m-2 rounded shadow"
+                    >
+                    📊 Show Team Stats
+                    </button>
+
+                    <button
+                        onClick={async () => {
+                            await fetch(`${API}/api/custom-message`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__" }),
+                            });
+                            alert("✅ Cleared custom view. Back to live mode.");
+                        }}
+                        className="bg-red-500 hover:bg-red-400 text-white font-bold px-4 py-2 m-1 rounded shadow"
+                        >
+                        🔄 Clear Custom View
+                        </button>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
@@ -1223,6 +1251,14 @@ const AdminPanel = () => {
                         try {
                             setResetInProgress(true);
                             await resetAuction();
+                        // 🔔 Notify spectators to refresh team stats
+                            await fetch(`${API}/api/custom-message`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ message: "__RESET_AUCTION__" }),
+                            });
+
+
                             alert("✅ Auction reset successfully.");
                         } catch (err) {
                             console.error("Error during auction reset:", err);

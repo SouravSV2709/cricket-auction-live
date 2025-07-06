@@ -116,12 +116,12 @@ const TournamentDashboard = () => {
         {teams.map((team, idx) => {
           const teamPlayers = players.filter(
             (p) => Number(p.team_id) === Number(team.id)
-          );
-          const totalSpent = teamPlayers.reduce(
-            (sum, p) => sum + (p.sold_price || 0),
-            0
-          );
-          const remainingPurse = (team.budget || 0) - totalSpent;
+            );
+            const totalSpent = teamPlayers.reduce(
+            (sum, p) => sum + (Number(p.sold_price) || 0), 0
+            );
+            const remainingPurse = Math.max((team.budget || 0) - totalSpent, 0);
+
           const playersBought = team.bought_count || 0;
           const playersLeftToBuy = (totalPlayersToBuy || 14) - playersBought;
 
