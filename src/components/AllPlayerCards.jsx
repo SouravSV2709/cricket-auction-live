@@ -6,6 +6,7 @@ import { Listbox } from "@headlessui/react";
 import { Fragment } from "react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import Navbar from "../components/Navbar";
+import { FixedSizeGrid as Grid } from "react-window";
 
 const API = CONFIG.API_BASE_URL;
 
@@ -285,11 +286,13 @@ const AllPlayerCards = () => {
                                     {tournamentLogo && (
                                         <div className="flex justify-center items-center gap-1 animate-pulse">
                                             <img
+                                                loading="lazy"
                                                 src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
                                                 alt="Tournament Logo"
                                                 className="w-14 h-14 object-contain rounded-lg"
                                             />
                                             <img
+                                                loading="lazy"
                                                 src="/AuctionArena2.png"
                                                 alt="Auction Arena"
                                                 className="w-10 h-10 object-contain"

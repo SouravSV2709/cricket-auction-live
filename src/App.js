@@ -5,6 +5,7 @@ import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
 import CONFIG from './components/config';
 import AllPlayerCards from './components/AllPlayerCards';
+import AllPlayerCards2 from './components/AllPlayerCards2';
 import AllTeamCards from './components/AllTeamCards';
 import TournamentDashboard from "./components/TournamentDashboard";
 
@@ -125,6 +126,11 @@ function App() {
         <Route path="/tournament/:tournamentSlug"
          element={<TournamentDashboard />} 
          />
+
+         <Route
+          path="/player-cards2/:tournamentSlug"
+          element={<AllPlayerCards2 />}
+        />
 
 
       </Routes>
