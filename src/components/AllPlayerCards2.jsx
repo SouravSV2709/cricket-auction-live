@@ -60,7 +60,7 @@ const AllPlayerCards = () => {
         if (windowWidth < 768) return 3;
         if (windowWidth < 1024) return 4;
         if (windowWidth < 1280) return 5;
-        return 6;
+        return 7;
     };
 
     const uniqueRoles = [...new Set(players.map((p) => p.role).filter(Boolean))];
@@ -154,7 +154,7 @@ const AllPlayerCards = () => {
     return (
         <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
             <Navbar tournamentSlug={tournamentSlug} />
-            <div className="pt-16">
+            <div className="pt-8">
                 <div className="flex items-center justify-center my-8">
                     {tournamentLogo && (
                         <img
@@ -255,7 +255,7 @@ const AllPlayerCards = () => {
                 <Grid
                     columnCount={columnCount}
                     columnWidth={columnWidth}
-                    height={700}
+  height={window.innerHeight - 300} // or use a state that updates on resize
                     rowCount={rowCount}
                     rowHeight={340}
                     width={windowWidth - 20}
