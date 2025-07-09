@@ -351,7 +351,7 @@ const AllPlayerCards = () => {
     );
 
     return (
-        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
+        <div className="min-h-screen overflow-hidden text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
 
 
             {errorMessage && (
@@ -509,12 +509,12 @@ const AllPlayerCards = () => {
                             </div>
                         </div>
 
-
+                    <div className="pb-24">
                         <div id="player-cards-container">
                             <Grid
                                 columnCount={columnCount}
                                 columnWidth={columnWidth}
-                                height={window.innerHeight - 300}
+                                height={Math.max(window.innerHeight - 250, 400)}
                                 rowCount={rowCount}
                                 rowHeight={340}
                                 width={windowWidth - 20}
@@ -525,6 +525,7 @@ const AllPlayerCards = () => {
                                     return player ? <PlayerCard key={player.id} player={player} style={style} /> : null;
                                 }}
                             </Grid>
+                        </div>
                         </div>
 
                         <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
