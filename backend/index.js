@@ -13,19 +13,24 @@ dotenv.config();
 const TOURNAMENT_ID = CONFIG.TOURNAMENT_ID;
 
 
-
 const app = express();
 const port = CONFIG.PORT;
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
+    origin: ["https://arena.auctionarena.live", "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ["https://arena.auctionarena.live", "http://localhost:3000"],
+  credentials: true
+}));
 app.use(express.json());
 
 // PostgreSQL Connection
