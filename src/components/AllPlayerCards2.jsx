@@ -31,6 +31,8 @@ const AllPlayerCards = () => {
     const [errorMessage, setErrorMessage] = useState("");
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+    const [showToast, setShowToast] = useState(false);
+
 
 
 
@@ -217,10 +219,10 @@ const AllPlayerCards = () => {
         pdf.save("AllPlayerCards-Final.pdf");
         console.log("🎉 PDF download completed.");
         setIsDownloading(false);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000); // Hide after 3 seconds
 
     };
-
-
 
     useEffect(() => {
         document.title = "Players | Auction Arena";
@@ -349,7 +351,7 @@ const AllPlayerCards = () => {
     );
 
     return (
-        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
+        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
 
 
             {errorMessage && (
@@ -361,8 +363,8 @@ const AllPlayerCards = () => {
             {!errorMessage && (
                 <>
                     <Navbar tournamentSlug={tournamentSlug} />
-                    <div className="pt-8">
-                        <div className="flex items-center justify-center my-8">
+                    <div className="pt-4">
+                        <div className="flex items-center justify-center my-2">
                             {tournamentLogo && (
                                 <img
                                     src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
@@ -468,6 +470,12 @@ const AllPlayerCards = () => {
 
                         </div>
 
+                        <div className="text-center my-4">
+                            <span className="bg-black text-yellow-300 px-4 py-2 rounded-full shadow-md font-semibold text-sm">
+                                {filteredPlayers.length} player{filteredPlayers.length !== 1 ? "s" : ""} found
+                            </span>
+                        </div>
+
                         <div id="pdf-cards-clone" style={{ position: "absolute", top: "-9999px", left: "-9999px", width: "1000px" }} ref={pdfRef}>
                         {/* <div
                             id="pdf-cards-clone"
@@ -519,10 +527,6 @@ const AllPlayerCards = () => {
                             </Grid>
                         </div>
 
-
-
-
-
                         <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
                             🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                         </footer>
@@ -535,6 +539,13 @@ const AllPlayerCards = () => {
                 📥 Downloading Page {downloadProgress.current} of {downloadProgress.total}...
             </div>
             )}
+
+            {showToast && (
+            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg z-[99999] animate-bounce">
+                ✅ All Player Cards PDF Downloaded!
+            </div>
+            )}
+
 
         </div>
     );
