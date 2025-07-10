@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import CONFIG from "../components/config";
 import { Listbox } from "@headlessui/react";
@@ -18,6 +18,8 @@ const AllTeamCards = () => {
     const [playersPerTeam, setPlayersPerTeam] = useState(0);
     const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
+    const fetchPlayersRef = useRef(false);
+
 
     useEffect(() => {
         document.title = "Teams | Auction Arena";
@@ -25,6 +27,9 @@ const AllTeamCards = () => {
 
     useEffect(() => {
         const fetchData = async () => {
+            if (fetchPlayersRef.current) return; // Skip repeated calls
+            fetchPlayersRef.current = true;
+
             try {
                 const tournamentRes = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
                 const tournamentData = await tournamentRes.json();

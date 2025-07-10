@@ -37,6 +37,7 @@ const AllPlayerCards = () => {
 
 
     const pdfRef = useRef();
+    const fetchPlayersRef = useRef(false);
 
     const filteredPlayers = players.filter(
         (player) =>
@@ -235,6 +236,10 @@ const AllPlayerCards = () => {
     }, []);
 
     useEffect(() => {
+
+        if (fetchPlayersRef.current) return; // Skip repeated calls
+        fetchPlayersRef.current = true;
+
         const fetchPlayers = async () => {
             try {
                 const tournamentRes = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);

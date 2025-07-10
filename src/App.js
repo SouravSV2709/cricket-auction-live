@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import AdminPanel from './components/AdminPanel';
 import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
@@ -9,60 +9,57 @@ import AllPlayerCards2 from './components/AllPlayerCards2';
 import AllTeamCards from './components/AllTeamCards';
 import TournamentDashboard from "./components/TournamentDashboard";
 
-
 const API = CONFIG.API_BASE_URL;
 
-
-function App() {
-  const [players, setPlayers] = useState([]);
+const AppWrapper = () => {
   const [currentPlayer, setCurrentPlayer] = useState(null);
   const [currentBid, setCurrentBid] = useState({ bid_amount: 0, team_name: '' });
   const [teams, setTeams] = useState([]);
 
-  const tournamentId = 1; // or dynamic from login/session
+  const location = useLocation();
 
-  const fetchData = async () => {
-  try {
-    const [playersRes, currentPlayerRes, currentBidRes, teamsRes] = await Promise.all([
-      fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`),
-      fetch(`${API}/api/current-player`),
-      fetch(`${API}/api/current-bid`),
-      fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
-    ]);
-
-    const players = await playersRes.json();
-
-    // Safely parse currentPlayer
-    let currentPlayer = null;
-    if (currentPlayerRes.ok) {
-      const text = await currentPlayerRes.text();
-      if (text) currentPlayer = JSON.parse(text);
-    }
-
-    // Safely parse currentBid
-    let currentBid = { bid_amount: 0, team_name: '' };
-    if (currentBidRes.ok) {
-      const text = await currentBidRes.text();
-      if (text) currentBid = JSON.parse(text);
-    }
-
-    const teams = await teamsRes.json();
-
-    setPlayers(players);
-    setCurrentPlayer(currentPlayer);
-    setCurrentBid(currentBid);
-    setTeams(teams);
-  } catch (err) {
-    console.error("Failed to fetch data from backend", err);
-  }
-};
-
-
+  // 👇 Only poll current-player and current-bid on auction-related screens
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 3000); // refresh every 3 seconds
+    const isAuctionPage = location.pathname.startsWith("/spectator");
+
+    if (!isAuctionPage) return;
+
+    const fetchLiveAuctionData = async () => {
+      try {
+        const [currentPlayerRes, currentBidRes, teamsRes] = await Promise.all([
+          fetch(`${API}/api/current-player`),
+          fetch(`${API}/api/current-bid`),
+          fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
+        ]);
+
+        // Parse currentPlayer
+        let currentPlayer = null;
+        if (currentPlayerRes.ok) {
+          const text = await currentPlayerRes.text();
+          if (text) currentPlayer = JSON.parse(text);
+        }
+
+        // Parse currentBid
+        let currentBid = { bid_amount: 0, team_name: '' };
+        if (currentBidRes.ok) {
+          const text = await currentBidRes.text();
+          if (text) currentBid = JSON.parse(text);
+        }
+
+        const teams = await teamsRes.json();
+
+        setCurrentPlayer(currentPlayer);
+        setCurrentBid(currentBid);
+        setTeams(teams);
+      } catch (err) {
+        console.error("Failed to fetch live auction data", err);
+      }
+    };
+
+    fetchLiveAuctionData();
+    const interval = setInterval(fetchLiveAuctionData, 3000); // refresh every 3 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [location.pathname]);
 
   const clapAudio = new Audio("clapping.wav");
   let audioUnlocked = false;
@@ -70,7 +67,7 @@ function App() {
   const unlockAudio = () => {
     if (!audioUnlocked) {
       clapAudio.play().then(() => {
-        clapAudio.pause(); // immediately pause
+        clapAudio.pause();
         clapAudio.currentTime = 0;
         audioUnlocked = true;
       }).catch(() => { });
@@ -87,55 +84,44 @@ function App() {
     };
   }, []);
 
-
   return (
-    <Router>
-      <Routes>
-        <Route path="/:tournamentSlug" element={<AdminPanel />} />
-        <Route
-          path="/spectator/:tournamentSlug"
-          element={
-            <SpectatorLiveDisplay
-              player={currentPlayer}
-              highestBid={currentBid.bid_amount}
-              leadingTeam={currentBid.team_name}
-              teamSummaries={teams}
-            />
-          }
-        />
-        <Route
-          path="/spectator2/:tournamentSlug"
-          element={
-            <SpectatorLiveDisplay2
-              player={currentPlayer}
-              highestBid={currentBid.bid_amount}
-              leadingTeam={currentBid.team_name}
-              teamSummaries={teams}
-            />
-          }
-        />
-        <Route
-          path="/player-cards/:tournamentSlug"
-          element={<AllPlayerCards />}
-        />
-
-        <Route path="/team-cards/:tournamentSlug" 
-        element={<AllTeamCards />} 
-        />
-
-        <Route path="/tournament/:tournamentSlug"
-         element={<TournamentDashboard />} 
-         />
-
-         <Route
-          path="/player-cards2/:tournamentSlug"
-          element={<AllPlayerCards2 />}
-        />
-
-
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/:tournamentSlug" element={<AdminPanel />} />
+      <Route
+        path="/spectator/:tournamentSlug"
+        element={
+          <SpectatorLiveDisplay
+            player={currentPlayer}
+            highestBid={currentBid.bid_amount}
+            leadingTeam={currentBid.team_name}
+            teamSummaries={teams}
+          />
+        }
+      />
+      <Route
+        path="/spectator2/:tournamentSlug"
+        element={
+          <SpectatorLiveDisplay2
+            player={currentPlayer}
+            highestBid={currentBid.bid_amount}
+            leadingTeam={currentBid.team_name}
+            teamSummaries={teams}
+          />
+        }
+      />
+      <Route path="/player-cards/:tournamentSlug" element={<AllPlayerCards />} />
+      <Route path="/player-cards2/:tournamentSlug" element={<AllPlayerCards2 />} />
+      <Route path="/team-cards/:tournamentSlug" element={<AllTeamCards />} />
+      <Route path="/tournament/:tournamentSlug" element={<TournamentDashboard />} />
+    </Routes>
   );
-}
+};
+
+// 👇 Main entry with router
+const App = () => (
+  <Router>
+    <AppWrapper />
+  </Router>
+);
 
 export default App;

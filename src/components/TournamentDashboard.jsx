@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import CONFIG from "../components/config";
@@ -54,20 +54,21 @@ const TournamentDashboard = () => {
     return () => clearInterval(interval);
   }, [tournamentSlug]);
 
-  useEffect(() => {
-    const tick = setInterval(() => {
-      setLastUpdated((prev) => (prev ? new Date(prev) : null));
-    }, 1000);
-    return () => clearInterval(tick);
-  }, []);
+  // Refresh code
+  // useEffect(() => {
+  //   const tick = setInterval(() => {
+  //     setLastUpdated((prev) => (prev ? new Date(prev) : null));
+  //   }, 1000);
+  //   return () => clearInterval(tick);
+  // }, []);
 
-  const getTimeAgo = () => {
-    if (!lastUpdated) return "Never";
-    const seconds = Math.floor((new Date() - lastUpdated) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ${seconds % 60}s ago`;
-  };
+  // const getTimeAgo = () => {
+  //   if (!lastUpdated) return "Never";
+  //   const seconds = Math.floor((new Date() - lastUpdated) / 1000);
+  //   if (seconds < 60) return `${seconds}s ago`;
+  //   const minutes = Math.floor(seconds / 60);
+  //   return `${minutes}m ${seconds % 60}s ago`;
+  // };
 
   const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString()}`;
 
@@ -102,7 +103,7 @@ const TournamentDashboard = () => {
           />
         )}
         <h1 className="text-2xl font-bold my-2 text-center">{tournamentName}</h1>
-        <p className="text-xs font-bold text-black-600 mt-1">Last updated: {getTimeAgo()}</p>
+        {/* <p className="text-xs font-bold text-black-600 mt-1">Last updated: {getTimeAgo()}</p> */}
       </div>
 
       <div className="max-w-4xl mx-auto px-2 space-y-2 mt-2">
