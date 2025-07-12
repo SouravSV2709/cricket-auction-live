@@ -1065,7 +1065,7 @@ const AdminPanel = () => {
                         }}
                         className="sr-only"
                     />
-                    <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-gray-400'} relative`}>
+                    <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-red-400'} relative`}>
                         <div
                             className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
                                 }`}
@@ -1095,7 +1095,7 @@ const AdminPanel = () => {
                         }}
                         className="sr-only"
                     />
-                    <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-blue-500' : 'bg-gray-400'} relative`}>
+                    <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-blue-500' : 'bg-red-400'} relative`}>
                         <div
                             className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}
                         ></div>
@@ -1103,19 +1103,19 @@ const AdminPanel = () => {
                 </label>
 
                 <button
-                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
+                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-2 py-2 rounded shadow"
                     onClick={markAsSold}
                     disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
                 >
-                    ✅ Mark as SOLD
+                    ✅ SOLD
                 </button>
 
                 <button
-                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded shadow"
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-2 py-2 rounded shadow"
                     onClick={markAsUnsold}
                     disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
                 >
-                    ❌ Mark as UNSOLD
+                    ❌ UNSOLD
                 </button>
             </div>
 
