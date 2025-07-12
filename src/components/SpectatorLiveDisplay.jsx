@@ -110,7 +110,7 @@ const SpectatorLiveDisplay = () => {
 
     const fetchPlayer = async () => {
         try {
-            setIsLoading(true); // ✅ Start loader
+            // setIsLoading(true); // ✅ Start loader
             const res = await fetch(`${API}/api/current-player`);
             let basic = null;
 
@@ -278,7 +278,11 @@ const SpectatorLiveDisplay = () => {
             fetchTeams();
         });
 
-        socket.on("playerChanged", fetchPlayer);
+        socket.on("playerChanged", () => {
+        setIsLoading(true);       // ✅ Trigger loader ONLY when player changes
+        fetchPlayer();
+        });
+
 
         socket.on("customMessageUpdate", (msg) => {
             if (msg === "__SHOW_TEAM_STATS__") {
