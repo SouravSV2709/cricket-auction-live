@@ -1028,12 +1028,28 @@ const AdminPanel = () => {
                     </div>
                 )}
             </div>
+                <div className="flex items-center space-x-4">
+             <button
+                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-2 py-2 rounded shadow"
+                    onClick={markAsSold}
+                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                >
+                    ✅ MARK SOLD
+                </button>
+
+                <button
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-2 py-2 rounded shadow"
+                    onClick={markAsUnsold}
+                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                >
+                    ❌ MARK UNSOLD
+                </button>
+                    </div>
 
 
-
-            <div className="flex items-center space-x-4">
-                <label className="flex items-center cursor-pointer">
-                    <span className="mr-2 text-sm">Show Team Squad</span>
+            <div className="flex items-center space-x-4 my-6">
+                <label className="flex items-center cursor-pointer space-x-2">
+                    <span className="text-sm">Team Squad</span>
                     <input
                         type="checkbox"
                         checked={isTeamViewActive}
@@ -1095,28 +1111,12 @@ const AdminPanel = () => {
                         }}
                         className="sr-only"
                     />
-                    <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-blue-500' : 'bg-red-400'} relative`}>
+                    <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-green-500' : 'bg-red-400'} relative`}>
                         <div
                             className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}
                         ></div>
                     </div>
                 </label>
-
-                <button
-                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-2 py-2 rounded shadow"
-                    onClick={markAsSold}
-                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
-                >
-                    ✅ SOLD
-                </button>
-
-                <button
-                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-2 py-2 rounded shadow"
-                    onClick={markAsUnsold}
-                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
-                >
-                    ❌ UNSOLD
-                </button>
             </div>
 
 
