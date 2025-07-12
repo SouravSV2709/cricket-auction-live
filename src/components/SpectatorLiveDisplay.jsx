@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import confetti from "canvas-confetti";
 import { useParams } from "react-router-dom";
 import useWindowSize from "react-use/lib/useWindowSize";
@@ -26,7 +26,7 @@ const getRandomSoldAudio = () => {
 };
 
 const unsoldMedia = [
-    '/sounds/unsold.mp4',
+    '/sounds/unsold1207.gif',
     '/sounds/unsold2.gif',
     '/sounds/unsold3.gif'
 ];
@@ -47,6 +47,7 @@ const SpectatorLiveDisplay = () => {
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+
 
 
     useEffect(() => {
@@ -71,7 +72,7 @@ const SpectatorLiveDisplay = () => {
     };
 
     const triggerConfettiIfSold = (playerData) => {
-        if (["TRUE", "true", true].includes(playerData?.sold_status)) {
+        if (!isLoading && ["TRUE", "true", true].includes(playerData?.sold_status)) {
             console.log("🎉 Confetti fired for SOLD player:", playerData.name);
 
             //  ✅ Sold Play sound
@@ -108,18 +109,13 @@ const SpectatorLiveDisplay = () => {
         }
     };
 
+    const lastPlayerId = useRef(null);
+
     const fetchPlayer = async () => {
         try {
-            // setIsLoading(true); // ✅ Start loader
             const res = await fetch(`${API}/api/current-player`);
-            let basic = null;
-
-            if (res.ok) {
-                const text = await res.text();
-                if (text) {
-                    basic = JSON.parse(text);
-                }
-            }
+            const text = await res.text();
+            const basic = text ? JSON.parse(text) : null;
 
             if (!basic?.id) {
                 setPlayer(null);
@@ -127,22 +123,23 @@ const SpectatorLiveDisplay = () => {
                 return;
             }
 
+            const isPlayerChanged = lastPlayerId.current !== basic.id;
+            if (isPlayerChanged) {
+                setIsLoading(true);
+            }
+
             const fullRes = await fetch(`${API}/api/players/${basic.id}`);
             const fullPlayer = await fullRes.json();
             fullPlayer.base_price = computeBasePrice(fullPlayer);
-            setPlayer(fullPlayer);
 
+            setPlayer(fullPlayer);
             fetchTeams();
-            triggerConfettiIfSold(fullPlayer);
 
             if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
                 try {
                     unsoldAudio.volume = 1.0;
                     unsoldAudio.currentTime = 0;
-                    unsoldAudio.play().catch(err => {
-                        console.warn("Autoplay blocked for UNSOLD:", err);
-                    });
-
+                    unsoldAudio.play();
                     const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
                     setUnsoldClip(randomClip);
                 } catch (e) {
@@ -152,14 +149,24 @@ const SpectatorLiveDisplay = () => {
                 setUnsoldClip(null);
             }
 
+            lastPlayerId.current = basic.id;
+
+            if (isPlayerChanged) {
+                setTimeout(() => {
+                    setIsLoading(false);
+                    triggerConfettiIfSold(fullPlayer);
+                }, 800);
+            }
+
         } catch (err) {
             console.error("Failed to fetch full player info", err);
             setPlayer(null);
             setUnsoldClip(null);
-        } finally {
-            setTimeout(() => setIsLoading(false), 2000); // smooth fade-out
+            setIsLoading(false);
         }
     };
+
+
 
 
 
@@ -241,27 +248,41 @@ const SpectatorLiveDisplay = () => {
     }, [tournamentSlug]);
 
     useEffect(() => {
-        if (!player) return;
+    if (!player) return;
 
-        if (["TRUE", "true", true].includes(player.sold_status)) {
-            console.log("🎉 SOLD player rendered (via useEffect):", player.name);
+    const isSold = ["TRUE", "true", true].includes(player.sold_status);
+    if (isSold) {
+        console.log("🎉 SOLD player detected in useEffect:", player.name);
 
-            const duration = 3000;
-            const end = Date.now() + duration;
-
-            const frame = () => {
-                confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
-                confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-                confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-                confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            };
-
-            setTimeout(() => {
-                frame();
-            }, 100); // Ensures DOM is painted
+        // 🔊 Play sound
+        if (currentSoldAudio) {
+            currentSoldAudio.pause();
+            currentSoldAudio.currentTime = 0;
         }
-    }, [player?.id]);
+
+        const selectedSrc = getRandomSoldAudio();
+        currentSoldAudio = new Audio(selectedSrc);
+        currentSoldAudio.volume = 1.0;
+        currentSoldAudio.play().catch(err => {
+            console.warn("Autoplay prevented:", err);
+        });
+
+        // 🎊 Confetti burst
+        const duration = 3000;
+        const end = Date.now() + duration;
+
+        const frame = () => {
+            confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
+            confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
+            confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
+            confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        };
+
+        setTimeout(frame, 100);
+    }
+}, [player?.sold_status]);
+
 
 
     useEffect(() => {
@@ -279,31 +300,32 @@ const SpectatorLiveDisplay = () => {
         });
 
         socket.on("playerChanged", () => {
-        setIsLoading(true);       // ✅ Trigger loader ONLY when player changes
-        fetchPlayer();
+            fetchPlayer();
         });
 
 
         socket.on("customMessageUpdate", (msg) => {
-            if (msg === "__SHOW_TEAM_STATS__") {
-                setCustomView("team-stats");
-                setCustomMessage(null);
-            } else if (msg === "__SHOW_NO_PLAYERS__") {
-                setCustomView("no-players");
-                setCustomMessage(null);
-            } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-                setCustomView("live");
-                setCustomMessage(null);
-            } else if (msg === "__RESET_AUCTION__") {
-                fetchAllPlayers();   // 🔁 Reset player list
-                fetchTeams();        // 🔁 Reset team purse/max bid
-                setCustomView("live"); // optional
-                setCustomMessage();      // optional
-            } else {
-                setCustomMessage(msg);
-                setCustomView(null); // fallback
-            }
-        });
+    if (msg === "__SHOW_TEAM_STATS__") {
+        setCustomView("team-stats");
+        setCustomMessage(null);
+    } else if (msg === "__SHOW_NO_PLAYERS__") {
+        setCustomView("no-players");
+        setCustomMessage(null);
+    } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
+        setCustomView(null);
+        setCustomMessage(null);
+    } else if (msg === "__RESET_AUCTION__") {
+        fetchAllPlayers();
+        fetchTeams();
+        setCustomView(null);
+        setCustomMessage(null);
+    } else if (!msg.startsWith("__")) {
+        // 🧠 Only treat as display message if not a system command
+        setCustomMessage(msg);
+        setCustomView(null);
+    }
+});
+
 
         socket.on("bidUpdated", ({ bid_amount, team_name }) => {
             console.log("🎯 bidUpdated received:", bid_amount, team_name);
@@ -347,7 +369,14 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         fetch(`${API}/api/custom-message`)
             .then(res => res.json())
-            .then(data => setCustomMessage(data.message));
+            .then(data => {
+    if (!data.message || data.message.startsWith("__")) {
+        setCustomMessage(null);  // ignore system commands
+    } else {
+        setCustomMessage(data.message);
+    }
+});
+
     }, []);
 
 
@@ -673,7 +702,7 @@ const SpectatorLiveDisplay = () => {
         );
     }
 
-   if (isLoading) return <PlayerTransitionLoader />;
+    if (isLoading) return <PlayerTransitionLoader />;
 
     // Live Auction view
 
@@ -702,10 +731,10 @@ const SpectatorLiveDisplay = () => {
                 )}
             </div>
 
-                <div
+            <div
                 key={player.id}
                 className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
-                >
+            >
                 <div className="w-1/3 flex flex-col items-center justify-center relative">
                     {["TRUE", "true", true].includes(player?.sold_status) && (
                         <div className="sold-stamp">SOLD OUT</div>
