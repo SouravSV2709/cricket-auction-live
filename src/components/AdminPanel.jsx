@@ -313,6 +313,12 @@ const AdminPanel = () => {
             })
         ]);
 
+        socketRef.current?.emit("bidUpdated", {
+        bid_amount: 0,
+        team_name: ""
+        });
+
+
         // 🚀 Fire notifications (non-blocking, async side-effects)
         fetch(`${API}/api/notify-sold`, {
             method: "POST",
@@ -530,51 +536,83 @@ const AdminPanel = () => {
         };
     }, []);
 
-    const handleTeamClick = (team) => {
-  if (isTeamViewActive) {
-    socketRef.current?.emit("showTeam", {
-      team_id: team.id,
-      empty: team.players?.length === 0
+    const handleTeamClick = async (team) => {
+        if (isTeamViewActive) {if (isTeamViewActive) {
+    setSelectedTeam(team.name);
+
+    // 🔁 Explicitly request server to show the new team squad
+    await fetch(`${API}/api/show-team`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_id: team.id }),
     });
+
+    // 🔔 Also notify via socket (if needed by spectators)
+    socketRef.current?.emit("showTeam", {
+        team_id: team.id,
+        empty: team.players?.length === 0,
+    });
+
     return;
-  }
+}
 
-  if (!isLiveAuctionActive || !currentPlayer) return;
+    setSelectedTeam(team.name);
 
-  const base = Number(currentPlayer.base_price || computeBasePrice(currentPlayer));
+    // 🔁 Explicitly request server to show the new team squad
+    await fetch(`${API}/api/show-team`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_id: team.id }),
+    });
 
-  console.log("📦 Raw bidAmount state value:", bidAmount, typeof bidAmount);
-  let currentBid = typeof bidAmount === 'number' ? bidAmount : parseInt(bidAmount, 10) || 0;
-  console.log("✅ Parsed currentBid:", currentBid, typeof currentBid);
+    // 🔔 Also notify via socket (if needed by spectators)
+    socketRef.current?.emit("showTeam", {
+        team_id: team.id,
+        empty: team.players?.length === 0,
+    });
 
-  if (currentBid < base) {
-    console.log("⏫ Starting from base price:", base);
-    currentBid = base;
-  }
+    return;
+}
 
-  const increment = getDynamicBidIncrement(currentBid);
-  console.log("➕ Increment to apply:", increment);
 
-  const newBid = currentBid + increment;
-  console.log("💰 New bid to set:", newBid);
 
-  setBidAmount(newBid);
-  setSelectedTeam(team.name);
 
-  fetch(`${API}/api/current-bid`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      bid_amount: newBid,
-      team_name: team.name
-    })
-  });
+        if (!isLiveAuctionActive || !currentPlayer) return;
 
-  socketRef.current?.emit("bidUpdated", {
-    bid_amount: newBid,
-    team_name: team.name
-  });
-};
+        const base = Number(currentPlayer.base_price || computeBasePrice(currentPlayer));
+
+        console.log("📦 Raw bidAmount state value:", bidAmount, typeof bidAmount);
+        let currentBid = typeof bidAmount === 'number' ? bidAmount : parseInt(bidAmount, 10) || 0;
+        console.log("✅ Parsed currentBid:", currentBid, typeof currentBid);
+
+        if (currentBid < base) {
+            console.log("⏫ Starting from base price:", base);
+            currentBid = base;
+        }
+
+        const increment = getDynamicBidIncrement(currentBid);
+        console.log("➕ Increment to apply:", increment);
+
+        const newBid = currentBid + increment;
+        console.log("💰 New bid to set:", newBid);
+
+        setBidAmount(newBid);
+        setSelectedTeam(team.name);
+
+        fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                bid_amount: newBid,
+                team_name: team.name
+            })
+        });
+
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: newBid,
+            team_name: team.name
+        });
+    };
 
 
 
@@ -1028,8 +1066,8 @@ const AdminPanel = () => {
                     </div>
                 )}
             </div>
-                <div className="flex items-center space-x-4">
-             <button
+            <div className="flex items-center space-x-4">
+                <button
                     className="bg-green-500 hover:bg-green-400 text-black font-bold px-2 py-2 rounded shadow"
                     onClick={markAsSold}
                     disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
@@ -1044,7 +1082,7 @@ const AdminPanel = () => {
                 >
                     ❌ MARK UNSOLD
                 </button>
-                    </div>
+            </div>
 
 
             <div className="flex items-center space-x-4 my-6">
