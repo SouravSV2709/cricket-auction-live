@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
-import Lottie from "lottie-react";
+import PlayerTransitionLoader from "../components/PlayerTransitionLoader";
 import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
 
@@ -46,6 +46,8 @@ const SpectatorLiveDisplay = () => {
     const [theme, setTheme] = useState('default');
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
 
     useEffect(() => {
         document.title = "Live1 | Auction Arena";
@@ -108,9 +110,10 @@ const SpectatorLiveDisplay = () => {
 
     const fetchPlayer = async () => {
         try {
+            setIsLoading(true); // ✅ Start loader
             const res = await fetch(`${API}/api/current-player`);
-
             let basic = null;
+
             if (res.ok) {
                 const text = await res.text();
                 if (text) {
@@ -119,8 +122,8 @@ const SpectatorLiveDisplay = () => {
             }
 
             if (!basic?.id) {
-                setPlayer(null); // Show "Live Auction Starts soon..."
-                setUnsoldClip(null); // Clear previous clip
+                setPlayer(null);
+                setUnsoldClip(null);
                 return;
             }
 
@@ -129,12 +132,9 @@ const SpectatorLiveDisplay = () => {
             fullPlayer.base_price = computeBasePrice(fullPlayer);
             setPlayer(fullPlayer);
 
-            fetchTeams(); // Refresh team stats live
-
-            // 🎉 SOLD animation/sound
+            fetchTeams();
             triggerConfettiIfSold(fullPlayer);
 
-            // ❌ UNSOLD logic
             if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
                 try {
                     unsoldAudio.volume = 1.0;
@@ -149,15 +149,18 @@ const SpectatorLiveDisplay = () => {
                     console.error("UNSOLD audio error:", e);
                 }
             } else {
-                setUnsoldClip(null); // Reset if not UNSOLD
+                setUnsoldClip(null);
             }
 
         } catch (err) {
             console.error("Failed to fetch full player info", err);
             setPlayer(null);
             setUnsoldClip(null);
+        } finally {
+            setTimeout(() => setIsLoading(false), 2000); // smooth fade-out
         }
     };
+
 
 
 
@@ -290,8 +293,8 @@ const SpectatorLiveDisplay = () => {
             } else if (msg === "__RESET_AUCTION__") {
                 fetchAllPlayers();   // 🔁 Reset player list
                 fetchTeams();        // 🔁 Reset team purse/max bid
-                setCustomView("team-stats"); // optional
-                setCustomMessage(null);      // optional
+                setCustomView("live"); // optional
+                setCustomMessage();      // optional
             } else {
                 setCustomMessage(msg);
                 setCustomView(null); // fallback
@@ -666,6 +669,8 @@ const SpectatorLiveDisplay = () => {
         );
     }
 
+   if (isLoading) return <PlayerTransitionLoader />;
+
     // Live Auction view
 
     return (
@@ -693,10 +698,10 @@ const SpectatorLiveDisplay = () => {
                 )}
             </div>
 
-            <div
-                key={player.id} // forces re-render
-                className="flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 animate-fade-in-up"
-            >
+                <div
+                key={player.id}
+                className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
+                >
                 <div className="w-1/3 flex flex-col items-center justify-center relative">
                     {["TRUE", "true", true].includes(player?.sold_status) && (
                         <div className="sold-stamp">SOLD OUT</div>

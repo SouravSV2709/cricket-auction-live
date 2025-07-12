@@ -1,5 +1,3 @@
-// AllPlayerCards.jsx with golden background masking, responsive virtual list, and styled filters
-
 import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import ReactDOM from "react-dom/client";
@@ -32,8 +30,6 @@ const AllPlayerCards = () => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
     const [showToast, setShowToast] = useState(false);
-
-
 
 
     const pdfRef = useRef();
