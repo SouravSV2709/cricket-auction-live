@@ -167,10 +167,6 @@ const SpectatorLiveDisplay = () => {
     };
 
 
-
-
-
-
     const fetchAllPlayers = async () => {
         try {
             const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
@@ -855,9 +851,7 @@ const SpectatorLiveDisplay = () => {
                                 })()}
                             </>
                         )
-                    )};
-
-
+                    )}
 
 
                     {["FALSE", "false", false].includes(player?.sold_status) && unsoldClip && (
