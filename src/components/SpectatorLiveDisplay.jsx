@@ -169,6 +169,17 @@ const SpectatorLiveDisplay = () => {
         }
     };
 
+    useEffect(() => {
+  // Lock scrolling
+  document.body.classList.add('overflow-hidden');
+
+  return () => {
+    // Cleanup on unmount
+    document.body.classList.remove('overflow-hidden');
+  };
+}, []);
+
+
 
     const fetchAllPlayers = async () => {
         try {
@@ -190,6 +201,8 @@ const SpectatorLiveDisplay = () => {
             console.error("Error fetching teams:", err);
         }
     };
+
+
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
@@ -304,49 +317,57 @@ const SpectatorLiveDisplay = () => {
 
 
         socket.on("customMessageUpdate", (msg) => {
-            console.log("📩 Spectator received custom message:", msg);
-            if (msg === "__SHOW_TEAM_STATS__") {
-                setCustomView("team-stats");
-                setCustomMessage(null);
-            } else if (msg === "__SHOW_NO_PLAYERS__") {
-                setCustomView("no-players");
-                setCustomMessage(null);
-            } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-                setCustomView(null);
-                setCustomMessage(null);
-                setCountdownTime(null); // Clear countdown if running
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-            } else if (msg === "__RESET_AUCTION__") {
-                fetchAllPlayers();
-                fetchTeams();
-                setCustomView(null);
-                setCustomMessage(null);
-                setCountdownTime(null); // Reset countdown
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-            } else if (msg.startsWith("__START_COUNTDOWN__")) {
-                console.log("⏱️ Initializing countdown with seconds:", msg);
-                const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
-                console.log("🔁 Countdown state before starting:", seconds);
-                setCountdownTime(seconds);
+    console.log("📩 Spectator received custom message:", msg);
 
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    if (!msg || typeof msg !== "string") {
+        console.warn("⛔ Ignored invalid custom message:", msg);
+        return;
+    }
 
-                countdownIntervalRef.current = setInterval(() => {
-                    setCountdownTime(prev => {
-                        if (prev <= 1) {
-                            console.log("✅ Countdown finished");
-                            clearInterval(countdownIntervalRef.current);
-                            return 0;
-                        }
-                        console.log("⏳ Countdown ticking:", prev - 1);
-                        return prev - 1;
-                    });
-                }, 1000);
-            } else if (!msg.startsWith("__")) {
-                setCustomMessage(msg);
-                setCustomView(null);
-            }
-        });
+    if (msg === "__SHOW_TEAM_STATS__") {
+        setCustomView("team-stats");
+        setCustomMessage(null);
+    } else if (msg === "__SHOW_NO_PLAYERS__") {
+        setCustomView("no-players");
+        setCustomMessage(null);
+    } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
+        setCustomView(null);
+        setCustomMessage(null);
+        setCountdownTime(null); // Clear countdown if running
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    } else if (msg === "__RESET_AUCTION__") {
+        fetchAllPlayers();
+        fetchTeams();
+        setCustomView(null);
+        setCustomMessage(null);
+        setCountdownTime(null); // Reset countdown
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    } else if (msg.startsWith("__START_COUNTDOWN__")) {
+        console.log("⏱️ Initializing countdown with seconds:", msg);
+        const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
+        console.log("🔁 Countdown state before starting:", seconds);
+        setCustomMessage(null);
+        setCountdownTime(seconds);
+
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+        countdownIntervalRef.current = setInterval(() => {
+            setCountdownTime(prev => {
+                if (prev <= 1) {
+                    console.log("✅ Countdown finished");
+                    clearInterval(countdownIntervalRef.current);
+                    return 0;
+                }
+                console.log("⏳ Countdown ticking:", prev - 1);
+                return prev - 1;
+            });
+        }, 1000);
+    } else if (!msg.startsWith("__")) {
+        setCustomMessage(msg);
+        setCustomView(null);
+    }
+});
+
 
         socket.on("bidUpdated", ({ bid_amount, team_name }) => {
             console.log("🎯 bidUpdated received:", bid_amount, team_name);
@@ -584,7 +605,7 @@ const SpectatorLiveDisplay = () => {
         const formatCurrency = (amt) => `₹${Number(amt || 0).toLocaleString()}`;
 
         return (
-            <div className="w-screen h-screen bg-black text-white flex flex-col p-6">
+            <div className="w-screen h-screen bg-black text-white flex flex-col p-6 overflow-x-hidden overflow-y-hidden">
                 <BackgroundEffect theme={theme} />
 
                 <div className="flex flex-row items-center justify-center mt-2 mb-4">
@@ -599,9 +620,9 @@ const SpectatorLiveDisplay = () => {
                 </div>
 
                 <h2 className="text-3xl font-bold text-center py-5 text-white">📊 Team Statistics</h2>
-                <div className="flex flex-1 justify-center gap-6 overflow-hidden mt-3">
+                <div className="flex gap-2 items-start justify-center">
                     {[leftTeams, rightTeams].map((group, groupIdx) => (
-                        <div key={groupIdx} className="w-1/2 flex flex-col h-full overflow-hidden">
+                        <div key={groupIdx} className="flex flex-col w-auto max-w-[48%] overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-xl">
                             {/* Header */}
                             <div className="grid grid-cols-4 gap-2 px-3 py-2 font-bold text-sm bg-gray-800 rounded-lg text-white">
                                 <div>TEAM NAME</div>
@@ -611,7 +632,7 @@ const SpectatorLiveDisplay = () => {
                             </div>
 
                             {/* Rows */}
-                            <div className="flex-1 overflow-auto mt-2 space-y-2 pr-1">
+                            <div className="overflow-y-auto max-h-[calc(100vh-300px)] mt-2 space-y-2 pr-1">
                                 {group.map((team, idx) => {
                                     const teamPlayers = getTeamPlayers(team.id);
                                     const spent = teamPlayers.reduce((sum, p) => {
@@ -645,7 +666,7 @@ const SpectatorLiveDisplay = () => {
                     ))}
                 </div>
 
-                <footer className="mt-4 text-center text-white text-sm opacity-70">
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
                     🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                 </footer>
             </div>
