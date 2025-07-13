@@ -1,9 +1,9 @@
 .thing {
   $n: 360;
-  $size: 5px;
+  $size: 3px;
   
-  animation: thingy 5ms ease-in infinite alternate;
-  border-radius: 50%;
+  animation: thingy 5s ease-in infinite alternate;
+  border-radius: 75%;
   background: currentColor;
   position: absolute;
   width: $size;
@@ -13,7 +13,7 @@
   @for $i from 1 through $n {
     &:nth-child(#{$i}) {
       animation-name: stuff-#{$i};
-      animation-delay: $i * 0.005s;
+      animation-delay: $i * 0.00005s;
       color: hsl($i * -1deg, 100%, 50%);
       transform: 
         rotateZ($i * 45deg)

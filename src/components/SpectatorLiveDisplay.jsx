@@ -656,11 +656,33 @@ const SpectatorLiveDisplay = () => {
         return (
             // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
             <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
-                {/* Background Layer – Particle Animation */}
                 <BackgroundEffect theme={theme} />
 
-                <div className="flex flex-col items-center justify-center text-5xl font-extrabold text-center px-10">
-                    <div>
+                <div className="absolute inset-0 flex flex-row items-center justify-center h-screen px-6">
+
+                    {/* Left Branding Panel */}
+                    <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
+                        <img
+                            src="/AuctionArena2.png"
+                            alt="Auction Arena"
+                            className="w-64 h-64 object-contain mb-2 animate-shake"
+                        />
+                        <div className="text-xl text-white text-center leading-snug">
+                            <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
+                            <p>seamless auction experience</p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 text-yellow-400 text-lg font-bold">
+                            <span className="text-pink-400 text-xl">📞</span>
+                            <span>+91-9547652702</span>
+                        </div>
+                        <p className="text-sm text-white font-semibold italic">Sourav Mukherjee</p>
+                    </div>
+
+                    {/* 🔸 Pulse Divider Bar */}
+                    <div className="w-[2px] h-[300px] bg-white/30 animate-pulse mx-8 rounded-full" />
+
+                    {/* Center – Logo and Message */}
+                    <div className="flex flex-col items-center justify-center gap-6 text-center">
                         {tournamentLogo && (
                             <img
                                 src={tournamentLogo}
@@ -668,12 +690,17 @@ const SpectatorLiveDisplay = () => {
                                 className="w-64 h-64 object-contain animate-shake"
                             />
                         )}
+                        <div className="bg-white/10 border border-white/30 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-2xl">
+                            <p className="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">
+                                {customMessage}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <div className="broadcast-message">{customMessage}</div>
-                    </div>
+
                 </div>
+
             </div>
+
         );
     }
 
@@ -718,12 +745,33 @@ const SpectatorLiveDisplay = () => {
 
             // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
             <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
-                {/* Background Layer – Particle Animation */}
                 <BackgroundEffect theme={theme} />
 
-                <div className="flex flex-col items-center justify-center text-5xl font-extrabold text-center px-10">
-                    <div>
+                <div className="absolute inset-0 flex flex-row items-center justify-center h-screen px-6">
 
+                    {/* Left Branding Panel */}
+                    <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
+                        <img
+                            src="/AuctionArena2.png"
+                            alt="Auction Arena"
+                            className="w-64 h-64 object-contain mb-2 animate-shake"
+                        />
+                        <div className="text-xl text-white text-center leading-snug">
+                            <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
+                            <p>seamless auction experience</p>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 text-yellow-400 text-lg font-bold">
+                            <span className="text-pink-400 text-xl">📞</span>
+                            <span>+91-9547652702</span>
+                        </div>
+                        <p className="text-sm text-white font-semibold italic">Sourav Mukherjee</p>
+                    </div>
+
+                    {/* 🔸 Pulse Divider Bar */}
+                    <div className="w-[2px] h-[300px] bg-white/30 animate-pulse mx-8 rounded-full" />
+
+                    {/* Center – Logo and Message */}
+                    <div className="flex flex-col items-center justify-center gap-6 text-center">
                         {tournamentLogo && (
                             <img
                                 src={tournamentLogo}
@@ -731,15 +779,15 @@ const SpectatorLiveDisplay = () => {
                                 className="w-64 h-64 object-contain animate-shake"
                             />
                         )}
-                    </div>
-                    <div className="animate-pulse ">
-                        Live Auction Starts soon...
-                    </div>
-                </div>
 
-                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
-                </footer>
+                        <div className="bg-white/10 border border-white/30 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-2xl">
+                            <p className="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">
+                                Live Auction Starts soon...
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         );
     }
