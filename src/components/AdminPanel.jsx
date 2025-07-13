@@ -31,9 +31,7 @@ const AdminPanel = () => {
     const [showBidConfig, setShowBidConfig] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
     const [isLiveAuctionActive, setIsLiveAuctionActive] = useState(true);
-
-
-
+    const [countdownDuration, setCountdownDuration] = useState(0);
 
 
     useEffect(() => {
@@ -1288,8 +1286,36 @@ const AdminPanel = () => {
                 </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+               {/* Countdown Timer Trigger */}
+                    <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-2">⏱️ Start Countdown Timer</h3>
+                    <input
+                        type="number"
+                        placeholder="Enter seconds (e.g., 120)"
+                        className="p-2 rounded text-black mr-4"
+                        value={countdownDuration}
+                        onChange={(e) => setCountdownDuration(Number(e.target.value))}
+                    />
+                    <button
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
+                        onClick={async () => {
+                        const message = `__START_COUNTDOWN__${countdownDuration}`;
+                        
+                        console.log("⏳ Admin triggering countdown:", message);
+                        await fetch(`${API}/api/custom-message`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ message }),
+                        });
 
+                        alert("⏱️ Countdown started!");
+                        }}
+                    >
+                        🚀 Start Countdown
+                    </button>
+                    </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 mt-4">
                 <button
                     className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded shadow"
                     onClick={undoLastAction}

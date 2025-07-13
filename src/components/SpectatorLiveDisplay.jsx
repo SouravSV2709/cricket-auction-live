@@ -47,6 +47,9 @@ const SpectatorLiveDisplay = () => {
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [countdownTime, setCountdownTime] = useState(null);
+    const countdownIntervalRef = useRef(null);
+
 
 
 
@@ -244,40 +247,40 @@ const SpectatorLiveDisplay = () => {
     }, [tournamentSlug]);
 
     useEffect(() => {
-    if (!player) return;
+        if (!player) return;
 
-    const isSold = ["TRUE", "true", true].includes(player.sold_status);
-    if (isSold) {
-        console.log("🎉 SOLD player detected in useEffect:", player.name);
+        const isSold = ["TRUE", "true", true].includes(player.sold_status);
+        if (isSold) {
+            console.log("🎉 SOLD player detected in useEffect:", player.name);
 
-        // 🔊 Play sound
-        if (currentSoldAudio) {
-            currentSoldAudio.pause();
-            currentSoldAudio.currentTime = 0;
+            // 🔊 Play sound
+            if (currentSoldAudio) {
+                currentSoldAudio.pause();
+                currentSoldAudio.currentTime = 0;
+            }
+
+            const selectedSrc = getRandomSoldAudio();
+            currentSoldAudio = new Audio(selectedSrc);
+            currentSoldAudio.volume = 1.0;
+            currentSoldAudio.play().catch(err => {
+                console.warn("Autoplay prevented:", err);
+            });
+
+            // 🎊 Confetti burst
+            const duration = 3000;
+            const end = Date.now() + duration;
+
+            const frame = () => {
+                confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
+                confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
+                confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
+                confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            };
+
+            setTimeout(frame, 100);
         }
-
-        const selectedSrc = getRandomSoldAudio();
-        currentSoldAudio = new Audio(selectedSrc);
-        currentSoldAudio.volume = 1.0;
-        currentSoldAudio.play().catch(err => {
-            console.warn("Autoplay prevented:", err);
-        });
-
-        // 🎊 Confetti burst
-        const duration = 3000;
-        const end = Date.now() + duration;
-
-        const frame = () => {
-            confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
-            confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-            confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-            confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
-            if (Date.now() < end) requestAnimationFrame(frame);
-        };
-
-        setTimeout(frame, 100);
-    }
-}, [player?.sold_status]);
+    }, [player?.sold_status]);
 
 
 
@@ -301,27 +304,49 @@ const SpectatorLiveDisplay = () => {
 
 
         socket.on("customMessageUpdate", (msg) => {
-    if (msg === "__SHOW_TEAM_STATS__") {
-        setCustomView("team-stats");
-        setCustomMessage(null);
-    } else if (msg === "__SHOW_NO_PLAYERS__") {
-        setCustomView("no-players");
-        setCustomMessage(null);
-    } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-        setCustomView(null);
-        setCustomMessage(null);
-    } else if (msg === "__RESET_AUCTION__") {
-        fetchAllPlayers();
-        fetchTeams();
-        setCustomView(null);
-        setCustomMessage(null);
-    } else if (!msg.startsWith("__")) {
-        // 🧠 Only treat as display message if not a system command
-        setCustomMessage(msg);
-        setCustomView(null);
-    }
-});
+            console.log("📩 Spectator received custom message:", msg);
+            if (msg === "__SHOW_TEAM_STATS__") {
+                setCustomView("team-stats");
+                setCustomMessage(null);
+            } else if (msg === "__SHOW_NO_PLAYERS__") {
+                setCustomView("no-players");
+                setCustomMessage(null);
+            } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
+                setCustomView(null);
+                setCustomMessage(null);
+                setCountdownTime(null); // Clear countdown if running
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            } else if (msg === "__RESET_AUCTION__") {
+                fetchAllPlayers();
+                fetchTeams();
+                setCustomView(null);
+                setCustomMessage(null);
+                setCountdownTime(null); // Reset countdown
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            } else if (msg.startsWith("__START_COUNTDOWN__")) {
+                console.log("⏱️ Initializing countdown with seconds:", msg);
+                const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
+                console.log("🔁 Countdown state before starting:", seconds);
+                setCountdownTime(seconds);
 
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+                countdownIntervalRef.current = setInterval(() => {
+                    setCountdownTime(prev => {
+                        if (prev <= 1) {
+                            console.log("✅ Countdown finished");
+                            clearInterval(countdownIntervalRef.current);
+                            return 0;
+                        }
+                        console.log("⏳ Countdown ticking:", prev - 1);
+                        return prev - 1;
+                    });
+                }, 1000);
+            } else if (!msg.startsWith("__")) {
+                setCustomMessage(msg);
+                setCustomView(null);
+            }
+        });
 
         socket.on("bidUpdated", ({ bid_amount, team_name }) => {
             console.log("🎯 bidUpdated received:", bid_amount, team_name);
@@ -366,12 +391,12 @@ const SpectatorLiveDisplay = () => {
         fetch(`${API}/api/custom-message`)
             .then(res => res.json())
             .then(data => {
-    if (!data.message || data.message.startsWith("__")) {
-        setCustomMessage(null);  // ignore system commands
-    } else {
-        setCustomMessage(data.message);
-    }
-});
+                if (!data.message || data.message.startsWith("__")) {
+                    setCustomMessage(null);  // ignore system commands
+                } else {
+                    setCustomMessage(data.message);
+                }
+            });
 
     }, []);
 
@@ -627,6 +652,64 @@ const SpectatorLiveDisplay = () => {
         );
     }
 
+    if (customMessage && customView !== "team-stats") {
+        return (
+            // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
+            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+                {/* Background Layer – Particle Animation */}
+                <BackgroundEffect theme={theme} />
+
+                <div className="flex flex-col items-center justify-center text-5xl font-extrabold text-center px-10">
+                    <div>
+                        {tournamentLogo && (
+                            <img
+                                src={tournamentLogo}
+                                alt="Tournament Logo"
+                                className="w-64 h-64 object-contain animate-shake"
+                            />
+                        )}
+                    </div>
+                    <div>
+                        <div className="broadcast-message">{customMessage}</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isLoading) return <PlayerTransitionLoader />;
+
+    if (countdownTime !== null) {
+        const mins = Math.floor(countdownTime / 60);
+        const secs = countdownTime % 60;
+        const formatted = `${mins}:${secs.toString().padStart(2, "0")}`;
+
+        return (
+            <div className="w-screen h-screen bg-black text-white flex flex-col items-center justify-center">
+                <BackgroundEffect theme={theme} />
+                {countdownTime === 0 ? (
+                    <>
+                        <h1 className="text-6xl font-extrabold text-red-500 mb-4 animate-pulse">⛔ Time's Up</h1>
+                        <div className="text-7xl md:text-9xl font-extrabold tracking-widest text-white">
+                            00:00
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <h1 className="text-5xl md:text-7xl font-extrabold text-yellow-300 mb-6 animate-pulse">⏱️ Time Remaining</h1>
+                        <div className="text-7xl md:text-9xl font-extrabold tracking-widest text-white animate-pulse">
+                            {formatted}
+                        </div>
+                    </>
+                )}
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
+            </div>
+        );
+    }
+
+
 
     // Live Auction and no player is selected
 
@@ -673,32 +756,8 @@ const SpectatorLiveDisplay = () => {
         (!highestBid || Number(highestBid) === 0);
 
 
-    if (customMessage && customView !== "team-stats") {
-        return (
-            // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
-            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
-                {/* Background Layer – Particle Animation */}
-                <BackgroundEffect theme={theme} />
 
-                <div className="flex flex-col items-center justify-center text-5xl font-extrabold text-center px-10">
-                    <div>
-                        {tournamentLogo && (
-                            <img
-                                src={tournamentLogo}
-                                alt="Tournament Logo"
-                                className="w-64 h-64 object-contain animate-shake"
-                            />
-                        )}
-                    </div>
-                    <div>
-                        <div className="broadcast-message">{customMessage}</div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
-    if (isLoading) return <PlayerTransitionLoader />;
 
     // Live Auction view
 
