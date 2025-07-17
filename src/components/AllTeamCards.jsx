@@ -64,7 +64,18 @@ const AllTeamCards = () => {
     const placeholdersToShow = Math.max(0, playersPerTeam - teamPlayers.length);
 
     return (
-        <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
+        // <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
+
+        <div
+            className="min-h-screen text-black relative"
+            style={{
+                backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
+                backgroundSize: 'cover',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+                overflowX: 'hidden'
+            }}
+        >
 
             <Navbar tournamentSlug={tournamentSlug} />
             <div className="pt-16">
@@ -77,7 +88,7 @@ const AllTeamCards = () => {
                             className="w-28 h-28 object-contain"
                         />
                     )}
-                    <h1 className="text-xl font-bold text-center">{tournamentName}</h1>
+                    <h1 className="text-xl font-bold text-center text-yellow-300">{tournamentName}</h1>
                 </div>
 
                 {/* Team Selector */}
@@ -139,7 +150,7 @@ const AllTeamCards = () => {
 
                 {/* Selected Team Title */}
                 {selectedTeam && (
-                    <div className="text-center text-lg font-bold text-yellow-800 my-2 flex justify-center items-center gap-2">
+                    <div className="text-center text-lg font-bold text-yellow-300 my-2 flex justify-center items-center gap-2">
                         {selectedTeam.logo && (
                             <img
                                 src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${selectedTeam.logo}`}
@@ -193,41 +204,41 @@ const AllTeamCards = () => {
                                                 e.target.onerror = null;
                                                 e.target.src = "/no-image-found.png";
                                             }}
-                                            // style={{
-                                            //     backgroundImage: 'url("/goldenbg.png")',
-                                            //     backgroundSize: 'contain', // better fill
-                                            //     backgroundPosition: 'top',
-                                            //     backgroundRepeat: 'no-repeat',
-                                            //     height: '320px'
-                                            // }}
+                                        // style={{
+                                        //     backgroundImage: 'url("/goldenbg.png")',
+                                        //     backgroundSize: 'contain', // better fill
+                                        //     backgroundPosition: 'top',
+                                        //     backgroundRepeat: 'no-repeat',
+                                        //     height: '320px'
+                                        // }}
 
                                         />
 
                                         <div className="text-xs items-center justify-center font-bold text-black uppercase mt-1">
-                                        {player.name}
-                                    </div>
+                                            {player.name}
+                                        </div>
 
                                         {/* <div className="flex flex-col items-center justify-end text-xs font-semibold text-black text-center leading-tight"> */}
-                                            <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
-                                        <div>Role: {player.role || "-"}</div>
-                                        <div>District: {player.district || "-"}</div>
-                                        <div>🎉 ₹{player.sold_price.toLocaleString()}</div>
-                                    </div>
+                                        <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
+                                            <div>Role: {player.role || "-"}</div>
+                                            <div>District: {player.district || "-"}</div>
+                                            <div>🎉 ₹{player.sold_price.toLocaleString()}</div>
+                                        </div>
 
-                                            {tournamentLogo && (
-                                                <div className="flex justify-center items-center gap-1 mt-1 animate-pulse">
-                                                    <img
-                                                        src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-24,h-24`}
-                                                        alt="Tournament Logo"
-                                                        className="w-8 h-8 object-contain rounded"
-                                                    />
-                                                    <img
-                                                        src="/AuctionArena2.png"
-                                                        alt="Auction Arena"
-                                                        className="w-6 h-6 object-contain"
-                                                    />
-                                                </div>
-                                            )}
+                                        {tournamentLogo && (
+                                            <div className="flex justify-center items-center gap-1 mt-1 animate-pulse">
+                                                <img
+                                                    src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-24,h-24`}
+                                                    alt="Tournament Logo"
+                                                    className="w-8 h-8 object-contain rounded"
+                                                />
+                                                <img
+                                                    src="/AuctionArena2.png"
+                                                    alt="Auction Arena"
+                                                    className="w-6 h-6 object-contain"
+                                                />
+                                            </div>
+                                        )}
                                         {/* </div> */}
                                     </div>
 

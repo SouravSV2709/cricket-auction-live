@@ -1,5 +1,3 @@
-// AllPlayerCards.jsx with golden background masking, responsive virtual list, and styled filters
-
 import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import ReactDOM from "react-dom/client";
@@ -32,8 +30,6 @@ const AllPlayerCards = () => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
     const [showToast, setShowToast] = useState(false);
-
-
 
 
     const pdfRef = useRef();
@@ -356,7 +352,19 @@ const AllPlayerCards = () => {
     );
 
     return (
-        <div className="min-h-screen overflow-hidden text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
+        // <div className="min-h-screen overflow-hidden text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
+
+            <div
+            className="min-h-screen text-black relative"
+            style={{
+                backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
+                backgroundSize: 'cover',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center',
+                overflowX: 'hidden'
+            }}
+            >
+
 
 
             {errorMessage && (
@@ -378,7 +386,7 @@ const AllPlayerCards = () => {
                                     loading="lazy"
                                 />
                             )}
-                            <h1 className="text-xl font-bold text-center">{tournamentName}</h1>
+                            <h1 className="text-xl font-bold text-center text-yellow-300">{tournamentName}</h1>
                         </div>
 
                         <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-2 sm:gap-4">
