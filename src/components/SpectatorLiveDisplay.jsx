@@ -170,14 +170,14 @@ const SpectatorLiveDisplay = () => {
     };
 
     useEffect(() => {
-  // Lock scrolling
-  document.body.classList.add('overflow-hidden');
+        // Lock scrolling
+        document.body.classList.add('overflow-hidden');
 
-  return () => {
-    // Cleanup on unmount
-    document.body.classList.remove('overflow-hidden');
-  };
-}, []);
+        return () => {
+            // Cleanup on unmount
+            document.body.classList.remove('overflow-hidden');
+        };
+    }, []);
 
 
 
@@ -317,56 +317,59 @@ const SpectatorLiveDisplay = () => {
 
 
         socket.on("customMessageUpdate", (msg) => {
-    console.log("📩 Spectator received custom message:", msg);
+            console.log("📩 Spectator received custom message:", msg);
 
-    if (!msg || typeof msg !== "string") {
-        console.warn("⛔ Ignored invalid custom message:", msg);
-        return;
-    }
+            if (!msg || typeof msg !== "string") {
+                console.warn("⛔ Ignored invalid custom message:", msg);
+                return;
+            }
 
-    if (msg === "__SHOW_TEAM_STATS__") {
-        setCustomView("team-stats");
-        setCustomMessage(null);
-    } else if (msg === "__SHOW_NO_PLAYERS__") {
-        setCustomView("no-players");
-        setCustomMessage(null);
-    } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-        setCustomView(null);
-        setCustomMessage(null);
-        setCountdownTime(null); // Clear countdown if running
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    } else if (msg === "__RESET_AUCTION__") {
-        fetchAllPlayers();
-        fetchTeams();
-        setCustomView(null);
-        setCustomMessage(null);
-        setCountdownTime(null); // Reset countdown
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    } else if (msg.startsWith("__START_COUNTDOWN__")) {
-        console.log("⏱️ Initializing countdown with seconds:", msg);
-        const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
-        console.log("🔁 Countdown state before starting:", seconds);
-        setCustomMessage(null);
-        setCountdownTime(seconds);
+            if (msg === "__SHOW_TEAM_STATS__") {
+                setCustomView("team-stats");
+                setCustomMessage(null);
+            } else if (msg === "__SHOW_NO_PLAYERS__") {
+                setCustomView("no-players");
+                setCustomMessage(null);
+            } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
+                setCustomView(null);
+                setCustomMessage(null);
+                setCountdownTime(null); // Clear countdown if running
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            } else if (msg === "__RESET_AUCTION__") {
+                fetchAllPlayers();
+                fetchTeams();
+                setCustomView(null);
+                setCustomMessage(null);
+                setCountdownTime(null); // Reset countdown
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            } else if (msg.startsWith("__START_COUNTDOWN__")) {
+                console.log("⏱️ Initializing countdown with seconds:", msg);
+                const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
+                console.log("🔁 Countdown state before starting:", seconds);
+                setCustomMessage(null);
+                setCountdownTime(seconds);
 
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
 
-        countdownIntervalRef.current = setInterval(() => {
-            setCountdownTime(prev => {
-                if (prev <= 1) {
-                    console.log("✅ Countdown finished");
-                    clearInterval(countdownIntervalRef.current);
-                    return 0;
-                }
-                console.log("⏳ Countdown ticking:", prev - 1);
-                return prev - 1;
-            });
-        }, 1000);
-    } else if (!msg.startsWith("__")) {
-        setCustomMessage(msg);
-        setCustomView(null);
-    }
-});
+                countdownIntervalRef.current = setInterval(() => {
+                    setCountdownTime(prev => {
+                        if (prev <= 1) {
+                            console.log("✅ Countdown finished");
+                            clearInterval(countdownIntervalRef.current);
+                            return 0;
+                        }
+                        console.log("⏳ Countdown ticking:", prev - 1);
+                        return prev - 1;
+                    });
+                }, 1000);
+            } else if (!msg.startsWith("__")) {
+                setCustomMessage(msg);
+                setCustomView(null);
+            } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
+                setCustomView("top-10-expensive");
+                setCustomMessage(null);
+            }
+        });
 
 
         socket.on("bidUpdated", ({ bid_amount, team_name }) => {
@@ -477,119 +480,246 @@ const SpectatorLiveDisplay = () => {
 
     // 🔁 Show TEAM SQUAD if selected
 
-    if (teamIdToShow && (teamSummaries.length === 0 || playerList.length === 0)) {
-        return (
-            <div className="w-screen h-screen bg-black text-white flex items-center justify-center text-2xl">
-                Loading Team Squad...
-            </div>
-        );
-    }
-
     if (teamIdToShow && teamSummaries.length > 0 && playerList.length > 0) {
-        console.log("🟢 teamIdToShow =", teamIdToShow);
-        console.log("📦 All team IDs =", teamSummaries.map(t => t.id));
-        const team = teamSummaries.find(t => Number(t.id) === Number(teamIdToShow));
-        const teamPlayers = playerList.filter(p =>
-            Number(p.team_id) === Number(teamIdToShow) &&
-            (p.sold_status === true || p.sold_status === "TRUE")
+        const teamPlayers = playerList.filter(
+            (p) =>
+                Number(p.team_id) === Number(teamIdToShow) &&
+                (p.sold_status === true || p.sold_status === "TRUE")
         );
 
-        if (!team) {
-            return (
-                <div className="w-screen h-screen bg-black text-white flex items-center justify-center text-2xl">
-                    Loading Team Squad...
-                </div>
-            );
-        }
-
-        const teamLogoUrl = team.logo
-            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
-            : null;
+        const sortedByPrice = [...teamPlayers].sort(
+            (a, b) => (b.sold_price || 0) - (a.sold_price || 0)
+        );
+        const topPlayer = sortedByPrice[0];
+        const restPlayers = sortedByPrice.slice(1);
 
         return (
-            // <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} p-6 overflow-hidden flex flex-col items-center justify-start relative
-            //  animate-fade-in-up`}>
-            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
-                {/* Background Layer – Particle Animation */}
+            <div className="w-screen h-screen flex flex-row bg-black text-white relative overflow-hidden">
                 <BackgroundEffect theme={theme} />
 
-                {/* TEAM LOGO */}
-                <div className="flex flex-col items-center mt-6 mb-4">
-                    {teamLogoUrl && (
-                        <img
-                            src={teamLogoUrl}
-                            alt={team.name}
-                            className="w-20 h-20 object-contain mb-2 rounded-xl border border-white shadow-md"
-                        />
-                    )}
-
-                    <h1 className="text-2xl font-extrabold text-center">{team.name}</h1>
-                </div>
-
-
-                {/* PLAYER GRID */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 px-4">
-                    {teamPlayers.map((player, idx) => (
-                        <div
-                            key={idx}
-                            className="relative rounded-xl text-center font-sans text-white shadow-lg"
-                            style={{
-                                backgroundImage: 'url("/goldenbg.png")',
-                                backgroundSize: 'contain',
-                                backgroundPosition: 'center',
-                                backgroundRepeat: 'no-repeat',
-                                height: '320px',
-                            }}
-                        >
-                            <div className="flex flex-col items-center justify-center h-full px-2 py-3">
-                                <img
-                                    src={
-                                        player.profile_image
-                                            ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-160,h-160,fo-face,z-0.4`
-                                            : "/no-image-found.png"
-                                    }
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.src = "/no-image-found.png";
-                                    }}
-                                    alt={player.name}
-                                    className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain rounded-full mb-1"
-                                    style={{
-                                        WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
-                                        maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-                                        WebkitMaskSize: "100% 100%",
-                                        maskSize: "100% 100%",
-                                        WebkitMaskRepeat: "no-repeat",
-                                        maskRepeat: "no-repeat",
-                                    }}
-                                />
-                                <div className="text-[10px] font-bold uppercase text-white text-center px-2 break-words leading-tight max-w-full">
-                                    {player.name}
-                                </div>
-                                <div className="text-[10px] font-medium text-yellow-100">
-                                    {player.role} | ₹{player.sold_price?.toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-
-                {/* TOURNAMENT LOGO (BOTTOM RIGHT) */}
+                {/* Tournament Logo – Top Left Corner */}
                 {tournamentLogo && (
-                    <img
-                        src={tournamentLogo}
-                        alt="Tournament Logo"
-                        className="w-16 h-16 object-contain absolute bottom-12 right-4 opacity-70"
-                    />
+                    <div className="absolute top-4 left-4 z-50">
+                        <img
+                            src={tournamentLogo}
+                            alt="Tournament Logo"
+                            className="w-28 h-28 object-contain drop-shadow-md animate-pulse"
+                        />
+                    </div>
                 )}
 
-                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                {/* Left Panel – Highlight Player */}
+                <div className="w-1/3 flex flex-col items-center justify-center p-6">
+                    <h3 className="text-2xl font-bold text-yellow-300 mb-3">#1 Most Expensive Player</h3>
+                    <div className="text-center mb-4">
+                        <h1 className="text-3xl font-extrabold">{topPlayer?.name || "No Player"}</h1>
+                        <p className="text-yellow-200 text-sm">{topPlayer?.role || "Not Assigned"}</p>
+                        <p className="text-2xl text-green-400 font-bold mt-2">
+                            ₹{topPlayer?.sold_price?.toLocaleString() || "0"}
+                        </p>
+                    </div>
+                    <img
+                        src={
+                            topPlayer?.profile_image
+                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4`
+                                : "/no-player-found.png"
+                        }
+                        alt={topPlayer?.name || "No Player"}
+                        className="w-[300px] h-[400px] object-cover rounded-2xl border-4 border-yellow-400 shadow-2xl"
+                    />
+                </div>
+
+                {/* Right Panel – Rest of Players (Stacked 2 Columns) */}
+                <div className="w-2/3 p-6 space-y-4">
+                    {/* Selected Team Logo + Name */}
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                        {teamIdToShow && (
+                            <>
+                                <img
+                                    src={
+                                        teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow))?.logo
+                                            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow)).logo}`
+                                            : "/no-team-logo.png"
+                                    }
+                                    alt="Team Logo"
+                                    className="w-36 h-36 object-contain animate-pulse"
+                                />
+                                <h3 className="text-xl font-bold text-yellow-300 text-center mb-2">Team Squad</h3>
+                            </>
+                        )}
+                    </div>
+                    <div className="flex flex-row justify-between gap-4">
+                        {[0, 1].map((groupIdx) => {
+                            const playerGroup = restPlayers.length
+                                ? restPlayers.slice(groupIdx * 7, groupIdx * 7 + 7)
+                                : Array(5).fill(null);
+
+                            return (
+                                <div key={groupIdx} className="flex-1 flex flex-col space-y-4">
+                                    {playerGroup.map((player, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="flex items-center justify-between bg-white/10 border-l-4 pl-4 pr-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border-white/20"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-2xl font-bold text-yellow-300 w-8">#{groupIdx * 7 + idx + 2}</div>
+                                                <img
+                                                    src={
+                                                        player?.profile_image
+                                                            ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4`
+                                                            : "/no-player-found.png"
+                                                    }
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "/no-player-found.png";
+                                                    }}
+                                                    alt={player?.name || "No Player"}
+                                                    className="w-14 h-14 rounded-full border border-white object-cover"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <div className="font-bold text-white">{player?.name || "No Player"}</div>
+                                                    <div className="text-sm text-yellow-100">{player?.role || "Not Assigned"}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-xl font-bold text-green-400">
+                                                ₹{player?.sold_price?.toLocaleString() || "0"}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
                     🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                 </footer>
             </div>
         );
     }
+
+    // Top 10 most expensive players
+
+    if (customView === "top-10-expensive") {
+        const sortedPlayers = [...playerList]
+            .filter(p => p.sold_status === "TRUE" || p.sold_status === true)
+            .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
+            .slice(0, 10);
+
+        const topPlayer = sortedPlayers[0];
+        const topTeam = teamSummaries.find(t => Number(t.id) === Number(topPlayer?.team_id));
+        const leftPlayers = sortedPlayers.slice(0, 5);
+        const rightPlayers = sortedPlayers.slice(5, 10);
+
+        if (sortedPlayers.length === 0) {
+            return (
+                <div className="w-screen h-screen bg-black text-white flex flex-col items-center justify-center p-10 text-center">
+                    <BackgroundEffect theme={theme} />
+                    <h1 className="text-4xl font-extrabold text-red-400 mb-4">⚠️ No Sold Players</h1>
+                    <p className="text-lg text-white/80">No player has been marked as SOLD yet. Please try again later.</p>
+                </div>
+            );
+        }
+
+
+        return (
+            <div className="w-screen h-screen flex flex-row bg-black text-white relative overflow-hidden">
+                <BackgroundEffect theme={theme} />
+
+                {/* Left Panel: Tournament Title and Players */}
+                <div className="flex flex-col justify-start w-2/3 p-6 space-y-6">
+                    {/* Header */}
+                    <div className="flex flex-col items-center mb-4">
+                        {tournamentLogo && (
+                            <img
+                                src={tournamentLogo}
+                                alt="Tournament Logo"
+                                className="w-24 h-24 object-contain mb-2 animate-pulse"
+                            />
+                        )}
+                        <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow-md text-center">
+                            {tournamentName || "AUCTION ARENA"} <br />
+                            <span className="text-white text-xl">Top 10 Most Expensive Players</span>
+                        </h2>
+                    </div>
+
+                    {/* Two-Column Player List */}
+                    <div className="flex flex-row justify-between gap-4">
+                        {[leftPlayers, rightPlayers].map((group, groupIdx) => (
+                            <div key={groupIdx} className="flex-1 flex flex-col space-y-4">
+                                {group.map((player, idx) => {
+                                    const team = teamSummaries.find(t => Number(t.id) === Number(player.team_id));
+                                    const rank = groupIdx * 5 + idx + 1;
+
+                                    return (
+                                        <div
+                                            key={player.id}
+                                            className={`flex items-center justify-between bg-white/10 border-l-4 pl-4 pr-6 py-3 rounded-xl shadow-lg backdrop-blur-sm 
+                                            ${rank === 1 ? 'border-yellow-500' : 'border-white/20'}`}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-2xl font-bold text-yellow-300 w-8">#{rank}</div>
+                                                <img
+                                                    src={player.profile_image
+                                                        ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4`
+                                                        : "/no-image-found.png"}
+                                                    onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
+                                                    className="w-14 h-14 rounded-full border border-white object-cover"
+                                                    alt={player.name}
+                                                />
+                                                <div className="flex flex-col">
+                                                    <div className="font-bold">{player.name}</div>
+                                                    <div className="text-sm text-yellow-100">{team?.name || "Unknown"}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-xl font-bold text-green-400">
+                                                ₹{player.sold_price?.toLocaleString()}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right Panel: Highlight Player */}
+                <div className="w-1/3 flex flex-col items-center justify-center p-6 bg-gradient-to-t from-black to-black-900 shadow-inner">
+                    <h3 className="text-2xl font-bold text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
+                    <div className="text-center mb-4">
+                        <h1 className="text-3xl font-extrabold">{topPlayer.name}</h1>
+                        <p className="text-yellow-200 text-sm">{topTeam?.name}</p>
+                        <p className="text-2xl text-green-400 font-bold mt-2">₹{topPlayer.sold_price?.toLocaleString()}</p>
+                    </div>
+                    <img
+                        src={
+                            topPlayer.profile_image
+                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4`
+                                : "/no-image-found.png"
+                        }
+                        onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
+                        alt={topPlayer.name}
+                        className="w-[300px] h-[400px] object-cover rounded-2xl"
+                    />
+
+                    {tournamentLogo && (
+                        <img
+                            src={tournamentLogo}
+                            alt="Tournament Logo"
+                            className="w-16 h-16 object-contain mt-4 opacity-70"
+                        />
+                    )}
+                </div>
+
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
+            </div>
+        );
+    }
+
+
 
     // Show Team Stats
 
@@ -792,18 +922,23 @@ const SpectatorLiveDisplay = () => {
                     <div className="w-[2px] h-[300px] bg-white/30 animate-pulse mx-8 rounded-full" />
 
                     {/* Center – Logo and Message */}
-                    <div className="flex flex-col items-center justify-center gap-6 text-center">
+                    <div className="flex flex-col items-center justify-center gap-6 text-center animate-ring-explode">
                         {tournamentLogo && (
+                            // <img
+                            //     src={tournamentLogo}
+                            //     alt="Tournament Logo"
+                            //     className="w-64 h-64 object-contain animate-shake"
+                            // />
                             <img
-                                src={tournamentLogo}
-                                alt="Tournament Logo"
-                                className="w-64 h-64 object-contain animate-shake"
+                                src="/bbplposter.png"
+                                alt="BBPL Poster"
+                                className="w-96 h-auto object-contain rounded-2xl"
                             />
                         )}
 
                         <div className="bg-white/10 border border-white/30 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-2xl">
-                            <p className="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">
-                                Live Auction Starts soon...
+                            <p className="text-xl md:text-2xl font-extrabold text-white drop-shadow-md animate-typing">
+                                Live auction will resume soon...
                             </p>
                         </div>
                     </div>
@@ -875,7 +1010,7 @@ const SpectatorLiveDisplay = () => {
                             e.target.onerror = null;
                             e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
                         }}
-                        className="w-[48rem] h-[48rem] object-cover rounded-3xl border-4 border-white shadow-2xl"
+                        className="w-[48rem] h-[48rem] object-cover rounded-2xl border-4 border-white shadow-2xl"
                     />
                     <h1 className="text-2xl font-extrabold mt-6 uppercase">{player.name}</h1>
                     <p className="text-xl font-bold mt-2">({player.nickname || "-"})</p>

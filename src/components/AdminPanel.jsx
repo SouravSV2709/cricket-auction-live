@@ -312,8 +312,8 @@ const AdminPanel = () => {
         ]);
 
         socketRef.current?.emit("bidUpdated", {
-        bid_amount: 0,
-        team_name: ""
+            bid_amount: 0,
+            team_name: ""
         });
 
 
@@ -535,46 +535,66 @@ const AdminPanel = () => {
     }, []);
 
     const handleTeamClick = async (team) => {
-        if (isTeamViewActive) {if (isTeamViewActive) {
-    setSelectedTeam(team.name);
+        if (isTeamViewActive) {
+            if (isTeamViewActive) {
+                setSelectedTeam(team.name);
 
-    // 🔁 Explicitly request server to show the new team squad
-    await fetch(`${API}/api/show-team`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team_id: team.id }),
-    });
+                // 🔁 Explicitly request server to show the new team squad
+                await fetch(`${API}/api/show-team`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ team_id: team.id }),
+                });
 
-    // 🔔 Also notify via socket (if needed by spectators)
-    socketRef.current?.emit("showTeam", {
-        team_id: team.id,
-        empty: team.players?.length === 0,
-    });
+                // 🔔 Also notify via socket (if needed by spectators)
+                socketRef.current?.emit("showTeam", {
+                    team_id: team.id,
+                    empty: team.players?.length === 0,
+                });
 
-    return;
-}
+                return;
+            }
 
-    setSelectedTeam(team.name);
+            setSelectedTeam(team.name);
 
-    // 🔁 Explicitly request server to show the new team squad
-    await fetch(`${API}/api/show-team`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team_id: team.id }),
-    });
+            // 🔁 Explicitly request server to show the new team squad
+            await fetch(`${API}/api/show-team`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ team_id: team.id }),
+            });
 
-    // 🔔 Also notify via socket (if needed by spectators)
-    socketRef.current?.emit("showTeam", {
-        team_id: team.id,
-        empty: team.players?.length === 0,
-    });
+            // 🔔 Also notify via socket (if needed by spectators)
+            socketRef.current?.emit("showTeam", {
+                team_id: team.id,
+                empty: team.players?.length === 0,
+            });
 
-    return;
-}
-
-
+            return;
+        }
 
 
+
+
+        if (isTeamViewActive) {
+            setSelectedTeam(team.name);
+
+            // 🔁 Show squad view
+            await fetch(`${API}/api/show-team`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ team_id: team.id }),
+            });
+
+            socketRef.current?.emit("showTeam", {
+                team_id: team.id,
+                empty: team.players?.length === 0,
+            });
+
+            return;
+        }
+
+        // Normal live auction flow
         if (!isLiveAuctionActive || !currentPlayer) return;
 
         const base = Number(currentPlayer.base_price || computeBasePrice(currentPlayer));
@@ -583,16 +603,15 @@ const AdminPanel = () => {
         let currentBid = typeof bidAmount === 'number' ? bidAmount : parseInt(bidAmount, 10) || 0;
         console.log("✅ Parsed currentBid:", currentBid, typeof currentBid);
 
-        if (currentBid < base) {
-            console.log("⏫ Starting from base price:", base);
-            currentBid = base;
+        let newBid;
+        if (currentBid === 0) {
+            console.log("⏫ First bid, setting to base price:", base);
+            newBid = base;
+        } else {
+            const increment = getDynamicBidIncrement(currentBid);
+            newBid = currentBid + increment;
         }
 
-        const increment = getDynamicBidIncrement(currentBid);
-        console.log("➕ Increment to apply:", increment);
-
-        const newBid = currentBid + increment;
-        console.log("💰 New bid to set:", newBid);
 
         setBidAmount(newBid);
         setSelectedTeam(team.name);
@@ -1090,8 +1109,16 @@ const AdminPanel = () => {
                         type="checkbox"
                         checked={isTeamViewActive}
                         onChange={async () => {
-                            const team = teams.find(t => t.name === selectedTeam);
+                            let team = teams.find(t => t.name === selectedTeam);
+
+                            // 🛠️ If not selected yet, fallback to the first team
+                            if (!team && teams.length > 0) {
+                                team = teams[0];
+                                setSelectedTeam(team.name);
+                            }
+
                             if (!team) return;
+
 
                             const newState = !isTeamViewActive;
 
@@ -1276,6 +1303,21 @@ const AdminPanel = () => {
                         await fetch(`${API}/api/custom-message`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ message: "__SHOW_TOP_10_EXPENSIVE__" }),
+                        });
+                        alert("📈 Showing Top 10 Expensive Players...");
+                    }}
+                    className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-4 py-2 m-2 rounded shadow"
+                >
+                    💰 Show Top 10 Expensive Players
+                </button>
+
+
+                <button
+                    onClick={async () => {
+                        await fetch(`${API}/api/custom-message`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__" }),
                         });
                         alert("✅ Cleared custom view. Back to live mode.");
@@ -1286,21 +1328,21 @@ const AdminPanel = () => {
                 </button>
             </div>
 
-               {/* Countdown Timer Trigger */}
-                    <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-2">⏱️ Start Countdown Timer</h3>
-                    <input
-                        type="number"
-                        placeholder="Enter seconds (e.g., 120)"
-                        className="p-2 rounded text-black mr-4"
-                        value={countdownDuration}
-                        onChange={(e) => setCountdownDuration(Number(e.target.value))}
-                    />
-                    <button
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
-                        onClick={async () => {
+            {/* Countdown Timer Trigger */}
+            <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-2">⏱️ Start Countdown Timer</h3>
+                <input
+                    type="number"
+                    placeholder="Enter seconds (e.g., 120)"
+                    className="p-2 rounded text-black mr-4"
+                    value={countdownDuration}
+                    onChange={(e) => setCountdownDuration(Number(e.target.value))}
+                />
+                <button
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
+                    onClick={async () => {
                         const message = `__START_COUNTDOWN__${countdownDuration}`;
-                        
+
                         console.log("⏳ Admin triggering countdown:", message);
                         await fetch(`${API}/api/custom-message`, {
                             method: "POST",
@@ -1309,11 +1351,11 @@ const AdminPanel = () => {
                         });
 
                         alert("⏱️ Countdown started!");
-                        }}
-                    >
-                        🚀 Start Countdown
-                    </button>
-                    </div>
+                    }}
+                >
+                    🚀 Start Countdown
+                </button>
+            </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 mt-4">
                 <button
