@@ -38,11 +38,11 @@ const AllPlayerCards = () => {
     const fetchPlayersRef = useRef(false);
 
     const filteredPlayers = players.filter((player) =>
-  (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
-  (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
-  (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
-  player.id.toString().includes(filterSerial)
-);
+        (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
+        (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
+        (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
+        player.id.toString().includes(filterSerial)
+    );
 
 
     const serialMap = React.useMemo(() => {
@@ -243,12 +243,12 @@ const AllPlayerCards = () => {
     };
 
     useEffect(() => {
-    return () => {
-        clearTimeout(hoverTimeoutRef.current);
-    };
-}, []);
+        return () => {
+            clearTimeout(hoverTimeoutRef.current);
+        };
+    }, []);
 
-    
+
     useEffect(() => {
         document.title = "Players | Auction Arena";
     }, []);
@@ -326,34 +326,33 @@ const AllPlayerCards = () => {
                 maskRepeat: "no-repeat"
             }}
             onMouseEnter={() => {
-  if (window.innerWidth > 768) {
-    setSelectedPlayerId(player.id);
+                if (window.innerWidth > 768) {
+                    setSelectedPlayerId(player.id);
 
-    // Auto clear after 2.5s
-    clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setSelectedPlayerId(null);
-    }, 2500);
-  }
-}}
-onClick={() => {
-  if (window.innerWidth <= 768) {
-    const isSame = selectedPlayerId === player.id;
-    setSelectedPlayerId(isSame ? null : player.id);
+                    // Auto clear after 2.5s
+                    clearTimeout(hoverTimeoutRef.current);
+                    hoverTimeoutRef.current = setTimeout(() => {
+                        setSelectedPlayerId(null);
+                    }, 2500);
+                }
+            }}
+            onClick={() => {
+                if (window.innerWidth <= 768) {
+                    const isSame = selectedPlayerId === player.id;
+                    setSelectedPlayerId(isSame ? null : player.id);
 
-    if (!isSame) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = setTimeout(() => {
-        setSelectedPlayerId(null);
-      }, 1000);
-    }
-  }
-}}
+                    if (!isSame) {
+                        clearTimeout(hoverTimeoutRef.current);
+                        hoverTimeoutRef.current = setTimeout(() => {
+                            setSelectedPlayerId(null);
+                        }, 1000);
+                    }
+                }
+            }}
 
             serial={serialMap[player.id]}
-            className={`player-card relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer ${
-  disableHover ? "scale-95 opacity-80" : selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"
-}`}
+            className={`player-card relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer ${disableHover ? "scale-95 opacity-80" : selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"
+                }`}
 
         >
             <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100">
@@ -379,7 +378,7 @@ onClick={() => {
                 <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
                     <div>Role: {player.role || "-"}</div>
                     {player.district && (
-                    <div>District: {player.district}</div>
+                        <div>District: {player.district}</div>
                     )}
                 </div>
                 {tournamentLogo && (
@@ -485,36 +484,36 @@ onClick={() => {
                             </Listbox>
 
                             {hasAnyDistrict && (
-  <Listbox value={filterDistrict} onChange={setFilterDistrict}>
-    <div className="relative w-60">
-      <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
-        <span className="block truncate">{filterDistrict || "All Districts"}</span>
-        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
-        </span>
-      </Listbox.Button>
-      <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
-        <Listbox.Option key="" value="">
-          {({ active }) => (
-            <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
-              All Districts
-            </li>
-          )}
-        </Listbox.Option>
-        {uniqueDistricts.map((district, idx) => (
-          <Listbox.Option key={idx} value={district}>
-            {({ selected, active }) => (
-              <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
-                {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
-                {district}
-              </li>
-            )}
-          </Listbox.Option>
-        ))}
-      </Listbox.Options>
-    </div>
-  </Listbox>
-)}
+                                <Listbox value={filterDistrict} onChange={setFilterDistrict}>
+                                    <div className="relative w-60">
+                                        <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
+                                            <span className="block truncate">{filterDistrict || "All Districts"}</span>
+                                            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                            </span>
+                                        </Listbox.Button>
+                                        <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
+                                            <Listbox.Option key="" value="">
+                                                {({ active }) => (
+                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                        All Districts
+                                                    </li>
+                                                )}
+                                            </Listbox.Option>
+                                            {uniqueDistricts.map((district, idx) => (
+                                                <Listbox.Option key={idx} value={district}>
+                                                    {({ selected, active }) => (
+                                                        <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                            {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
+                                                            {district}
+                                                        </li>
+                                                    )}
+                                                </Listbox.Option>
+                                            ))}
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
+                            )}
 
 
                             <button

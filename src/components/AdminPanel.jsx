@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useRef } from "react";
+import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti"; // 🎆 Confetti library
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
@@ -32,6 +33,9 @@ const AdminPanel = () => {
     const [showThemeSelector, setShowThemeSelector] = useState(false);
     const [isLiveAuctionActive, setIsLiveAuctionActive] = useState(true);
     const [countdownDuration, setCountdownDuration] = useState(0);
+    const { tournamentSlug } = useParams();
+    const [tournamentId, setTournamentId] = useState(null);
+
 
 
     useEffect(() => {
@@ -39,11 +43,33 @@ const AdminPanel = () => {
     }, []);
 
     useEffect(() => {
-        const tournamentId = CONFIG.TOURNAMENT_ID;
-        fetchPlayers();
-        fetchTeams(CONFIG.TOURNAMENT_ID);
-        fetchCurrentPlayer();
-    }, []);
+    const fetchTournamentId = async () => {
+        try {
+            const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+            const data = await res.json();
+
+            if (res.ok && data.id) {
+                setTournamentId(data.id);
+            } else {
+                console.error("❌ Tournament not found for slug:", tournamentSlug);
+            }
+        } catch (err) {
+            console.error("❌ Error fetching tournament by slug:", err);
+        }
+    };
+
+    fetchTournamentId();
+}, [tournamentSlug]);
+
+
+    useEffect(() => {
+    if (!tournamentId) return;
+
+    fetchPlayers();
+    fetchTeams(tournamentId);
+    fetchCurrentPlayer();
+}, [tournamentId]);
+
 
     // Auto reset team view when new player selected
 
@@ -86,7 +112,7 @@ const AdminPanel = () => {
     useEffect(() => {
         const fetchBidIncrements = async () => {
             try {
-                const res = await fetch(`${API}/api/bid-increments/${CONFIG.TOURNAMENT_ID}`);
+                const res = await fetch(`${API}/api/bid-increments/${tournamentId}`);
                 const data = await res.json();
                 setBidIncrements(data.length > 0 ? data : [
                     { min_value: 0, max_value: 3000, increment: 100 },
@@ -138,8 +164,8 @@ const AdminPanel = () => {
 
     const fetchPlayers = async () => {
         try {
-            const tournamentId = CONFIG.TOURNAMENT_ID; // replace this with dynamic value if needed
-            const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+if (!tournamentId) return;
+            const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
             if (!res.ok) throw new Error("Failed to fetch players");
             const data = await res.json();
             setPlayers(data);
@@ -344,7 +370,7 @@ const AdminPanel = () => {
         setBidAmount(0);
         setSelectedTeam('');
         fetchPlayers();
-        fetchTeams(CONFIG.TOURNAMENT_ID);
+fetchTeams(tournamentId);
         fetchCurrentPlayer();
     };
 
@@ -389,7 +415,7 @@ const AdminPanel = () => {
     };
 
     const handleNextPlayer = async () => {
-        const tournamentId = CONFIG.TOURNAMENT_ID;
+const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
 
         try {
             // 1. Get all players once
@@ -467,7 +493,7 @@ const AdminPanel = () => {
             const player = await res.json();
 
             // ✅ Validate tournament_id
-            if (player.tournament_id !== CONFIG.TOURNAMENT_ID) {
+            if (player.tournament_id !== tournamentId) {
                 alert("❌ Player not found in this tournament.");
                 return;
             }
@@ -642,7 +668,7 @@ const AdminPanel = () => {
 
             alert("✅ Auction has been fully reset.");
             fetchPlayers(); // Refresh player list
-            fetchTeams(CONFIG.TOURNAMENT_ID); // Optional
+            fetchTeams(tournamentId); // Optional
             fetchCurrentPlayer(); // Optional
             setBidAmount(0);
             setSelectedTeam('');
@@ -656,7 +682,7 @@ const AdminPanel = () => {
 
 
     const resetUnsoldPlayers = async () => {
-        const playersRes = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+        const playersRes = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
         const playersData = await playersRes.json();
         let changes = 0;
 
@@ -775,7 +801,7 @@ const AdminPanel = () => {
 
         setBidAmount(type === "sold" ? bidAmount : 0);
         setSelectedTeam(type === "sold" ? teamName : '');
-        fetchTeams(CONFIG.TOURNAMENT_ID);
+fetchTeams(tournamentId);
         fetchCurrentPlayer();
     };
 
@@ -847,7 +873,7 @@ const AdminPanel = () => {
         setCurrentPlayer(reopenedPlayer);
         setBidAmount(reopenedPlayer.sold_price || 0);  // retain last sold amount
         setSelectedTeam(''); // team should be reset
-        fetchTeams(CONFIG.TOURNAMENT_ID);
+fetchTeams(tournamentId);
     };
 
 
@@ -1008,7 +1034,7 @@ const AdminPanel = () => {
                                 className="ml-auto bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1 rounded"
                                 onClick={async () => {
                                     try {
-                                        const res = await fetch(`${API}/api/bid-increments/${CONFIG.TOURNAMENT_ID}`, {
+                                        const res = await fetch(`${API}/api/bid-increments/${tournamentId}`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify(bidIncrements),
