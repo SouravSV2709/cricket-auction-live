@@ -30,22 +30,33 @@ const AllPlayerCards = () => {
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
     const [showToast, setShowToast] = useState(false);
+    const hoverTimeoutRef = useRef(null);
+
 
 
     const pdfRef = useRef();
     const fetchPlayersRef = useRef(false);
 
-    const filteredPlayers = players.filter(
-        (player) =>
-            player.name.toLowerCase().includes(filterName.toLowerCase()) &&
-            player.role.toLowerCase().includes(filterRole.toLowerCase()) &&
-            player.district.toLowerCase().includes(filterDistrict.toLowerCase()) &&
-            player.id.toString().includes(filterSerial)
+    const filteredPlayers = players.filter((player) =>
+        (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
+        (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
+        (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
+        player.id.toString().includes(filterSerial)
     );
+
+
+    const serialMap = React.useMemo(() => {
+        const map = {};
+        players.forEach((p, i) => {
+            map[p.id] = i + 1;
+        });
+        return map;
+    }, [players]);
+
 
     const cardsPerPage = 12;
 
-    const getPageSubtitle = (pageIndex, playersOnPage) => {
+    const getPageSubtitle = (pageIndex, playersOnPage, serialMap) => {
         const filters = [];
 
         if (filterRole) filters.push(`Role: ${filterRole}`);
@@ -56,14 +67,18 @@ const AllPlayerCards = () => {
         if (filters.length > 0) {
             return `Page ${pageIndex + 1} [Filtered – ${filters.join(" | ")}]`;
         } else {
-            const start = playersOnPage[0]?.id || (pageIndex * cardsPerPage + 1);
-            const end = playersOnPage[playersOnPage.length - 1]?.id || (start + cardsPerPage - 1);
-            return `Page ${pageIndex + 1} [Showing Serial No ${start}–${end}]`;
+            const serials = playersOnPage.map(p => serialMap[p.id]);
+            const minSerial = Math.min(...serials);
+            const maxSerial = Math.max(...serials);
+            return `Page ${pageIndex + 1} [Showing Serial No ${minSerial}–${maxSerial}]`;
         }
     };
 
+    const [disableHover, setDisableHover] = useState(false);
     const downloadAllCardsAsPDF = async () => {
 
+        setDisableHover(true);
+        setSelectedPlayerId(null);
         setIsDownloading(true);
         setDownloadProgress({ current: 1, total: 0 });
 
@@ -121,9 +136,10 @@ const AllPlayerCards = () => {
 
             const title = document.createElement("div");
             title.innerHTML = `
-                <div style="font-size: 24px; font-weight: bold;">${tournamentName}</div>
-                <div style="font-size: 16px; margin-top: 5px;">${getPageSubtitle(pageIndex, pagePlayers)}</div>
-            `;
+  <div style="font-size: 24px; font-weight: bold;">${tournamentName}</div>
+  <div style="font-size: 16px; margin-top: 5px;">${getPageSubtitle(pageIndex, pagePlayers, serialMap)}</div>
+`;
+
 
             header.appendChild(logo);
             header.appendChild(title);
@@ -140,6 +156,10 @@ const AllPlayerCards = () => {
             pagePlayers.forEach((player) => {
                 const card = document.querySelector(`#player-card-${player.id}`);
                 if (card) {
+                    // Force default styling (remove hover effect)
+                    card.classList.remove("scale-110", "z-10");
+                    card.classList.add("scale-95", "opacity-80");
+
                     const clone = card.cloneNode(true);
                     clone.style.width = "240px";
                     clone.style.height = "320px";
@@ -218,8 +238,16 @@ const AllPlayerCards = () => {
         setIsDownloading(false);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000); // Hide after 3 seconds
+        setDisableHover(false);
 
     };
+
+    useEffect(() => {
+        return () => {
+            clearTimeout(hoverTimeoutRef.current);
+        };
+    }, []);
+
 
     useEffect(() => {
         document.title = "Players | Auction Arena";
@@ -273,12 +301,13 @@ const AllPlayerCards = () => {
 
     const uniqueRoles = [...new Set(players.map((p) => p.role).filter(Boolean))];
     const uniqueDistricts = [...new Set(players.map((p) => p.district).filter(Boolean))];
+    const hasAnyDistrict = players.some((p) => !!p.district);
 
     const columnCount = getColumnCount();
     const rowCount = Math.ceil(filteredPlayers.length / columnCount);
     const columnWidth = windowWidth / columnCount;
 
-    const PlayerCard = ({ player, style }) => (
+    const PlayerCard = ({ player, style, serial }) => (
         <div
             key={player.id}
             style={{
@@ -297,20 +326,39 @@ const AllPlayerCards = () => {
                 maskRepeat: "no-repeat"
             }}
             onMouseEnter={() => {
-                if (window.innerWidth > 768) setSelectedPlayerId(player.id);
+                if (window.innerWidth > 768) {
+                    setSelectedPlayerId(player.id);
+
+                    // Auto clear after 2.5s
+                    clearTimeout(hoverTimeoutRef.current);
+                    hoverTimeoutRef.current = setTimeout(() => {
+                        setSelectedPlayerId(null);
+                    }, 2500);
+                }
             }}
             onClick={() => {
                 if (window.innerWidth <= 768) {
-                    setSelectedPlayerId((prevId) => (prevId === player.id ? null : player.id));
+                    const isSame = selectedPlayerId === player.id;
+                    setSelectedPlayerId(isSame ? null : player.id);
+
+                    if (!isSame) {
+                        clearTimeout(hoverTimeoutRef.current);
+                        hoverTimeoutRef.current = setTimeout(() => {
+                            setSelectedPlayerId(null);
+                        }, 1000);
+                    }
                 }
             }}
-            className={`player-card relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer ${selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"
+
+            serial={serialMap[player.id]}
+            className={`player-card relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer ${disableHover ? "scale-95 opacity-80" : selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"
                 }`}
+
         >
             <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100">
                 <div className="absolute top-12 left-8 sm:top-12 sm:left-10 md:top-12 md:left-12">
                     <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs md:text-sm font-bold px-2 py-1 rounded-full shadow-lg tracking-wide">
-                        #{player.id}
+                        #{serial}
                     </span>
                 </div>
                 <img
@@ -329,7 +377,9 @@ const AllPlayerCards = () => {
                 <div className="text-xs font-bold text-black uppercase mt-1">{player.name}</div>
                 <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
                     <div>Role: {player.role || "-"}</div>
-                    <div>District: {player.district || "-"}</div>
+                    {player.district && (
+                        <div>District: {player.district}</div>
+                    )}
                 </div>
                 {tournamentLogo && (
                     <div className="flex justify-center items-center gap-1 animate-pulse">
@@ -337,7 +387,7 @@ const AllPlayerCards = () => {
                             loading="lazy"
                             src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
                             alt="Tournament Logo"
-                            className="w-14 h-14 object-contain rounded-lg"
+                            className="w-14 h-14 object-contain"
                         />
                         <img
                             loading="lazy"
@@ -354,7 +404,7 @@ const AllPlayerCards = () => {
     return (
         // <div className="min-h-screen overflow-hidden text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
 
-            <div
+        <div
             className="min-h-screen text-black relative"
             style={{
                 backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
@@ -363,7 +413,7 @@ const AllPlayerCards = () => {
                 backgroundPosition: 'center',
                 overflowX: 'hidden'
             }}
-            >
+        >
 
 
 
@@ -376,7 +426,7 @@ const AllPlayerCards = () => {
             {!errorMessage && (
                 <>
                     <Navbar tournamentSlug={tournamentSlug} />
-                    <div className="pt-4">
+                    <div className="pt-6 mt-6">
                         <div className="flex items-center justify-center my-2">
                             {tournamentLogo && (
                                 <img
@@ -386,7 +436,7 @@ const AllPlayerCards = () => {
                                     loading="lazy"
                                 />
                             )}
-                            <h1 className="text-xl font-bold text-center text-yellow-300">{tournamentName}</h1>
+                            <h1 className="text-xl font-bold text-center text-yellow-300 p-3">{tournamentName}</h1>
                         </div>
 
                         <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-2 sm:gap-4">
@@ -433,33 +483,38 @@ const AllPlayerCards = () => {
                                 </div>
                             </Listbox>
 
-                            <Listbox value={filterDistrict} onChange={setFilterDistrict}>
-                                <div className="relative w-60">
-                                    <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
-                                        <span className="block truncate">{filterDistrict || "All Districts"}</span>
-                                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                            <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
-                                        </span>
-                                    </Listbox.Button>
-                                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
-                                        <Listbox.Option key="" value="">
-                                            {({ active }) => (
-                                                <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>All Districts</li>
-                                            )}
-                                        </Listbox.Option>
-                                        {uniqueDistricts.map((district, idx) => (
-                                            <Listbox.Option key={idx} value={district}>
-                                                {({ selected, active }) => (
+                            {hasAnyDistrict && (
+                                <Listbox value={filterDistrict} onChange={setFilterDistrict}>
+                                    <div className="relative w-60">
+                                        <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
+                                            <span className="block truncate">{filterDistrict || "All Districts"}</span>
+                                            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                            </span>
+                                        </Listbox.Button>
+                                        <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
+                                            <Listbox.Option key="" value="">
+                                                {({ active }) => (
                                                     <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
-                                                        {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
-                                                        {district}
+                                                        All Districts
                                                     </li>
                                                 )}
                                             </Listbox.Option>
-                                        ))}
-                                    </Listbox.Options>
-                                </div>
-                            </Listbox>
+                                            {uniqueDistricts.map((district, idx) => (
+                                                <Listbox.Option key={idx} value={district}>
+                                                    {({ selected, active }) => (
+                                                        <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                            {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
+                                                            {district}
+                                                        </li>
+                                                    )}
+                                                </Listbox.Option>
+                                            ))}
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
+                            )}
+
 
                             <button
                                 onClick={() => {
@@ -490,7 +545,7 @@ const AllPlayerCards = () => {
                         </div>
 
                         <div id="pdf-cards-clone" style={{ position: "absolute", top: "-9999px", left: "-9999px", width: "1000px" }} ref={pdfRef}>
-                        {/* <div
+                            {/* <div
                             id="pdf-cards-clone"
                             ref={pdfRef}
                             style={{
@@ -515,6 +570,7 @@ const AllPlayerCards = () => {
                                         <PlayerCard
                                             player={player}
                                             style={{ width: "240px", height: "320px" }}
+                                            serial={serialMap[player.id]}
                                         />
                                     </div>
                                 ))}
@@ -522,23 +578,23 @@ const AllPlayerCards = () => {
                             </div>
                         </div>
 
-                    <div className="pb-24">
-                        <div id="player-cards-container">
-                            <Grid
-                                columnCount={columnCount}
-                                columnWidth={columnWidth}
-                                height={Math.max(window.innerHeight - 250, 400)}
-                                rowCount={rowCount}
-                                rowHeight={340}
-                                width={windowWidth - 20}
-                            >
-                                {({ columnIndex, rowIndex, style }) => {
-                                    const index = rowIndex * columnCount + columnIndex;
-                                    const player = filteredPlayers[index];
-                                    return player ? <PlayerCard key={player.id} player={player} style={style} /> : null;
-                                }}
-                            </Grid>
-                        </div>
+                        <div className="pb-24">
+                            <div id="player-cards-container">
+                                <Grid
+                                    columnCount={columnCount}
+                                    columnWidth={columnWidth}
+                                    height={Math.max(window.innerHeight - 250, 400)}
+                                    rowCount={rowCount}
+                                    rowHeight={340}
+                                    width={windowWidth - 20}
+                                >
+                                    {({ columnIndex, rowIndex, style }) => {
+                                        const index = rowIndex * columnCount + columnIndex;
+                                        const player = filteredPlayers[index];
+                                        return player ? <PlayerCard key={player.id} player={player} style={style} serial={serialMap[player.id]} /> : null;
+                                    }}
+                                </Grid>
+                            </div>
                         </div>
 
                         <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
@@ -549,15 +605,15 @@ const AllPlayerCards = () => {
             )}
 
             {isDownloading && (
-            <div className="fixed inset-0 bg-black bg-opacity-70 z-[99999] flex flex-col items-center justify-center text-white text-xl font-semibold">
-                📥 Downloading Page {downloadProgress.current} of {downloadProgress.total}...
-            </div>
+                <div className="fixed inset-0 bg-black bg-opacity-70 z-[99999] flex flex-col items-center justify-center text-white text-xl font-semibold">
+                    📥 Downloading Page {downloadProgress.current} of {downloadProgress.total}...
+                </div>
             )}
 
             {showToast && (
-            <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg z-[99999] animate-bounce">
-                ✅ All Player Cards PDF Downloaded!
-            </div>
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg z-[99999] animate-bounce">
+                    ✅ All Player Cards PDF Downloaded!
+                </div>
             )}
 
 
