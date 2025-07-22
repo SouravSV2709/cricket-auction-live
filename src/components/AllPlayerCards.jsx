@@ -41,7 +41,7 @@ const AllPlayerCards = () => {
         (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
         (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
         (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
-        player.id.toString().includes(filterSerial)
+        (player.auction_serial || "").toString().includes(filterSerial)
     );
 
 

@@ -41,7 +41,7 @@ const AllPlayerCards = () => {
         (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
         (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
         (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
-        player.id.toString().includes(filterSerial)
+        (player.auction_serial || "").toString().includes(filterSerial)
     );
 
 
@@ -67,7 +67,7 @@ const AllPlayerCards = () => {
         if (filters.length > 0) {
             return `Page ${pageIndex + 1} [Filtered – ${filters.join(" | ")}]`;
         } else {
-            const serials = playersOnPage.map(p => serialMap[p.id]);
+            const serials = playersOnPage.map(p => serialMap[p.auction_serial]);
             const minSerial = Math.min(...serials);
             const maxSerial = Math.max(...serials);
             return `Page ${pageIndex + 1} [Showing Serial No ${minSerial}–${maxSerial}]`;

@@ -49,6 +49,7 @@ const SpectatorLiveDisplay = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [countdownTime, setCountdownTime] = useState(null);
     const countdownIntervalRef = useRef(null);
+    const [tournamentId, setTournamentId] = useState(null);
 
 
 
@@ -183,7 +184,7 @@ const SpectatorLiveDisplay = () => {
 
     const fetchAllPlayers = async () => {
         try {
-            const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
             const data = await res.json();
             console.log("✅ Player list fetched:", data.length);
             setPlayerList(data);
@@ -194,8 +195,10 @@ const SpectatorLiveDisplay = () => {
 
     const fetchTeams = async () => {
         try {
-            const res = await fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
             const data = await res.json();
+            console.log("✅ Team data fetched:", data);
+
             setTeamSummaries(data);
         } catch (err) {
             console.error("Error fetching teams:", err);
@@ -213,51 +216,43 @@ const SpectatorLiveDisplay = () => {
 
 
 
-    const fetchTournament = async () => {
-        try {
-            const res = await fetch(`${API}/api/tournaments/${CONFIG.TOURNAMENT_ID}`);
-            const data = await res.json();
-            console.log("🏷️ Tournament fetched:", data);
-
-            setTournamentName(data.title || "AUCTION ARENA LIVE");
-
-            if (data.logo) {
-                setTournamentLogo(`https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=h-300,w-300,fo-face,z-0.4`);
-            }
-        } catch (err) {
-            console.error("Failed to fetch tournament name/logo:", err);
-            setTournamentName("AUCTION ARENA LIVE");
-        }
-    };
-
     useEffect(() => {
-        const fetchTournament = async () => {
-            try {
-                const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
-                const data = await res.json();
-                setTournamentName(data.title || tournamentSlug);
-                setTournamentLogo(data.logo);
-                setTotalPlayersToBuy(data.total_players_to_buy || 14); // fallback default
-                const tournamentId = data.id;
+    const fetchTournament = async () => {
+    try {
+        const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+        const data = await res.json();
 
-                const [teamRes, playerRes] = await Promise.all([
-                    fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
-                    fetch(`${API}/api/players?tournament_id=${tournamentId}`)
-                ]);
+        setTournamentName(data.title || tournamentSlug);
+        setTournamentLogo(
+            data.logo
+                ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4`
+                : ""
+        );
+        setTotalPlayersToBuy(data.total_players_to_buy || 14);
 
-                const teamData = await teamRes.json();
-                const playerData = await playerRes.json();
+        const tournamentId = data.id;
+        setTournamentId(tournamentId); // ✅ So other functions can use it
 
-                // Filter only sold players
-                const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
+        const [teamRes, playerRes] = await Promise.all([
+            fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
+            fetch(`${API}/api/players?tournament_id=${tournamentId}`)
+        ]);
 
-                setPlayers(soldPlayers);
-                setTeams(teamData);
-            } catch (err) {
-                console.error("❌ Failed to load dashboard data:", err);
-            }
-        };
-    }, [tournamentSlug]);
+        const teamData = await teamRes.json();
+        const playerData = await playerRes.json();
+
+        const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
+
+        setPlayers(soldPlayers);
+        setTeams(teamData);
+        setTeamSummaries(teamData); // ✅ THIS FIXES THE ERROR
+    } catch (err) {
+        console.error("❌ Failed to load tournament data:", err);
+    }
+};
+    fetchTournament(); // 🟢 This was missing!
+}, [tournamentSlug]);
+
 
     useEffect(() => {
         if (!player) return;
@@ -295,14 +290,29 @@ const SpectatorLiveDisplay = () => {
         }
     }, [player?.sold_status]);
 
+    useEffect(() => {
+    if (!tournamentId) return; // ✅ prevent firing until tournamentId is loaded
+
+    fetchPlayer();
+    fetchTeams();
+    fetchAllPlayers();
+
+    const socket = io(API);
+    socket.on("playerSold", () => {
+        fetchPlayer();
+        fetchAllPlayers();
+        fetchTeams();
+    });
+    socket.on("playerChanged", fetchPlayer);
+
+    return () => socket.disconnect();
+}, [tournamentId]);
+
+
 
 
     useEffect(() => {
-        fetchPlayer();
-        fetchTeams();
-        fetchTournament();
-        fetchAllPlayers();
-
+        
         const socket = io(API);
 
         socket.on("playerSold", () => {
