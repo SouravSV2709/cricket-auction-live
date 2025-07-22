@@ -439,7 +439,9 @@ const SpectatorLiveDisplay = () => {
 
     if (customView === "noPlayers") {
 
-        const team = teamSummaries.find(t => Number(t.id) === Number(teamIdToShow));
+const team = Array.isArray(teamSummaries)
+  ? teamSummaries.find(t => Number(t.id) === Number(teamIdToShow))
+  : null;
         const teamPlayers = playerList.filter(p =>
             Number(p.team_id) === Number(teamIdToShow) &&
             (p.sold_status === true || p.sold_status === "TRUE")
@@ -659,7 +661,11 @@ const SpectatorLiveDisplay = () => {
                         {[leftPlayers, rightPlayers].map((group, groupIdx) => (
                             <div key={groupIdx} className="flex-1 flex flex-col space-y-4">
                                 {group.map((player, idx) => {
-                                    const team = teamSummaries.find(t => Number(t.id) === Number(player.team_id));
+                                    const team = Array.isArray(teamSummaries)
+  ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
+  : null;
+
+                            
                                     const rank = groupIdx * 5 + idx + 1;
 
                                     return (
@@ -961,7 +967,9 @@ const SpectatorLiveDisplay = () => {
 
     // Show Broadcast message
 
-    const team = teamSummaries?.find(t => t.id === Number(player.team_id));
+    const team = Array.isArray(teamSummaries)
+  ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
+  : null;
     const teamName = team?.name || leadingTeam || "Unknown";
     const teamLogoId = team?.logo;
 

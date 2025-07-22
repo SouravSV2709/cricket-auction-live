@@ -595,7 +595,11 @@ const result = await pool.query('SELECT * FROM tournaments WHERE slug = $1', [sl
 
 app.post("/api/reset-auction", async (req, res) => {
   try {
-    const tournamentId = TOURNAMENT_ID;
+    const tournamentId = req.body.tournament_id;
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "Tournament ID is required." });
+    }
 
     // 1. Reset all players
     const resetPlayersRes = await pool.query(`
@@ -607,7 +611,7 @@ app.post("/api/reset-auction", async (req, res) => {
 
     console.log(`🎯 Players reset: ${resetPlayersRes.rowCount}`);
 
-    // 2. Reset team budgets (optional: reset to initial value)
+    // 2. Reset team budgets
     const tournamentRes = await pool.query(
       `SELECT auction_money FROM tournaments WHERE id = $1`,
       [tournamentId]
@@ -620,8 +624,7 @@ app.post("/api/reset-auction", async (req, res) => {
       [budget, tournamentId]
     );
 
-
-    // 3. Recalculate team stats for each team
+    // 3. Recalculate team stats
     const teamRes = await pool.query(
       `SELECT id FROM teams WHERE tournament_id = $1`,
       [tournamentId]
@@ -638,13 +641,13 @@ app.post("/api/reset-auction", async (req, res) => {
     await pool.query("DELETE FROM current_bid");
     await pool.query("INSERT INTO current_bid (bid_amount, team_name) VALUES (0, '')");
 
-
     res.json({ message: "✅ Auction has been reset and team stats updated." });
   } catch (err) {
     console.error("❌ Error resetting auction:", err);
     res.status(500).json({ error: "Reset failed" });
   }
 });
+
 
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });

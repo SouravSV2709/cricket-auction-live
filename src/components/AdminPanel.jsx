@@ -663,8 +663,11 @@ const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
     const resetAuction = async () => {
         try {
             await fetch(`${API}/api/reset-auction`, {
-                method: "POST"
-            });
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tournament_id: tournamentId })
+});
+
 
             alert("✅ Auction has been fully reset.");
             fetchPlayers(); // Refresh player list
