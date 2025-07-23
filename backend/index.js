@@ -48,6 +48,19 @@ io.on("connection", (socket) => {
     io.emit("bidUpdated", data); // <--- THIS is what was missing
   });
 
+  // Start secret bid process
+
+  socket.on("secretBiddingToggled", () => {
+    console.log("📡 Broadcasting 'secretBiddingToggled'");
+    io.emit("secretBiddingToggled");
+  });
+
+  // ⬇️ Reveal Secrets bid
+  socket.on("revealSecretBids", (data) => {
+    console.log("📢 Broadcasting revealSecretBids:", data);
+    io.emit("revealSecretBids", data); // Broadcast to spectators
+  });
+
 });
 
 // Adding themes to the layout
@@ -584,7 +597,7 @@ app.post('/api/players/:id/reopen', async (req, res) => {
 
 app.get('/api/tournaments/slug/:slug', async (req, res) => {
   const { slug } = req.params;
-const result = await pool.query('SELECT * FROM tournaments WHERE slug = $1', [slug]);
+  const result = await pool.query('SELECT * FROM tournaments WHERE slug = $1', [slug]);
   if (result.rowCount === 0) return res.status(404).json({ error: 'Tournament not found' });
   res.json(result.rows[0]);
 });
@@ -645,6 +658,161 @@ app.post("/api/reset-auction", async (req, res) => {
   } catch (err) {
     console.error("❌ Error resetting auction:", err);
     res.status(500).json({ error: "Reset failed" });
+  }
+});
+
+// Accepts and validates a secret bid based on team code and max bid limit
+
+app.post("/api/secret-bid", async (req, res) => {
+  const { tournament_id, player_serial, team_code, bid_amount } = req.body;
+
+  if (!tournament_id || !player_serial || !team_code || !bid_amount) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    const teamRes = await pool.query(
+      `SELECT id, max_bid_allowed FROM teams WHERE tournament_id = $1 AND secret_code = $2`,
+      [tournament_id, team_code]
+    );
+
+    if (teamRes.rowCount === 0) {
+      return res.status(404).json({ error: "Invalid team code" });
+    }
+
+    const team = teamRes.rows[0];
+    if (bid_amount > team.max_bid_allowed) {
+      return res.status(400).json({ error: "Bid exceeds max allowed" });
+    }
+
+    await pool.query(
+      `INSERT INTO secret_bids (tournament_id, player_serial, team_id, bid_amount)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (tournament_id, player_serial, team_id)
+       DO UPDATE SET bid_amount = EXCLUDED.bid_amount, created_at = NOW()`,
+      [tournament_id, player_serial, team.id, bid_amount]
+    );
+
+    res.json({ message: "✅ Secret bid submitted." });
+  } catch (err) {
+    console.error("❌ Error submitting secret bid:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Retrieve all bids for a player (for Admin to reveal).
+
+app.get("/api/secret-bids", async (req, res) => {
+  const { tournament_id, player_serial } = req.query;
+
+  try {
+    const result = await pool.query(`
+      SELECT sb.*, t.name as team_name, t.logo
+      FROM secret_bids sb
+      JOIN teams t ON sb.team_id = t.id
+      WHERE sb.tournament_id = $1 AND sb.player_serial = $2
+      ORDER BY sb.bid_amount DESC
+    `, [tournament_id, player_serial]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ Error fetching secret bids:", err);
+    res.status(500).json({ error: "Failed to retrieve bids" });
+  }
+});
+
+// Finalize winner: mark player as SOLD and update team stats.
+
+app.post("/api/secret-bid/winner", async (req, res) => {
+  const { player_id, team_id, bid_amount } = req.body;
+
+  if (!player_id || !team_id || !bid_amount) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    await pool.query(`
+      UPDATE players
+      SET sold_status = 'TRUE', team_id = $1, sold_price = $2
+      WHERE id = $3
+    `, [team_id, bid_amount, player_id]);
+
+    await pool.query(`
+      UPDATE current_player
+      SET sold_status = 'TRUE',
+          team_id = $1,
+          sold_price = $2
+      WHERE id = $3
+    `, [team_id, bid_amount, player_id]);
+
+    const playerRes = await pool.query(
+      `SELECT tournament_id FROM players WHERE id = $1`,
+      [player_id]
+    );
+    const tournament_id = playerRes.rows[0]?.tournament_id;
+    if (tournament_id) {
+      await updateTeamStats(team_id, tournament_id);
+    }
+
+    // 🔔 Emit playerSold to trigger SOLD UI in spectator
+    const updatedPlayerRes = await pool.query(
+      `SELECT * FROM players WHERE id = $1`,
+      [player_id]
+    );
+    const updatedPlayer = updatedPlayerRes.rows[0];
+    io.emit("playerSold", updatedPlayer);
+
+    res.json({ message: "✅ Player marked as SOLD via secret bid." });
+  } catch (err) {
+    console.error("❌ Error finalizing winner:", err);
+    res.status(500).json({ error: "Could not finalize winner" });
+  }
+});
+
+
+// PATCH request for secret bidding
+
+app.patch("/api/current-player", async (req, res) => {
+  const { secret_bidding_enabled } = req.body;
+
+  try {
+    const result = await pool.query("SELECT id FROM current_player LIMIT 1");
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "No current player set" });
+    }
+
+    const currentPlayerId = result.rows[0].id;
+
+    await pool.query(
+      `UPDATE current_player SET secret_bidding_enabled = $1 WHERE id = $2`,
+      [secret_bidding_enabled, currentPlayerId]
+    );
+
+    // 🧼 If disabling, clear related secret bids
+    if (!secret_bidding_enabled) {
+      // Fetch tournament_id and player_serial
+      const playerData = await pool.query(`
+        SELECT p.tournament_id, p.auction_serial
+        FROM players p
+        WHERE p.id = $1
+      `, [currentPlayerId]);
+
+      const { tournament_id, auction_serial } = playerData.rows[0] || {};
+
+      if (tournament_id && auction_serial) {
+        const deleteRes = await pool.query(`
+          DELETE FROM secret_bids
+          WHERE tournament_id = $1 AND player_serial = $2
+        `, [tournament_id, auction_serial]);
+
+        console.log(`🧼 Cleared ${deleteRes.rowCount} secret bids for tournament ${tournament_id} player #${auction_serial}`);
+      }
+    }
+
+    res.json({ message: "Current player updated" });
+  } catch (err) {
+    console.error("❌ Failed to update current player:", err);
+    res.status(500).json({ error: "Failed to update current player" });
   }
 });
 

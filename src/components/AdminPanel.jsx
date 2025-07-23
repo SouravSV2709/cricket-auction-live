@@ -35,6 +35,10 @@ const AdminPanel = () => {
     const [countdownDuration, setCountdownDuration] = useState(0);
     const { tournamentSlug } = useParams();
     const [tournamentId, setTournamentId] = useState(null);
+    const [isSecretBiddingActive, setIsSecretBiddingActive] = useState(false);
+    const [secretBids, setSecretBids] = useState([]);
+    const [showSecretBids, setShowSecretBids] = useState(false);
+
 
 
 
@@ -43,32 +47,43 @@ const AdminPanel = () => {
     }, []);
 
     useEffect(() => {
-    const fetchTournamentId = async () => {
-        try {
-            const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
-            const data = await res.json();
+        const fetchTournamentId = async () => {
+            try {
+                const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+                const data = await res.json();
 
-            if (res.ok && data.id) {
-                setTournamentId(data.id);
-            } else {
-                console.error("❌ Tournament not found for slug:", tournamentSlug);
+                if (res.ok && data.id) {
+                    setTournamentId(data.id);
+                } else {
+                    console.error("❌ Tournament not found for slug:", tournamentSlug);
+                }
+            } catch (err) {
+                console.error("❌ Error fetching tournament by slug:", err);
             }
-        } catch (err) {
-            console.error("❌ Error fetching tournament by slug:", err);
-        }
-    };
+        };
 
-    fetchTournamentId();
-}, [tournamentSlug]);
+        fetchTournamentId();
+    }, [tournamentSlug]);
+
+    useEffect(() => {
+        fetch(`${API}/api/custom-message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: isSecretBiddingActive ? "__SECRET_BIDDING_ACTIVE__" : "__CLEAR_CUSTOM_VIEW__"
+            })
+        });
+    }, [isSecretBiddingActive]);
+
 
 
     useEffect(() => {
-    if (!tournamentId) return;
+        if (!tournamentId) return;
 
-    fetchPlayers();
-    fetchTeams(tournamentId);
-    fetchCurrentPlayer();
-}, [tournamentId]);
+        fetchPlayers();
+        fetchTeams(tournamentId);
+        fetchCurrentPlayer();
+    }, [tournamentId]);
 
 
     // Auto reset team view when new player selected
@@ -164,7 +179,7 @@ const AdminPanel = () => {
 
     const fetchPlayers = async () => {
         try {
-if (!tournamentId) return;
+            if (!tournamentId) return;
             const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
             if (!res.ok) throw new Error("Failed to fetch players");
             const data = await res.json();
@@ -370,7 +385,7 @@ if (!tournamentId) return;
         setBidAmount(0);
         setSelectedTeam('');
         fetchPlayers();
-fetchTeams(tournamentId);
+        fetchTeams(tournamentId);
         fetchCurrentPlayer();
     };
 
@@ -415,7 +430,7 @@ fetchTeams(tournamentId);
     };
 
     const handleNextPlayer = async () => {
-const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
+        const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
 
         try {
             // 1. Get all players once
@@ -663,10 +678,10 @@ const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
     const resetAuction = async () => {
         try {
             await fetch(`${API}/api/reset-auction`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tournament_id: tournamentId })
-});
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tournament_id: tournamentId })
+            });
 
 
             alert("✅ Auction has been fully reset.");
@@ -804,7 +819,7 @@ const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
 
         setBidAmount(type === "sold" ? bidAmount : 0);
         setSelectedTeam(type === "sold" ? teamName : '');
-fetchTeams(tournamentId);
+        fetchTeams(tournamentId);
         fetchCurrentPlayer();
     };
 
@@ -876,7 +891,7 @@ fetchTeams(tournamentId);
         setCurrentPlayer(reopenedPlayer);
         setBidAmount(reopenedPlayer.sold_price || 0);  // retain last sold amount
         setSelectedTeam(''); // team should be reset
-fetchTeams(tournamentId);
+        fetchTeams(tournamentId);
     };
 
 
@@ -1385,6 +1400,119 @@ fetchTeams(tournamentId);
                     🚀 Start Countdown
                 </button>
             </div>
+
+            <div className="mt-6 border border-purple-700 rounded-lg bg-gray-800 p-4">
+                <h3 className="text-lg font-bold text-purple-300 mb-2">🕵️‍♂️ Secret Bidding Controls</h3>
+
+                <div className="flex gap-4 mb-4">
+                    <button
+                        onClick={async () => {
+                            setIsSecretBiddingActive(true);
+                            await fetch(`${API}/api/current-player`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ secret_bidding_enabled: true }),
+                            });
+                            alert("✅ Secret Bidding ENABLED for current player");
+                            socketRef.current?.emit("secretBiddingToggled"); // ✅ Emits real-time update
+                        }}
+                        className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
+                        disabled={isSecretBiddingActive}
+                    >
+                        ✅ Enable Secret Bidding
+                    </button>
+
+                    <button
+                        onClick={async () => {
+                            setIsSecretBiddingActive(false);
+                            setShowSecretBids(false);
+                            await fetch(`${API}/api/current-player`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ secret_bidding_enabled: false }),
+                            });
+                            alert("❌ Secret Bidding DISABLED for current player");
+                            socketRef.current?.emit("secretBiddingToggled"); // ✅ Emits real-time update
+                        }}
+                        className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold"
+                        disabled={!isSecretBiddingActive}
+                    >
+                        ❌ Disable Secret Bidding
+                    </button>
+
+                    <button
+  onClick={async () => {
+    const res = await fetch(
+      `${API}/api/secret-bids?tournament_id=${tournamentId}&player_serial=${currentPlayer?.auction_serial}`
+    );
+    const data = await res.json();
+    setSecretBids(data);
+    setShowSecretBids(true);
+
+    // ✅ Emit to Spectator via Socket.IO
+    socketRef.current?.emit("revealSecretBids", {
+      tournament_id: tournamentId,
+      player_serial: currentPlayer?.auction_serial
+    });
+  }}
+  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold"
+  disabled={!isSecretBiddingActive}
+>
+  👁️ Reveal Bids
+</button>
+
+                </div>
+
+                {showSecretBids && secretBids.length > 0 && (
+                    <div className="space-y-2">
+                        {secretBids.map((bid, idx) => (
+                            <div
+                                key={idx}
+                                className={`p-3 rounded shadow bg-gray-900 border ${idx === 0 ? "border-green-400" : "border-gray-600"}`}
+                            >
+                                <p><strong>Team:</strong> {bid.team_name}</p>
+                                <p><strong>Bid:</strong> ₹{bid.bid_amount}</p>
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/secret-bid/winner`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                player_id: currentPlayer.id,
+                                                team_id: bid.team_id,
+                                                bid_amount: bid.bid_amount,
+                                            }),
+                                        });
+                                        alert("✅ Player assigned via secret bid!");
+                                        setShowSecretBids(false);
+                                        setIsSecretBiddingActive(false);
+                                        fetchPlayers();
+                                        fetchTeams(tournamentId);
+                                        fetchCurrentPlayer();
+
+                                        socketRef.current?.emit("secretBidWinnerAssigned", {
+                                        player_id: currentPlayer.id,
+                                        team_id: bid.team_id,
+                                        team_name: bid.team_name,
+                                        bid_amount: bid.bid_amount,
+                                        team_logo: bid.logo
+                                        });
+                                    }}
+                                    className="mt-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold"
+                                >
+                                    🏆 Assign to this Team
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {showSecretBids && secretBids.length === 0 && (
+                    <p className="text-red-300 font-semibold">No bids submitted yet.</p>
+                )}
+            </div>
+
+
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 mt-4">
                 <button

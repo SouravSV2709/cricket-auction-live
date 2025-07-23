@@ -50,6 +50,10 @@ const SpectatorLiveDisplay = () => {
     const [countdownTime, setCountdownTime] = useState(null);
     const countdownIntervalRef = useRef(null);
     const [tournamentId, setTournamentId] = useState(null);
+    const [revealedBids, setRevealedBids] = useState([]);
+    const [secretBidWinner, setSecretBidWinner] = useState(null);
+
+
 
 
 
@@ -115,60 +119,6 @@ const SpectatorLiveDisplay = () => {
 
     const lastPlayerId = useRef(null);
 
-    const fetchPlayer = async () => {
-        try {
-            const res = await fetch(`${API}/api/current-player`);
-            const text = await res.text();
-            const basic = text ? JSON.parse(text) : null;
-
-            if (!basic?.id) {
-                setPlayer(null);
-                setUnsoldClip(null);
-                return;
-            }
-
-            const isPlayerChanged = lastPlayerId.current !== basic.id;
-            if (isPlayerChanged) {
-                setIsLoading(true);
-            }
-
-            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
-            const fullPlayer = await fullRes.json();
-            fullPlayer.base_price = computeBasePrice(fullPlayer);
-
-            setPlayer(fullPlayer);
-            fetchTeams();
-
-            if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
-                try {
-                    unsoldAudio.volume = 1.0;
-                    unsoldAudio.currentTime = 0;
-                    unsoldAudio.play();
-                    const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
-                    setUnsoldClip(randomClip);
-                } catch (e) {
-                    console.error("UNSOLD audio error:", e);
-                }
-            } else {
-                setUnsoldClip(null);
-            }
-
-            lastPlayerId.current = basic.id;
-
-            if (isPlayerChanged) {
-                setTimeout(() => {
-                    setIsLoading(false);
-                    triggerConfettiIfSold(fullPlayer);
-                }, 800);
-            }
-
-        } catch (err) {
-            console.error("Failed to fetch full player info", err);
-            setPlayer(null);
-            setUnsoldClip(null);
-            setIsLoading(false);
-        }
-    };
 
     useEffect(() => {
         // Lock scrolling
@@ -205,6 +155,85 @@ const SpectatorLiveDisplay = () => {
         }
     };
 
+    const fetchPlayer = async () => {
+        if (!tournamentId) {
+            console.warn("⛔ fetchPlayer skipped — tournamentId not set");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API}/api/current-player`);
+            if (!res.ok) throw new Error("❌ Failed to fetch current player");
+
+            const text = await res.text();
+            if (!text || text.trim().length === 0) {
+                console.warn("⚠️ Empty response from /api/current-player — skipping update");
+                return;
+            }
+
+            const basic = JSON.parse(text);
+            if (!basic?.id) {
+                console.warn("⚠️ No player ID found in current-player response — skipping update");
+                return;
+            }
+
+            const isPlayerChanged = lastPlayerId.current !== basic.id;
+            if (isPlayerChanged) {
+                setIsLoading(true);
+            }
+
+            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
+            const fullPlayer = await fullRes.json();
+
+            fullPlayer.base_price = computeBasePrice(fullPlayer);
+            fullPlayer.secret_bidding_enabled = basic.secret_bidding_enabled;
+
+            // Fetch team summaries and attach matching team to player
+            const teams = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`).then(res => res.json());
+            setTeamSummaries(teams);
+            fullPlayer.team_data = teams.find(t => Number(t.id) === Number(fullPlayer.team_id));
+
+            setPlayer(fullPlayer);
+
+            // Play UNSOLD audio if needed
+            if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
+                try {
+                    unsoldAudio.volume = 1.0;
+                    unsoldAudio.currentTime = 0;
+                    unsoldAudio.play();
+                    const randomClip = unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)];
+                    setUnsoldClip(randomClip);
+                } catch (e) {
+                    console.error("UNSOLD audio error:", e);
+                }
+            } else {
+                setUnsoldClip(null);
+            }
+
+            lastPlayerId.current = basic.id;
+
+          if (isPlayerChanged) {
+  // Only delay for new player
+  setTimeout(() => {
+    setIsLoading(false);
+    triggerConfettiIfSold(fullPlayer);
+  }, 800);
+} else {
+  // Immediate update for same player (like secret bid sold)
+  setIsLoading(false);
+  triggerConfettiIfSold(fullPlayer);
+}
+
+
+        } catch (err) {
+            console.error("⚠️ Non-fatal fetchPlayer error:", err);
+            setIsLoading(false);
+            // ⚠️ Do NOT clear player — let old player remain visible
+        }
+    };
+
+
+
 
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
@@ -217,41 +246,41 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-    const fetchTournament = async () => {
-    try {
-        const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
-        const data = await res.json();
+        const fetchTournament = async () => {
+            try {
+                const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+                const data = await res.json();
 
-        setTournamentName(data.title || tournamentSlug);
-        setTournamentLogo(
-            data.logo
-                ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4`
-                : ""
-        );
-        setTotalPlayersToBuy(data.total_players_to_buy || 14);
+                setTournamentName(data.title || tournamentSlug);
+                setTournamentLogo(
+                    data.logo
+                        ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4`
+                        : ""
+                );
+                setTotalPlayersToBuy(data.total_players_to_buy || 14);
 
-        const tournamentId = data.id;
-        setTournamentId(tournamentId); // ✅ So other functions can use it
+                const tournamentId = data.id;
+                setTournamentId(tournamentId); // ✅ So other functions can use it
 
-        const [teamRes, playerRes] = await Promise.all([
-            fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
-            fetch(`${API}/api/players?tournament_id=${tournamentId}`)
-        ]);
+                const [teamRes, playerRes] = await Promise.all([
+                    fetch(`${API}/api/teams?tournament_id=${tournamentId}`),
+                    fetch(`${API}/api/players?tournament_id=${tournamentId}`)
+                ]);
 
-        const teamData = await teamRes.json();
-        const playerData = await playerRes.json();
+                const teamData = await teamRes.json();
+                const playerData = await playerRes.json();
 
-        const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
+                const soldPlayers = playerData.filter(p => p.sold_status === true || p.sold_status === "TRUE");
 
-        setPlayers(soldPlayers);
-        setTeams(teamData);
-        setTeamSummaries(teamData); // ✅ THIS FIXES THE ERROR
-    } catch (err) {
-        console.error("❌ Failed to load tournament data:", err);
-    }
-};
-    fetchTournament(); // 🟢 This was missing!
-}, [tournamentSlug]);
+                setPlayers(soldPlayers);
+                setTeams(teamData);
+                setTeamSummaries(teamData); // ✅ THIS FIXES THE ERROR
+            } catch (err) {
+                console.error("❌ Failed to load tournament data:", err);
+            }
+        };
+        fetchTournament(); // 🟢 This was missing!
+    }, [tournamentSlug]);
 
 
     useEffect(() => {
@@ -291,28 +320,31 @@ const SpectatorLiveDisplay = () => {
     }, [player?.sold_status]);
 
     useEffect(() => {
-    if (!tournamentId) return; // ✅ prevent firing until tournamentId is loaded
+        if (!tournamentId) return;
 
-    fetchPlayer();
-    fetchTeams();
-    fetchAllPlayers();
-
-    const socket = io(API);
-    socket.on("playerSold", () => {
-        fetchPlayer();
-        fetchAllPlayers();
+        fetchPlayer(); // ✅ only runs after tournamentId is set
         fetchTeams();
-    });
-    socket.on("playerChanged", fetchPlayer);
+        fetchAllPlayers();
 
-    return () => socket.disconnect();
-}, [tournamentId]);
+        const socket = io(API);
+        socket.on("playerSold", () => {
+            fetchPlayer();
+            fetchAllPlayers();
+            fetchTeams();
+        });
+
+        socket.on("playerChanged", fetchPlayer);
+        socket.on("secretBiddingToggled", fetchPlayer);
+
+        return () => socket.disconnect();
+    }, [tournamentId]);
+
 
 
 
 
     useEffect(() => {
-        
+
         const socket = io(API);
 
         socket.on("playerSold", () => {
@@ -324,6 +356,39 @@ const SpectatorLiveDisplay = () => {
         socket.on("playerChanged", () => {
             fetchPlayer();
         });
+
+        socket.on("secretBiddingToggled", () => {
+            console.log("📡 Secret bidding toggle received");
+            fetchPlayer(); // ⏱️ Immediately refresh current player data
+        });
+
+        socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
+            console.log("📡 Spectator received revealSecretBids:", tournament_id, player_serial);
+            try {
+                const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
+                const data = await res.json();
+                setRevealedBids(data || []);
+                setCustomView("reveal-bids");
+            } catch (err) {
+                console.error("❌ Failed to fetch secret bids:", err);
+            }
+        });
+
+        socket.on("secretBidWinnerAssigned", () => {
+  console.log("📡 [Spectator] Received secretBidWinnerAssigned socket event");
+
+  // Clear reveal-bids view
+  setCustomView(null);
+  setRevealedBids([]);
+  setCustomMessage(null);
+
+  setTimeout(() => {
+    console.log("⏳ [Spectator] Fetching player after delay...");
+    fetchPlayer(); // Ensure we hit this log before/after fetch
+  }, 100);
+});
+
+
 
 
         socket.on("customMessageUpdate", (msg) => {
@@ -341,11 +406,13 @@ const SpectatorLiveDisplay = () => {
                 setCustomView("no-players");
                 setCustomMessage(null);
             } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-                setCustomView(null);
-                setCustomMessage(null);
-                setCountdownTime(null); // Clear countdown if running
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-            } else if (msg === "__RESET_AUCTION__") {
+    setIsLoading(false); // 🔥 Bypass loader
+    setCustomView(null);
+    setCustomMessage(null);
+    setCountdownTime(null);
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    fetchPlayer(); // still fetch to update player info
+} else if (msg === "__RESET_AUCTION__") {
                 fetchAllPlayers();
                 fetchTeams();
                 setCustomView(null);
@@ -434,14 +501,53 @@ const SpectatorLiveDisplay = () => {
 
     }, []);
 
+    // When secret-bid is revealed
+
+    if (customView === "reveal-bids" && revealedBids.length > 0) {
+        const highestBid = revealedBids[0]?.bid_amount;
+
+        return (
+            <div className="w-screen h-screen bg-black text-white flex flex-col items-center justify-center overflow-auto px-4">
+                <BackgroundEffect theme={theme} />
+
+                <h1 className="text-4xl font-extrabold text-yellow-400 mb-6">📢 Secret Bids Revealed</h1>
+
+                <div className="w-full max-w-4xl bg-white/10 rounded-xl shadow-xl p-6 backdrop-blur-sm space-y-4">
+                    {revealedBids.map((bid, idx) => (
+                        <div
+                            key={bid.team_id}
+                            className={`flex justify-between items-center px-6 py-4 rounded-lg ${bid.bid_amount === highestBid ? 'bg-green-700/80' : 'bg-white/10'
+                                }`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <img
+                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${bid.logo}`}
+                                    alt={bid.team_name}
+                                    className="w-14 h-14 rounded-full border border-white object-contain"
+                                />
+                                <div className="text-xl font-bold">{bid.team_name}</div>
+                            </div>
+                            <div className="text-2xl font-bold text-green-400">
+                                ₹{Number(bid.bid_amount).toLocaleString()}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm bg-black border-t border-purple-600 animate-pulse z-50 py-2">
+                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
+            </div>
+        );
+    }
 
     // When no players in team display
 
     if (customView === "noPlayers") {
 
-const team = Array.isArray(teamSummaries)
-  ? teamSummaries.find(t => Number(t.id) === Number(teamIdToShow))
-  : null;
+        const team = Array.isArray(teamSummaries)
+            ? teamSummaries.find(t => Number(t.id) === Number(teamIdToShow))
+            : null;
         const teamPlayers = playerList.filter(p =>
             Number(p.team_id) === Number(teamIdToShow) &&
             (p.sold_status === true || p.sold_status === "TRUE")
@@ -662,10 +768,10 @@ const team = Array.isArray(teamSummaries)
                             <div key={groupIdx} className="flex-1 flex flex-col space-y-4">
                                 {group.map((player, idx) => {
                                     const team = Array.isArray(teamSummaries)
-  ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
-  : null;
+                                        ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
+                                        : null;
 
-                            
+
                                     const rank = groupIdx * 5 + idx + 1;
 
                                     return (
@@ -968,8 +1074,8 @@ const team = Array.isArray(teamSummaries)
     // Show Broadcast message
 
     const team = Array.isArray(teamSummaries)
-  ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
-  : null;
+        ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
+        : null;
     const teamName = team?.name || leadingTeam || "Unknown";
     const teamLogoId = team?.logo;
 
@@ -1112,24 +1218,45 @@ const team = Array.isArray(teamSummaries)
                                 </div>
 
                                 {(() => {
-                                    const leadingTeamObj = teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim());
+                                    const leadingTeamObj = Array.isArray(teamSummaries)
+                                        ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
+                                        : null;
+
                                     const leadingTeamLogo = leadingTeamObj?.logo;
+                                    const leadingTeamName = leadingTeamObj?.name;
+
+
+
                                     return (
                                         <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
                                             <p className="text-2xl uppercase tracking-wider font-bold drop-shadow-sm">Leading Team</p>
+
                                             {leadingTeamLogo && (
                                                 <img
                                                     src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=w-400,h-400`}
-                                                    alt={leadingTeamObj.name}
+                                                    alt={leadingTeamName}
                                                     className="mx-auto mb-2 rounded-full w-[20rem] h-[20rem] object-contain inline-block align-middle"
                                                 />
                                             )}
+
                                             <div className="text-4xl uppercase text-green-bold">
-                                                {leadingTeam || "—"}
+                                                {leadingTeamName || "—"}
                                             </div>
+
                                         </div>
                                     );
                                 })()}
+
+                                <div>
+                                    {/* 👇 Secret Bidding Flag Message */}
+                                    {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
+                                        player?.secret_bidding_enabled && (
+                                            <p className="text-2xl mt-4 text-yellow-300 font-bold animate-pulse">
+                                                Secret Bidding In Progress...
+                                            </p>
+                                        )}
+                                </div>
+
                             </>
                         )
                     )}
