@@ -612,6 +612,7 @@ const SpectatorLiveDisplay = () => {
                                                     minute: "2-digit",
                                                     second: "2-digit",
                                                     hour12: true,
+                                                    timeZone: "Asia/Kolkata", // ✅ force IST
                                                     });
                                                     const ms = date.getMilliseconds().toString().padStart(3, "0");
                                                     return `${time}.${ms}`;
@@ -667,6 +668,7 @@ const SpectatorLiveDisplay = () => {
                                                         minute: "2-digit",
                                                         second: "2-digit",
                                                         hour12: true,
+                                                        timeZone: "Asia/Kolkata", // ✅ force IST
                                                         });
                                                         const ms = date.getMilliseconds().toString().padStart(3, "0");
                                                         return `${time}.${ms}`;
