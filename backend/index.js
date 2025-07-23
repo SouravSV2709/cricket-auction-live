@@ -686,12 +686,13 @@ app.post("/api/secret-bid", async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO secret_bids (tournament_id, player_serial, team_id, bid_amount)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (tournament_id, player_serial, team_id)
-       DO UPDATE SET bid_amount = EXCLUDED.bid_amount, created_at = NOW()`,
-      [tournament_id, player_serial, team.id, bid_amount]
-    );
+  `INSERT INTO secret_bids (tournament_id, player_serial, team_id, bid_amount, created_at)
+   VALUES ($1, $2, $3, $4, NOW())
+   ON CONFLICT (tournament_id, player_serial, team_id)
+   DO UPDATE SET bid_amount = EXCLUDED.bid_amount, created_at = NOW()`,
+  [tournament_id, player_serial, team.id, bid_amount]
+);
+
 
     res.json({ message: "✅ Secret bid submitted." });
   } catch (err) {

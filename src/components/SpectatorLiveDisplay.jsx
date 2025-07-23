@@ -212,17 +212,17 @@ const SpectatorLiveDisplay = () => {
 
             lastPlayerId.current = basic.id;
 
-          if (isPlayerChanged) {
-  // Only delay for new player
-  setTimeout(() => {
-    setIsLoading(false);
-    triggerConfettiIfSold(fullPlayer);
-  }, 800);
-} else {
-  // Immediate update for same player (like secret bid sold)
-  setIsLoading(false);
-  triggerConfettiIfSold(fullPlayer);
-}
+            if (isPlayerChanged) {
+                // Only delay for new player
+                setTimeout(() => {
+                    setIsLoading(false);
+                    triggerConfettiIfSold(fullPlayer);
+                }, 800);
+            } else {
+                // Immediate update for same player (like secret bid sold)
+                setIsLoading(false);
+                triggerConfettiIfSold(fullPlayer);
+            }
 
 
         } catch (err) {
@@ -375,18 +375,18 @@ const SpectatorLiveDisplay = () => {
         });
 
         socket.on("secretBidWinnerAssigned", () => {
-  console.log("📡 [Spectator] Received secretBidWinnerAssigned socket event");
+            console.log("📡 [Spectator] Received secretBidWinnerAssigned socket event");
 
-  // Clear reveal-bids view
-  setCustomView(null);
-  setRevealedBids([]);
-  setCustomMessage(null);
+            // Clear reveal-bids view
+            setCustomView(null);
+            setRevealedBids([]);
+            setCustomMessage(null);
 
-  setTimeout(() => {
-    console.log("⏳ [Spectator] Fetching player after delay...");
-    fetchPlayer(); // Ensure we hit this log before/after fetch
-  }, 100);
-});
+            setTimeout(() => {
+                console.log("⏳ [Spectator] Fetching player after delay...");
+                fetchPlayer(); // Ensure we hit this log before/after fetch
+            }, 100);
+        });
 
 
 
@@ -406,13 +406,13 @@ const SpectatorLiveDisplay = () => {
                 setCustomView("no-players");
                 setCustomMessage(null);
             } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-    setIsLoading(false); // 🔥 Bypass loader
-    setCustomView(null);
-    setCustomMessage(null);
-    setCountdownTime(null);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    fetchPlayer(); // still fetch to update player info
-} else if (msg === "__RESET_AUCTION__") {
+                setIsLoading(false); // 🔥 Bypass loader
+                setCustomView(null);
+                setCustomMessage(null);
+                setCountdownTime(null);
+                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+                fetchPlayer(); // still fetch to update player info
+            } else if (msg === "__RESET_AUCTION__") {
                 fetchAllPlayers();
                 fetchTeams();
                 setCustomView(null);
@@ -503,43 +503,196 @@ const SpectatorLiveDisplay = () => {
 
     // When secret-bid is revealed
 
-    if (customView === "reveal-bids" && revealedBids.length > 0) {
-        const highestBid = revealedBids[0]?.bid_amount;
+    if (customView === "reveal-bids" && revealedBids.length > 0 && player) {
+        // Sort by highest bid DESC, then earliest created_at ASC
+        const sortedBids = [...revealedBids].sort((a, b) => {
+            if (b.bid_amount !== a.bid_amount) {
+                return b.bid_amount - a.bid_amount; // higher bid first
+            }
+            return new Date(a.created_at) - new Date(b.created_at); // earlier wins tie
+        });
+
+        const winningTeamId = sortedBids[0]?.team_id;
+        const midpoint = Math.ceil(sortedBids.length / 2);
+        const leftTable = sortedBids.slice(0, midpoint);
+        const rightTable = sortedBids.slice(midpoint);
+
 
         return (
-            <div className="w-screen h-screen bg-black text-white flex flex-col items-center justify-center overflow-auto px-4">
+            <div className="w-screen h-screen bg-black text-white flex overflow-hidden">
                 <BackgroundEffect theme={theme} />
 
-                <h1 className="text-4xl font-extrabold text-yellow-400 mb-6">📢 Secret Bids Revealed</h1>
+                {/* LEFT: Player Info Centered */}
+                <div className="w-1/3 h-full flex flex-col items-center justify-center p-6 border-r border-white/20">
+                    <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
+                        PLAYER #{player.auction_serial}
+                    </h2>
 
-                <div className="w-full max-w-4xl bg-white/10 rounded-xl shadow-xl p-6 backdrop-blur-sm space-y-4">
-                    {revealedBids.map((bid, idx) => (
-                        <div
-                            key={bid.team_id}
-                            className={`flex justify-between items-center px-6 py-4 rounded-lg ${bid.bid_amount === highestBid ? 'bg-green-700/80' : 'bg-white/10'
-                                }`}
-                        >
-                            <div className="flex items-center gap-4">
-                                <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${bid.logo}`}
-                                    alt={bid.team_name}
-                                    className="w-14 h-14 rounded-full border border-white object-contain"
-                                />
-                                <div className="text-xl font-bold">{bid.team_name}</div>
-                            </div>
-                            <div className="text-2xl font-bold text-green-400">
-                                ₹{Number(bid.bid_amount).toLocaleString()}
-                            </div>
-                        </div>
-                    ))}
+                    <img
+                        src={
+                            player.profile_image?.startsWith("http")
+                                ? player.profile_image
+                                : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-400,fo-face,z-0.4`
+                        }
+                        alt={player.name}
+                        className="w-[30rem] h-[36rem] object-cover rounded-xl border-2 border-white shadow-lg mb-4"
+                    />
+
+                    <div className="text-center space-y-2">
+                        <h1 className="text-2xl font-bold">{player.name}</h1>
+                        <p className="text-sm italic text-yellow-200">
+                            {player.role} | {player.district || "NA"}
+                        </p>
+                        <p className="text-sm uppercase">BASE PRICE</p>
+                        <p className="text-xl font-extrabold text-green-400">
+                            ₹{(player.base_price || 0).toLocaleString()}
+                        </p>
+                    </div>
                 </div>
 
+                {/* RIGHT: Adaptive Table(s) Centered */}
+                <div className="w-2/3 h-full flex items-center justify-center px-4 py-6 overflow-auto">
+                    <div className="w-full flex flex-col items-center justify-center">
+                        {/* Tournament Header */}
+                        <div className="flex flex-row items-center mb-4">
+                            {tournamentLogo && (
+                                <img
+                                    src={tournamentLogo}
+                                    alt="Tournament Logo"
+                                    className="w-24 h-24 object-contain mb-2 animate-pulse"
+                                />
+                            )}
+                            <h1 className="text-xl font-bold text-white tracking-wide text-center m-6">{tournamentName}</h1>
+                        </div>
+
+                        {/* Player-specific Bid Header */}
+                        <h2 className="text-3xl font-extrabold text-yellow-400 mb-6 text-center">
+                            Secret Bids for Player #{player.auction_serial}: {player.name}
+                        </h2>
+
+
+                        {revealedBids.length <= 8 ? (
+                            // ✅ Single Table Layout
+                            <div className="w-full max-w-4xl">
+                                <table className="w-full table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in">
+                                    <thead className="bg-white/10 text-yellow-300 text-xs uppercase">
+                                        <tr>
+                                            <th className="px-4 py-2 border-b border-white/10">#</th>
+                                            <th className="px-4 py-2 border-b border-white/10">Logo</th>
+                                            <th className="px-4 py-2 border-b border-white/10">Team Name</th>
+                                            <th className="px-4 py-2 border-b border-white/10 text-right">Bid</th>
+                                            <th className="px-3 py-2 border-b border-white/10 text-right">Submitted At</th> {/* ⬅ new */}
+
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-white text-sm divide-y divide-white/10">
+                                        {revealedBids.map((bid, idx) => (
+                                            <tr
+                                                key={bid.team_id}
+                                                className={`${bid.team_id === winningTeamId ? "bg-green-700/70 font-bold animate-pulse" : "bg-white/5"
+                                                    }`}
+                                            >
+                                                <td className="px-4 py-2">{idx + 1}</td>
+                                                <td className="px-4 py-2">
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${bid.logo}`}
+                                                        alt={bid.team_name}
+                                                        className="w-8 h-8 rounded-full object-contain border border-white/30"
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-2">{bid.team_name}</td>
+                                                <td className="px-4 py-2 text-right text-green-300">
+                                                    ₹{Number(bid.bid_amount).toLocaleString()}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-yellow-300">
+                                                {(() => {
+                                                    const date = new Date(bid.created_at);
+                                                    const time = date.toLocaleTimeString("en-IN", {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                    second: "2-digit",
+                                                    hour12: true,
+                                                    });
+                                                    const ms = date.getMilliseconds().toString().padStart(3, "0");
+                                                    return `${time}.${ms}`;
+                                                })()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            // ✅ Two Table Layout
+                            <div className="flex w-full justify-center items-start gap-6">
+                                {[leftTable, rightTable].map((group, i) => (
+                                    <table
+                                        key={i}
+                                        className="w-1/2 table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in"
+                                    >
+                                        <thead className="bg-white/10 text-yellow-300 text-xs uppercase">
+                                            <tr>
+                                                <th className="px-3 py-2 border-b border-white/10">#</th>
+                                                <th className="px-3 py-2 border-b border-white/10">Logo</th>
+                                                <th className="px-3 py-2 border-b border-white/10">Team Name</th>
+                                                <th className="px-3 py-2 border-b border-white/10 text-right">Bid</th>
+                                                <th className="px-3 py-2 border-b border-white/10 text-right">Submitted At</th> {/* ⬅ new */}
+
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-white text-sm divide-y divide-white/10">
+                                            {group.map((bid, idx) => (
+                                                <tr
+                                                    key={bid.team_id}
+                                                    className={`${bid.team_id === winningTeamId ? "bg-green-700/70 font-bold animate-pulse" : "bg-white/5"
+                                                        }`}
+                                                >
+                                                    <td className="px-3 py-2">{idx + 1 + (i === 1 ? midpoint : 0)}</td>
+                                                    <td className="px-3 py-2">
+                                                        <img
+                                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${bid.logo}`}
+                                                            alt={bid.team_name}
+                                                            className="w-8 h-8 rounded-full object-contain border border-white/30"
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2">{bid.team_name}</td>
+                                                    <td className="px-3 py-2 text-right text-green-300">
+                                                        ₹{Number(bid.bid_amount).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right text-yellow-300">
+                                                    {(() => {
+                                                        const date = new Date(bid.created_at);
+                                                        const time = date.toLocaleTimeString("en-IN", {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                        second: "2-digit",
+                                                        hour12: true,
+                                                        });
+                                                        const ms = date.getMilliseconds().toString().padStart(3, "0");
+                                                        return `${time}.${ms}`;
+                                                    })()}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* FOOTER */}
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm bg-black border-t border-purple-600 animate-pulse z-50 py-2">
                     🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                 </footer>
             </div>
         );
     }
+
+
+
+
 
     // When no players in team display
 
