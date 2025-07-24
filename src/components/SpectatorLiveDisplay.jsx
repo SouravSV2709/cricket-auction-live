@@ -606,24 +606,25 @@ const SpectatorLiveDisplay = () => {
                                                 <td className="px-4 py-2 text-right text-green-300">
                                                     ₹{Number(bid.bid_amount).toLocaleString()}
                                                 </td>
-                                                    <td className="text-sm text-right">
+                                                    <td className="text-right text-sm">
                                                     {(() => {
                                                         if (!bid.created_at) return "Invalid Time";
 
-                                                        console.log("⏱️ bid.created_at raw:", bid.created_at); // ← This line logs the raw value
+                                                        console.log("⏱️ bid.created_at raw:", bid.created_at);
 
-                                                        try {
-                                                        const dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), {
-                                                            zone: "Asia/Kolkata",
-                                                        });
+                                                        let dt;
+
+                                                        if (typeof bid.created_at === "string" && bid.created_at.includes("Z")) {
+                                                        // UTC format (e.g., 2025-07-24T13:01:00.715Z)
+                                                        dt = DateTime.fromISO(bid.created_at, { zone: "UTC" }).setZone("Asia/Kolkata");
+                                                        } else {
+                                                        // Naive local time — treat as IST
+                                                        dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), { zone: "Asia/Kolkata" });
+                                                        }
 
                                                         if (!dt.isValid) return "Invalid Date";
 
                                                         return dt.toFormat("hh:mm:ss a");
-                                                        } catch (error) {
-                                                        console.error("Date parse error:", error);
-                                                        return "Invalid Date";
-                                                        }
                                                     })()}
                                                     </td>
                                             </tr>
@@ -672,24 +673,23 @@ const SpectatorLiveDisplay = () => {
                                                     {(() => {
                                                         if (!bid.created_at) return "Invalid Time";
 
-                                                        console.log("⏱️ bid.created_at raw:", bid.created_at); // ← This line logs the raw value
+                                                        console.log("⏱️ bid.created_at raw:", bid.created_at);
 
-                                                        try {
-                                                        const dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), {
-                                                            zone: "Asia/Kolkata",
-                                                        });
+                                                        let dt;
+
+                                                        if (typeof bid.created_at === "string" && bid.created_at.includes("Z")) {
+                                                        // UTC format (e.g., 2025-07-24T13:01:00.715Z)
+                                                        dt = DateTime.fromISO(bid.created_at, { zone: "UTC" }).setZone("Asia/Kolkata");
+                                                        } else {
+                                                        // Naive local time — treat as IST
+                                                        dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), { zone: "Asia/Kolkata" });
+                                                        }
 
                                                         if (!dt.isValid) return "Invalid Date";
 
                                                         return dt.toFormat("hh:mm:ss a");
-                                                        } catch (error) {
-                                                        console.error("Date parse error:", error);
-                                                        return "Invalid Date";
-                                                        }
                                                     })()}
                                                     </td>
-                                              
-
                                                 </tr>
                                             ))}
                                         </tbody>
