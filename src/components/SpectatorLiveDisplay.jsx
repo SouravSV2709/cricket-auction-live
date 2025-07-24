@@ -605,24 +605,20 @@ const SpectatorLiveDisplay = () => {
                                                     ₹{Number(bid.bid_amount).toLocaleString()}
                                                 </td>
                                                 <td className="px-3 py-2 text-right text-yellow-300">
-  {(() => {
-    const date = new Date(bid.created_at);
-    const formatter = new Intl.DateTimeFormat("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
-
-    const timeParts = formatter.formatToParts(date);
-    const timeString = timeParts.map(part => part.value).join("");
-    const ms = date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-    const millis = new Date(ms).getMilliseconds().toString().padStart(3, "0");
-
-    return `${timeString}.${millis}`;
-  })()}
-</td>
+                                                    {(() => {
+                                                        const date = new Date(bid.created_at + " GMT+0530");
+                                                        const formatter = new Intl.DateTimeFormat("en-IN", {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            second: "2-digit",
+                                                            hour12: true,
+                                                        });
+                                                        const timeParts = formatter.formatToParts(date);
+                                                        const timeString = timeParts.map(part => part.value).join("");
+                                                        const millis = date.getMilliseconds().toString().padStart(3, "0");
+                                                        return `${timeString}.${millis}`;
+                                                    })()}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -666,24 +662,20 @@ const SpectatorLiveDisplay = () => {
                                                         ₹{Number(bid.bid_amount).toLocaleString()}
                                                     </td>
                                                     <td className="px-3 py-2 text-right text-yellow-300">
-  {(() => {
-    const date = new Date(bid.created_at);
-    const formatter = new Intl.DateTimeFormat("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Kolkata",
-    });
-
-    const timeParts = formatter.formatToParts(date);
-    const timeString = timeParts.map(part => part.value).join("");
-    const ms = date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
-    const millis = new Date(ms).getMilliseconds().toString().padStart(3, "0");
-
-    return `${timeString}.${millis}`;
-  })()}
-</td>
+                                                        {(() => {
+                                                             const date = new Date(bid.created_at + " GMT+0530");
+                                                        const formatter = new Intl.DateTimeFormat("en-IN", {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            second: "2-digit",
+                                                            hour12: true,
+                                                        });
+                                                        const timeParts = formatter.formatToParts(date);
+                                                        const timeString = timeParts.map(part => part.value).join("");
+                                                        const millis = date.getMilliseconds().toString().padStart(3, "0");
+                                                        return `${timeString}.${millis}`;
+                                                        })()}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
