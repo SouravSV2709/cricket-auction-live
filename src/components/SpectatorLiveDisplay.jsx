@@ -584,7 +584,6 @@ const SpectatorLiveDisplay = () => {
                                             <th className="px-4 py-2 border-b border-white/10">Team Name</th>
                                             <th className="px-4 py-2 border-b border-white/10 text-right">Bid</th>
                                             <th className="px-3 py-2 border-b border-white/10 text-right">Submitted At</th> {/* ⬅ new */}
-
                                         </tr>
                                     </thead>
                                     <tbody className="text-white text-sm divide-y divide-white/10 text-center">
@@ -606,27 +605,41 @@ const SpectatorLiveDisplay = () => {
                                                 <td className="px-4 py-2 text-right text-green-300">
                                                     ₹{Number(bid.bid_amount).toLocaleString()}
                                                 </td>
-                                                    <td className="text-right text-sm">
+                                                <td className="text-center text-sm">
                                                     {(() => {
                                                         if (!bid.created_at) return "Invalid Time";
 
-                                                        console.log("⏱️ bid.created_at raw:", bid.created_at);
+                                                        const raw = bid.created_at;
+                                                        console.log("bid.created_at raw:", raw);
 
                                                         let dt;
 
-                                                        if (typeof bid.created_at === "string" && bid.created_at.includes("Z")) {
-                                                        // UTC format (e.g., 2025-07-24T13:01:00.715Z)
-                                                        dt = DateTime.fromISO(bid.created_at, { zone: "UTC" }).setZone("Asia/Kolkata");
+                                                        // If time is before 9:30am UTC, it’s likely a correct UTC timestamp (local env)
+                                                        // Otherwise (>= IST), treat as mistaken IST pretending to be UTC (prod bug)
+                                                        const hour = parseInt(raw.substring(11, 13));
+
+                                                        if (hour < 9) {
+                                                            // Proper UTC string (like in local) — convert to IST
+                                                            dt = DateTime.fromISO(raw, { zone: "UTC" }).setZone("Asia/Kolkata");
                                                         } else {
-                                                        // Naive local time — treat as IST
-                                                        dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), { zone: "Asia/Kolkata" });
+                                                            // Mis-tagged IST (like in prod) — ignore Z and parse as IST
+                                                            const cleaned = raw.replace("Z", "");
+                                                            dt = DateTime.fromFormat(cleaned, "yyyy-MM-dd'T'HH:mm:ss.SSS", {
+                                                                zone: "Asia/Kolkata",
+                                                            });
+
+                                                            if (!dt.isValid) {
+                                                                dt = DateTime.fromFormat(cleaned, "yyyy-MM-dd'T'HH:mm:ss", {
+                                                                    zone: "Asia/Kolkata",
+                                                                });
+                                                            }
                                                         }
 
                                                         if (!dt.isValid) return "Invalid Date";
 
                                                         return dt.toFormat("hh:mm:ss a");
                                                     })()}
-                                                    </td>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -647,7 +660,6 @@ const SpectatorLiveDisplay = () => {
                                                 <th className="px-3 py-2 border-b border-white/10">Team Name</th>
                                                 <th className="px-3 py-2 border-b border-white/10 text-right">Bid</th>
                                                 <th className="px-3 py-2 border-b border-white/10 text-right">Submitted At</th> {/* ⬅ new */}
-
                                             </tr>
                                         </thead>
                                         <tbody className="text-white text-sm divide-y divide-white/10">
@@ -669,26 +681,40 @@ const SpectatorLiveDisplay = () => {
                                                     <td className="px-3 py-2 text-right text-green-300">
                                                         ₹{Number(bid.bid_amount).toLocaleString()}
                                                     </td>
-                                                    <td className="text-right text-sm">
-                                                    {(() => {
-                                                        if (!bid.created_at) return "Invalid Time";
+                                                    <td className="text-center text-sm">
+                                                        {(() => {
+                                                            if (!bid.created_at) return "Invalid Time";
 
-                                                        console.log("⏱️ bid.created_at raw:", bid.created_at);
+                                                            const raw = bid.created_at;
+                                                            console.log("bid.created_at raw:", raw);
 
-                                                        let dt;
+                                                            let dt;
 
-                                                        if (typeof bid.created_at === "string" && bid.created_at.includes("Z")) {
-                                                        // UTC format (e.g., 2025-07-24T13:01:00.715Z)
-                                                        dt = DateTime.fromISO(bid.created_at, { zone: "UTC" }).setZone("Asia/Kolkata");
-                                                        } else {
-                                                        // Naive local time — treat as IST
-                                                        dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), { zone: "Asia/Kolkata" });
-                                                        }
+                                                            // If time is before 9:30am UTC, it’s likely a correct UTC timestamp (local env)
+                                                            // Otherwise (>= IST), treat as mistaken IST pretending to be UTC (prod bug)
+                                                            const hour = parseInt(raw.substring(11, 13));
 
-                                                        if (!dt.isValid) return "Invalid Date";
+                                                            if (hour < 9) {
+                                                                // Proper UTC string (like in local) — convert to IST
+                                                                dt = DateTime.fromISO(raw, { zone: "UTC" }).setZone("Asia/Kolkata");
+                                                            } else {
+                                                                // Mis-tagged IST (like in prod) — ignore Z and parse as IST
+                                                                const cleaned = raw.replace("Z", "");
+                                                                dt = DateTime.fromFormat(cleaned, "yyyy-MM-dd'T'HH:mm:ss.SSS", {
+                                                                    zone: "Asia/Kolkata",
+                                                                });
 
-                                                        return dt.toFormat("hh:mm:ss a");
-                                                    })()}
+                                                                if (!dt.isValid) {
+                                                                    dt = DateTime.fromFormat(cleaned, "yyyy-MM-dd'T'HH:mm:ss", {
+                                                                        zone: "Asia/Kolkata",
+                                                                    });
+                                                                }
+                                                            }
+
+                                                            if (!dt.isValid) return "Invalid Date";
+
+                                                            return dt.toFormat("hh:mm:ss a");
+                                                        })()}
                                                     </td>
                                                 </tr>
                                             ))}
