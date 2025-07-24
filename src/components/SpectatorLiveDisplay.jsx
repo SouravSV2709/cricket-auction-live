@@ -7,6 +7,8 @@ import THEMES from '../components/themes';
 import PlayerTransitionLoader from "../components/PlayerTransitionLoader";
 import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
+import { DateTime } from "luxon";
+
 
 
 const API = CONFIG.API_BASE_URL;
@@ -575,7 +577,7 @@ const SpectatorLiveDisplay = () => {
                             // ✅ Single Table Layout
                             <div className="w-full max-w-4xl">
                                 <table className="w-full table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in">
-                                    <thead className="bg-white/10 text-yellow-300 text-xs uppercase">
+                                    <thead className="bg-white/10 text-yellow-300 text-xs uppercase text-center">
                                         <tr>
                                             <th className="px-4 py-2 border-b border-white/10">#</th>
                                             <th className="px-4 py-2 border-b border-white/10">Logo</th>
@@ -585,7 +587,7 @@ const SpectatorLiveDisplay = () => {
 
                                         </tr>
                                     </thead>
-                                    <tbody className="text-white text-sm divide-y divide-white/10">
+                                    <tbody className="text-white text-sm divide-y divide-white/10 text-center">
                                         {revealedBids.map((bid, idx) => (
                                             <tr
                                                 key={bid.team_id}
@@ -604,24 +606,24 @@ const SpectatorLiveDisplay = () => {
                                                 <td className="px-4 py-2 text-right text-green-300">
                                                     ₹{Number(bid.bid_amount).toLocaleString()}
                                                 </td>
-                                                <td className="text-center text-sm">
+                                                    <td className="text-sm text-right">
                                                     {(() => {
                                                         if (!bid.created_at) return "Invalid Time";
 
-                                                        const correctedDateString = bid.created_at.replace(" ", "T").split(".")[0] + "+05:30";
-                                                        const date = new Date(correctedDateString);
+                                                        console.log("⏱️ bid.created_at raw:", bid.created_at); // ← This line logs the raw value
 
-                                                        if (isNaN(date)) return "Invalid Date";
-
-                                                        const formatter = new Intl.DateTimeFormat("en-IN", {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                        second: "2-digit",
-                                                        hour12: true,
-                                                        timeZone: "Asia/Kolkata",
+                                                        try {
+                                                        const dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), {
+                                                            zone: "Asia/Kolkata",
                                                         });
 
-                                                        return formatter.format(date);
+                                                        if (!dt.isValid) return "Invalid Date";
+
+                                                        return dt.toFormat("hh:mm:ss a");
+                                                        } catch (error) {
+                                                        console.error("Date parse error:", error);
+                                                        return "Invalid Date";
+                                                        }
                                                     })()}
                                                     </td>
                                             </tr>
@@ -637,7 +639,7 @@ const SpectatorLiveDisplay = () => {
                                         key={i}
                                         className="w-1/2 table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in"
                                     >
-                                        <thead className="bg-white/10 text-yellow-300 text-xs uppercase">
+                                        <thead className="bg-white/10 text-yellow-300 text-xs uppercase text-center">
                                             <tr>
                                                 <th className="px-3 py-2 border-b border-white/10">#</th>
                                                 <th className="px-3 py-2 border-b border-white/10">Logo</th>
@@ -666,26 +668,27 @@ const SpectatorLiveDisplay = () => {
                                                     <td className="px-3 py-2 text-right text-green-300">
                                                         ₹{Number(bid.bid_amount).toLocaleString()}
                                                     </td>
-                                                    <td className="text-center text-sm">
+                                                    <td className="text-right text-sm">
                                                     {(() => {
                                                         if (!bid.created_at) return "Invalid Time";
 
-                                                        const correctedDateString = bid.created_at.replace(" ", "T").split(".")[0] + "+05:30";
-                                                        const date = new Date(correctedDateString);
+                                                        console.log("⏱️ bid.created_at raw:", bid.created_at); // ← This line logs the raw value
 
-                                                        if (isNaN(date)) return "Invalid Date";
-
-                                                        const formatter = new Intl.DateTimeFormat("en-IN", {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                        second: "2-digit",
-                                                        hour12: true,
-                                                        timeZone: "Asia/Kolkata",
+                                                        try {
+                                                        const dt = DateTime.fromISO(bid.created_at.replace(" ", "T"), {
+                                                            zone: "Asia/Kolkata",
                                                         });
 
-                                                        return formatter.format(date);
+                                                        if (!dt.isValid) return "Invalid Date";
+
+                                                        return dt.toFormat("hh:mm:ss a");
+                                                        } catch (error) {
+                                                        console.error("Date parse error:", error);
+                                                        return "Invalid Date";
+                                                        }
                                                     })()}
                                                     </td>
+                                              
 
                                                 </tr>
                                             ))}

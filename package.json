@@ -19,6 +19,7 @@
     "html2pdf.js": "^0.10.3",
     "jspdf": "^3.0.1",
     "lottie-react": "^2.4.1",
+    "luxon": "^3.7.1",
     "pg": "^8.16.0",
     "react": "^19.1.0",
     "react-canvas-confetti": "^2.0.7",
