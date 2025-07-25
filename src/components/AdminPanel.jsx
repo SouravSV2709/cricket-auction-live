@@ -1167,7 +1167,7 @@ const AdminPanel = () => {
                             checked={isTeamLoopActive}
                             onChange={async () => {
                                 if (!isTeamLoopActive) {
-                                    await fetch(`${API}/api/start-team-loop`, { method: "POST" });
+                                    await fetch(`${API}/api/start-team-loop/${tournamentSlug}`, { method: "POST" });
                                 } else {
                                     await fetch(`${API}/api/stop-team-loop`, { method: "POST" });
                                 }

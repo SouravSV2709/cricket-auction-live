@@ -197,9 +197,20 @@ async function updateTeamStats(teamId, tournamentId) {
 let teamLoopInterval = null;
 let loopTeamIndex = 0;
 
-app.post("/api/start-team-loop", async (req, res) => {
+app.post("/api/start-team-loop/:slug", async (req, res) => {
+  const { slug } = req.params;
+
   try {
-    const tournamentId = Number(process.env.TOURNAMENT_ID);
+    const tournamentRes = await pool.query(
+      "SELECT id FROM tournaments WHERE slug = $1",
+      [slug]
+    );
+    const tournamentId = tournamentRes.rows[0]?.id;
+
+    if (!tournamentId) {
+      return res.status(404).json({ error: "Tournament not found" });
+    }
+
     const teamsRes = await pool.query(
       "SELECT id FROM teams WHERE tournament_id = $1 ORDER BY id ASC",
       [tournamentId]
@@ -210,18 +221,17 @@ app.post("/api/start-team-loop", async (req, res) => {
       return res.status(404).json({ error: "No teams found." });
     }
 
-    console.log("🔁 Starting loop for team IDs:", teamIds);
-    let i = 0;
+    console.log("🔁 Starting team loop for tournament:", slug, teamIds);
 
+    let i = 0;
     teamLoopInterval = setInterval(async () => {
       const currentTeamId = teamIds[i];
+
       const playersRes = await pool.query(
         "SELECT * FROM players WHERE team_id = $1 AND tournament_id = $2 AND (sold_status = true OR sold_status = 'TRUE')",
         [currentTeamId, tournamentId]
       );
-      const players = playersRes.rows;
-
-      const empty = players.length === 0;
+      const empty = playersRes.rowCount === 0;
 
       io.emit("showTeam", {
         team_id: currentTeamId,
@@ -231,12 +241,13 @@ app.post("/api/start-team-loop", async (req, res) => {
       i = (i + 1) % teamIds.length;
     }, 7000);
 
-    res.json({ message: "Team loop started" });
+    res.json({ message: "✅ Team loop started" });
   } catch (error) {
-    console.error("Error starting team loop:", error);
-    res.status(500).json({ error: "Failed to start team loop" });
+    console.error("❌ Error in start-team-loop:", error);
+    res.status(500).json({ error: "Internal error" });
   }
 });
+
 
 
 
@@ -244,17 +255,17 @@ app.post("/api/start-team-loop", async (req, res) => {
 // Stop team loop
 
 app.post("/api/stop-team-loop", (req, res) => {
-  console.log("🔴 /api/stop-team-loop HIT");
+  console.log("🛑 Stopping team loop...");
 
   if (teamLoopInterval) {
     clearInterval(teamLoopInterval);
     teamLoopInterval = null;
-    io.emit("showTeam", { team_id: null }); // Properly reset team view
-    res.json({ message: "Team loop stopped" });
-  } else {
-    res.status(400).json({ message: "Loop was not running" });
   }
+
+  io.emit("customMessageUpdate", "__CLEAR_CUSTOM_VIEW__");
+  res.json({ message: "✅ Team loop stopped" });
 });
+
 
 
 // Store Current Team ID

@@ -750,9 +750,10 @@ const SpectatorLiveDisplay = () => {
             (p.sold_status === true || p.sold_status === "TRUE")
         );
 
-        const teamLogoUrl = team.logo
-            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
-            : null;
+        const teamLogoUrl = team?.logo
+    ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
+    : null;
+
 
         return (
             <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
@@ -769,7 +770,8 @@ const SpectatorLiveDisplay = () => {
                         />
                     )}
 
-                    <h1 className="text-2xl font-extrabold text-center mb-4">{team.name}</h1>
+                    <h1 className="text-2xl font-extrabold text-center mb-4">{team?.name || "Team Not Found"}</h1>
+
 
                     <p className="text-red-500 font-bold text-3xl mb-4 text-center">
                         {customMessage || "No players yet!"}
@@ -807,6 +809,10 @@ const SpectatorLiveDisplay = () => {
         );
         const topPlayer = sortedByPrice[0];
         const restPlayers = sortedByPrice.slice(1);
+
+        // Add before the return statement
+const team = teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow));
+
 
         return (
             <div className="w-screen h-screen flex flex-row bg-black text-white relative overflow-hidden">
@@ -851,14 +857,15 @@ const SpectatorLiveDisplay = () => {
                         {teamIdToShow && (
                             <>
                                 <img
-                                    src={
-                                        teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow))?.logo
-                                            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow)).logo}`
-                                            : "/no-team-logo.png"
-                                    }
-                                    alt="Team Logo"
-                                    className="w-36 h-36 object-contain animate-pulse"
-                                />
+  src={
+    team?.logo
+      ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
+      : "/no-team-logo.png"
+  }
+  alt="Team Logo"
+  className="w-36 h-36 object-contain animate-pulse"
+/>
+
                                 <h3 className="text-xl font-bold text-yellow-300 text-center mb-2">Team Squad</h3>
                             </>
                         )}
