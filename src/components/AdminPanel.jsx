@@ -38,6 +38,7 @@ const AdminPanel = () => {
     const [isSecretBiddingActive, setIsSecretBiddingActive] = useState(false);
     const [secretBids, setSecretBids] = useState([]);
     const [showSecretBids, setShowSecretBids] = useState(false);
+    const [isBidManual, setIsBidManual] = useState(false);
 
 
 
@@ -644,17 +645,21 @@ const AdminPanel = () => {
         let currentBid = typeof bidAmount === 'number' ? bidAmount : parseInt(bidAmount, 10) || 0;
         console.log("✅ Parsed currentBid:", currentBid, typeof currentBid);
 
-        let newBid;
-        if (currentBid === 0) {
-            console.log("⏫ First bid, setting to base price:", base);
-            newBid = base;
-        } else {
-            const increment = getDynamicBidIncrement(currentBid);
-            newBid = currentBid + increment;
-        }
+        let newBid = currentBid;
+
+if (!isBidManual) {
+    if (currentBid === 0) {
+        newBid = base;
+    } else {
+        const increment = getDynamicBidIncrement(currentBid);
+        newBid = currentBid + increment;
+    }
+}
+
 
 
         setBidAmount(newBid);
+        setIsBidManual(false);
         setSelectedTeam(team.name);
 
         fetch(`${API}/api/current-bid`, {
@@ -1237,6 +1242,7 @@ const AdminPanel = () => {
                     onChange={e => {
                         const value = parseInt(e.target.value, 10) || 0;
                         setBidAmount(value);
+                        setIsBidManual(true); // 🟢 Set manual flag on input
                     }}
                     disabled={isTeamViewActive}
                 />
