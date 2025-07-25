@@ -417,7 +417,7 @@ const SpectatorLiveDisplay = () => {
             } else if (msg === "__RESET_AUCTION__") {
                 fetchAllPlayers();
                 fetchTeams();
-                setCustomView(null);
+                setCustomView("no-players");
                 setCustomMessage(null);
                 setCountdownTime(null); // Reset countdown
                 if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);

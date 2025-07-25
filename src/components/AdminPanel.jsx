@@ -39,6 +39,7 @@ const AdminPanel = () => {
     const [secretBids, setSecretBids] = useState([]);
     const [showSecretBids, setShowSecretBids] = useState(false);
     const [isBidManual, setIsBidManual] = useState(false);
+    const themeOptions = ["default", "neon", "grid", "fireflies", "aurora", "meteor", "stars"];
 
 
 
@@ -175,6 +176,54 @@ const AdminPanel = () => {
 
         return 100; // fallback if nothing matches
     };
+
+    // Function to updated team secret code
+
+    const handleGenerateCodes = async () => {
+        if (!tournamentSlug) return alert("Tournament slug is missing");
+
+        // Step 1: Check if any team already has a secret_code
+        const existingRes = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
+        const existingTeams = await existingRes.json();
+
+        const hasExistingCodes = existingTeams.some(team => team.secret_code !== null);
+
+        // Step 2: First confirmation
+        const confirm1 = window.confirm("Are you sure you want to generate secret codes?");
+        if (!confirm1) return;
+
+        // Step 3: Second confirmation if codes already exist
+        if (hasExistingCodes) {
+            const confirm2 = window.prompt(
+                "⚠️ Some teams already have secret codes.\n\nThis will overwrite existing codes.\n\nTo confirm, type YES in capital letters:"
+            );
+            if (confirm2 !== "YES") {
+                alert("❌ Cancelled. You did not type YES.");
+                return;
+            }
+        }
+
+        // Step 4: Proceed with generation
+        try {
+            const res = await fetch(`${API}/api/teams/generate-secret-codes`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ slug: tournamentSlug }),
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                alert(data.message);
+                fetchTeams(tournamentId); // Refresh team list
+            } else {
+                alert(data.error || "Something went wrong");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("❌ Error generating codes");
+        }
+    };
+
 
 
 
@@ -647,14 +696,14 @@ const AdminPanel = () => {
 
         let newBid = currentBid;
 
-if (!isBidManual) {
-    if (currentBid === 0) {
-        newBid = base;
-    } else {
-        const increment = getDynamicBidIncrement(currentBid);
-        newBid = currentBid + increment;
-    }
-}
+        if (!isBidManual) {
+            if (currentBid === 0) {
+                newBid = base;
+            } else {
+                const increment = getDynamicBidIncrement(currentBid);
+                newBid = currentBid + increment;
+            }
+        }
 
 
 
@@ -935,7 +984,7 @@ if (!isBidManual) {
 
             {/* UI to select theme */}
 
-            <div className="my-6 border border-gray-700 rounded bg-gray-800">
+            {/* <div className="my-6 border border-gray-700 rounded bg-gray-800">
                 <div
                     className="p-4 cursor-pointer bg-gray-700 hover:bg-gray-600 rounded-t flex justify-between items-center"
                     onClick={() => setShowThemeSelector(prev => !prev)}
@@ -978,7 +1027,33 @@ if (!isBidManual) {
                         </button>
                     </div>
                 )}
-            </div>
+            </div> */}
+
+            <div className="my-4">
+                <label htmlFor="themeSelect" className="text-sm font-bold mr-2 text-white">🎨 Theme:</label>
+                <select
+                    id="themeSelect"
+                    className="bg-black text-white border border-gray-400 px-3 py-1 rounded-md"
+                    onChange={async (e) => {
+                    const selectedTheme = e.target.value;
+
+                    await fetch(`${API}/api/theme`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ theme: selectedTheme }),
+                    });
+
+                    alert(`🎨 Theme changed to ${selectedTheme}`);
+                    }}
+                    defaultValue={"default"}
+                >
+                    {themeOptions.map((theme) => (
+                    <option key={theme} value={theme}>
+                        {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                    </option>
+                    ))}
+                </select>
+                </div>
 
 
             {/* Set Bid increment */}
@@ -1447,25 +1522,25 @@ if (!isBidManual) {
                     </button>
 
                     <button
-  onClick={async () => {
-    const res = await fetch(
-      `${API}/api/secret-bids?tournament_id=${tournamentId}&player_serial=${currentPlayer?.auction_serial}`
-    );
-    const data = await res.json();
-    setSecretBids(data);
-    setShowSecretBids(true);
+                        onClick={async () => {
+                            const res = await fetch(
+                                `${API}/api/secret-bids?tournament_id=${tournamentId}&player_serial=${currentPlayer?.auction_serial}`
+                            );
+                            const data = await res.json();
+                            setSecretBids(data);
+                            setShowSecretBids(true);
 
-    // ✅ Emit to Spectator via Socket.IO
-    socketRef.current?.emit("revealSecretBids", {
-      tournament_id: tournamentId,
-      player_serial: currentPlayer?.auction_serial
-    });
-  }}
-  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold"
-  disabled={!isSecretBiddingActive}
->
-  👁️ Reveal Bids
-</button>
+                            // ✅ Emit to Spectator via Socket.IO
+                            socketRef.current?.emit("revealSecretBids", {
+                                tournament_id: tournamentId,
+                                player_serial: currentPlayer?.auction_serial
+                            });
+                        }}
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold"
+                        disabled={!isSecretBiddingActive}
+                    >
+                        👁️ Reveal Bids
+                    </button>
 
                 </div>
 
@@ -1497,11 +1572,11 @@ if (!isBidManual) {
                                         fetchCurrentPlayer();
 
                                         socketRef.current?.emit("secretBidWinnerAssigned", {
-                                        player_id: currentPlayer.id,
-                                        team_id: bid.team_id,
-                                        team_name: bid.team_name,
-                                        bid_amount: bid.bid_amount,
-                                        team_logo: bid.logo
+                                            player_id: currentPlayer.id,
+                                            team_id: bid.team_id,
+                                            team_name: bid.team_name,
+                                            bid_amount: bid.bid_amount,
+                                            team_logo: bid.logo
                                         });
                                     }}
                                     className="mt-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold"
@@ -1583,6 +1658,14 @@ if (!isBidManual) {
                 >
                     {resetInProgress ? "⏳ Resetting..." : "🔁 Reset Auction"}
                 </button>
+
+                <button
+                    onClick={handleGenerateCodes}
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-4"
+                >
+                    Generate Secret Codes
+                </button>
+
             </div>
             <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨

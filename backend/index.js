@@ -78,6 +78,18 @@ app.post('/api/theme', (req, res) => {
   res.json({ message: "Theme updated", theme });
 });
 
+app.get('/api/theme', (req, res) => {
+  res.json({ theme: currentTheme });
+});
+
+app.post('/api/theme', (req, res) => {
+  const { theme } = req.body;
+  currentTheme = theme;
+  io.emit("themeUpdate", theme); // ⬅️ Broadcast to spectators
+  res.json({ success: true });
+});
+
+
 // Get bid increment for a tournament
 
 app.get('/api/bid-increments/:tournament_id', async (req, res) => {
@@ -816,6 +828,46 @@ app.patch("/api/current-player", async (req, res) => {
     res.status(500).json({ error: "Failed to update current player" });
   }
 });
+
+// Generate secret-code for teams
+
+app.post('/api/teams/generate-secret-codes', async (req, res) => {
+  const { slug } = req.body;
+
+  if (!slug) return res.status(400).json({ error: 'Slug is required' });
+
+  try {
+    const tournament = await pool.query(`SELECT id FROM tournaments WHERE slug = $1`, [slug]);
+    if (tournament.rowCount === 0) return res.status(404).json({ error: 'Tournament not found' });
+
+    const tournamentId = tournament.rows[0].id;
+    const teams = await pool.query(`SELECT id FROM teams WHERE tournament_id = $1`, [tournamentId]);
+
+    const generatedCodes = new Set();
+    const updates = [];
+
+    for (const team of teams.rows) {
+      let code;
+      do {
+        code = Math.floor(10000 + Math.random() * 90000); // 5-digit
+      } while (generatedCodes.has(code));
+
+      generatedCodes.add(code);
+      updates.push(
+        pool.query(`UPDATE teams SET secret_code = $1 WHERE id = $2`, [code, team.id])
+      );
+    }
+
+    await Promise.all(updates);
+
+    res.json({ message: '✅ Secret codes generated successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '❌ Failed to generate secret codes.' });
+  }
+});
+
+
 
 
 app.get('/api/ping', (req, res) => {
