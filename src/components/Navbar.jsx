@@ -13,6 +13,7 @@ const Navbar = ({ tournamentSlug }) => {
         />
       </div>
       <div className="flex gap-6">
+        <Link to={`/secret-bid/${tournamentSlug}`} className="hover:text-yellow-400">Secret Bid</Link>
         <Link to={`/tournament/${tournamentSlug}`} className="hover:text-yellow-400">Dashboard</Link>
         <Link to={`/player-cards/${tournamentSlug}`} className="hover:text-yellow-400">Players</Link>
         <Link to={`/team-cards/${tournamentSlug}`} className="hover:text-yellow-400">Teams</Link>
