@@ -5,6 +5,7 @@ import CONFIG from "../components/config";
 import Navbar from "../components/Navbar";
 import { FixedSizeGrid as Grid } from "react-window";
 import { Listbox } from "@headlessui/react";
+import BackgroundEffect from "../components/BackgroundEffect";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 
 import html2canvas from "html2canvas";
@@ -404,18 +405,21 @@ const AllPlayerCards = () => {
     return (
         // <div className="min-h-screen overflow-hidden text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
 
-        <div
-            className="min-h-screen text-black relative"
-            style={{
-                backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
-                backgroundSize: 'cover',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
-                overflowX: 'hidden'
-            }}
-        >
+        // <div
+        //     className="min-h-screen text-black relative"
+        //     style={{
+        //         backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
+        //         backgroundSize: 'cover',
+        //         backgroundRepeat: 'no-repeat',
+        //         backgroundPosition: 'center',
+        //         overflowX: 'hidden'
+        //     }}
+        // >
 
-
+        
+        <div className="min-h-screen text-black relative overflow-hidden">
+        <BackgroundEffect theme="grid" />
+        <div className="relative z-10">
 
             {errorMessage && (
                 <div className="bg-red-100 text-red-700 border border-red-400 p-4 rounded-md max-w-xl mx-auto mt-4 text-center">
@@ -617,6 +621,7 @@ const AllPlayerCards = () => {
             )}
 
 
+        </div>
         </div>
     );
 };

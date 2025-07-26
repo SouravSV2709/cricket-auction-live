@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import CONFIG from './config';
 import Navbar from "../components/Navbar";
+import BackgroundEffect from "../components/BackgroundEffect";
 
 const API = CONFIG.API_BASE_URL;
 
@@ -130,90 +131,96 @@ const SecretBidPage = () => {
 
   if (!playerDetails) {
     return (
-      <div 
-      className="min-h-screen bg-black text-white flex flex-col items-center justify-center"
-      style={{
-        backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
-        backgroundSize: 'cover',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-        overflowX: 'hidden'
-      }}
-      >
+      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+        <BackgroundEffect theme="grid" />
+
+
+
         <Navbar tournamentSlug={tournamentSlug} />
-        <h1 className="text-3xl font-bold text-red-400 mb-4">🚫 No Player Available for Secret Bidding</h1>
-        <p className="text-yellow-300">Please wait for the Admin to enable Secret Bidding.</p>
+        <div className="relative z-10">
+
+          <h1 className="text-3xl font-bold text-red-400 mb-4 text-center justify-center">🚫 No Player Available for Secret Bidding</h1>
+          <p className="text-yellow-300 text-center justify-center">Please wait for the Admin to enable Secret Bidding.</p>
+        </div>
+        {/* Footer */}
+        <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 mt-5">
+          🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+        </footer>
       </div>
+
+
     );
   }
 
   return (
-    <div 
-    className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4 py-12"
-    style={{
-        backgroundImage: `linear-gradient(to bottom right, rgba(0, 0, 0, 0.6), rgba(255, 215, 0, 0.3)), url("/bg1.jpg")`,
-        backgroundSize: 'cover',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-        overflowX: 'hidden'
-      }}
-    >
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center">
+
+      <BackgroundEffect theme="grid" />
+
       <Navbar tournamentSlug={tournamentSlug} />
-      <h1 className="text-xl font-bold text-yellow-400 mb-6">PLACE A SECRET BID</h1>
 
-      <div className="flex flex-col items-center mb-6">
-        {playerDetails.profile_image && (
-          <img
-            src={playerDetails.profile_image}
-            alt={playerDetails.name}
-            className="w-48 h-48 object-cover rounded-xl shadow-lg border-2 border-yellow-400"
+      <div className="relative z-10 flex flex-col items-center justify-center mt-10  px-10 py-4">
+
+        <h1 className="text-xl font-bold text-yellow-400 mb-6 items-center justify-center">PLACE A SECRET BID</h1>
+
+        <div className="flex flex-col items-center mb-6">
+          {playerDetails.profile_image && (
+            <img
+              src={playerDetails.profile_image}
+              alt={playerDetails.name}
+              className="w-48 h-48 object-cover rounded-xl shadow-lg border-2 border-yellow-400"
+            />
+          )}
+          <h2 className="text-2xl font-bold mt-4 text-white">{playerDetails.name}</h2>
+          <p className="text-yellow-300">{playerDetails.role}</p>
+        </div>
+
+        <div className="space-y-4 w-full max-w-md">
+          <input
+            type="number"
+            value={playerSerial}
+            readOnly
+            className="w-full p-3 rounded text-black bg-gray-200 cursor-not-allowed"
           />
-        )}
-        <h2 className="text-2xl font-bold mt-4 text-white">{playerDetails.name}</h2>
-        <p className="text-yellow-300">{playerDetails.role}</p>
-      </div>
 
-      <div className="space-y-4 w-full max-w-md">
-        <input
-          type="number"
-          value={playerSerial}
-          readOnly
-          className="w-full p-3 rounded text-black bg-gray-200 cursor-not-allowed"
-        />
+          <input
+            type="text"
+            placeholder="Your 5-digit Secret Team Code"
+            value={teamCode}
+            maxLength={5}
+            onChange={(e) => handleCodeChange(e.target.value)}
+            className="w-full p-3 rounded text-black"
+          />
+          {teamName && <p className="text-sm text-green-400">✅ Team: {teamName}</p>}
+          {maxBid !== null && <p className="text-sm text-blue-400">💰 Max Bid Allowed: ₹{maxBid}</p>}
 
-        <input
-          type="text"
-          placeholder="Your 5-digit Secret Team Code"
-          value={teamCode}
-          maxLength={5}
-          onChange={(e) => handleCodeChange(e.target.value)}
-          className="w-full p-3 rounded text-black"
-        />
-        {teamName && <p className="text-sm text-green-400">✅ Team: {teamName}</p>}
-        {maxBid !== null && <p className="text-sm text-blue-400">💰 Max Bid Allowed: ₹{maxBid}</p>}
+          <input
+            type="number"
+            placeholder="Secret Bid Amount (₹)"
+            value={bidAmount}
+            onChange={(e) => setBidAmount(e.target.value)}
+            className="w-full p-3 rounded text-black"
+          />
 
-        <input
-          type="number"
-          placeholder="Secret Bid Amount (₹)"
-          value={bidAmount}
-          onChange={(e) => setBidAmount(e.target.value)}
-          className="w-full p-3 rounded text-black"
-        />
+          <button
+            onClick={handleSubmit}
+            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black py-3 rounded font-bold"
+          >
+            🚀 Submit Secret Bid
+          </button>
 
-        <button
-          onClick={handleSubmit}
-          className="w-full bg-yellow-500 hover:bg-yellow-400 text-black py-3 rounded font-bold"
-        >
-          🚀 Submit Secret Bid
-        </button>
-
-        {status && (
-          <div className={`p-3 rounded text-center font-bold text-sm mt-2 
+          {status && (
+            <div className={`p-3 rounded text-center font-bold text-sm mt-2 
             ${statusType === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-            {status}
-          </div>
-        )}
+              {status}
+            </div>
+          )}
+        </div>
       </div>
+      {/* Footer */}
+      <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 mt-5">
+        🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+      </footer>
     </div>
   );
 };

@@ -65,6 +65,15 @@
   background-size: 40px 40px;
 }
 
+.grid-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(#444 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-color: #0a0a23; // fallback
+}
+
 .firefly-container {
   position: absolute;
   width: 100%;
@@ -136,6 +145,14 @@
   animation: twinkle 3s infinite alternate ease-in-out;
 }
 
+.starfield {
+  background: black;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 @keyframes twinkle {
   0% { opacity: 0.3; }
   100% { opacity: 1; }
@@ -175,4 +192,5 @@
     opacity: 0;
   }
 }
+
 
