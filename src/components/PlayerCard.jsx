@@ -20,46 +20,25 @@ const PlayerCard = ({
     <>
       {/* 🟢 Player Image */}
       <div
-        ref={playerRef}
-        style={{
-          left: 0,
-          top: 0,
-          backgroundImage: 'url("/goldenbg.png")',
-          backgroundSize: 'contain',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          height: '300px',
-          width: '240px'
-        }}
-        className="absolute z-10 select-none cursor-move flex flex-col mt-5 justify-center"
-      >
-        <img
-          src={
-            player.profile_image?.startsWith("http")
-              ? player.profile_image
-              : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`
-          }
-          alt={player.name}
-          className="w-20 h-35 object-contain mx-auto rounded-lg"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
-          }}
-          style={{
-            WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent 100%)",
-            maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
-            WebkitMaskSize: "100% 100%",
-            maskSize: "100% 100%",
-            WebkitMaskRepeat: "no-repeat",
-            maskRepeat: "no-repeat",
-          }}
-        />
-        <div className="text-xs font-bold text-black mt-1 uppercase text-center justify-center">{player.name}</div>
-        <div className="text-xs text-black font-semibold mt-1 text-center justify-center">
-          <div>🏏 {player.role}</div>
-          <div>📍 {player.district}</div>
-        </div>
-      </div>
+  ref={playerRef}
+  className="absolute z-10 select-none cursor-move flex flex-col justify-center items-center mt-5"
+>
+  <img
+    src={player.profile_image?.startsWith("http")
+      ? player.profile_image
+      : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-320,h-320,fo-face,z-1`}
+    alt={player.name}
+    className="w-40 h-40 object-cover rounded-full shadow-lg border-2 border-white"
+    onError={(e) => {
+      e.target.onerror = null;
+      e.target.src = "/no-image-found.png";
+    }}
+  />
+  <div className="text-sm font-bold text-black mt-2 uppercase text-center">Name: {player.name}</div>
+  <div className="text-sm text-black font-semibold text-center">
+    <div>Role: {player.role}</div>
+  </div>
+</div>
 
       {/* 🟡 Price Panel */}
       <div
