@@ -92,17 +92,24 @@ app.post('/api/theme', (req, res) => {
 
 // Get bid increment for a tournament
 
-app.get('/api/bid-increments/:tournament_id', async (req, res) => {
-  const { tournament_id } = req.params;
+app.get('/api/bid-increments', async (req, res) => {
+  let { tournament_id } = req.query;
+
+  // ✅ Sanitize
+  tournament_id = parseInt(tournament_id);
+  if (!tournament_id || isNaN(tournament_id)) {
+    return res.status(400).json({ error: "Invalid tournament_id" });
+  }
+
   try {
     const result = await pool.query(
-      `SELECT * FROM bid_increments WHERE tournament_id = $1 ORDER BY min_value ASC`,
+      'SELECT * FROM bid_increments WHERE tournament_id = $1',
       [tournament_id]
     );
     res.json(result.rows);
   } catch (err) {
     console.error("❌ Failed to fetch bid increments:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -293,7 +300,13 @@ app.post("/api/notify-sold", (req, res) => {
 
 // ✅ GET all players for a tournament
 app.get('/api/players', async (req, res) => {
-  const { tournament_id } = req.query;
+  let { tournament_id } = req.query;
+  tournament_id = parseInt(tournament_id);
+
+  if (!tournament_id || isNaN(tournament_id)) {
+    return res.status(400).json({ error: "Invalid tournament_id" });
+  }
+
   try {
     const result = await pool.query(
       'SELECT * FROM players WHERE tournament_id = $1 ORDER BY id',
@@ -305,6 +318,7 @@ app.get('/api/players', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ✅ GET player by ID with base price logic
 app.get('/api/players/:id', async (req, res) => {
@@ -355,11 +369,31 @@ app.get('/api/teams', async (req, res) => {
 // ✅ GET current player
 app.get('/api/current-player', async (req, res) => {
   try {
-    const result = await pool.query(`SELECT cp.*, p.auction_serial
-      FROM current_player cp
-      JOIN players p ON cp.id = p.id
-      LIMIT 1`);
-    res.json(result.rows[0]);
+    const cpResult = await pool.query(`SELECT * FROM current_player LIMIT 1`);
+    if (cpResult.rowCount === 0) {
+      return res.status(204).json({ message: "No current player" });
+    }
+
+    const currentPlayer = cpResult.rows[0];
+
+    // ✅ Parse id defensively
+    const rawId = currentPlayer.id;
+    const playerId = typeof rawId === "string" ? parseInt(rawId) : rawId;
+
+    if (!playerId || isNaN(playerId)) {
+      console.warn("⚠️ Invalid current player ID:", rawId);
+      return res.status(204).json({ message: "Invalid current player ID" });
+    }
+
+    // ✅ Query only if playerId is valid
+    const pResult = await pool.query(
+      `SELECT auction_serial FROM players WHERE id = $1`,
+      [playerId]
+    );
+
+    const auction_serial = pResult.rows[0]?.auction_serial || null;
+
+    res.json({ ...currentPlayer, auction_serial });
   } catch (err) {
     console.error("🔥 Error fetching current player:", err);
     res.status(500).json({ error: 'Server error' });
@@ -675,7 +709,7 @@ app.post("/api/reset-auction", async (req, res) => {
 
     // 5. Reset current bid
     await pool.query("DELETE FROM current_bid");
-    await pool.query("INSERT INTO current_bid (bid_amount, team_name) VALUES (0, '')");
+    await pool.query("INSERT INTO current_bid (bid_amount, team_name) VALUES ($1, $2)", [0, 'UNASSIGNED']);
 
     res.json({ message: "✅ Auction has been reset and team stats updated." });
   } catch (err) {

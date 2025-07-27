@@ -273,28 +273,37 @@ const AdminPanel = () => {
 
 
     const fetchCurrentPlayer = async () => {
-        try {
-            const res = await fetch(`${API}/api/current-player`);
+  try {
+    const res = await fetch(`${API}/api/current-player`);
+    if (!res.ok) {
+      console.warn("No current player available yet.");
+      setCurrentPlayer(null);
+      return;
+    }
 
-            let data = null;
-            if (res.ok) {
-                const text = await res.text();
-                if (text) {
-                    data = JSON.parse(text);
-                }
-            }
+    const data = await res.json();
 
-            if (data) {
-                console.log("Auction Serial:", data.auction_serial);
-                setCurrentPlayer(data);
-            } else {
-                setCurrentPlayer(null);
-            }
-        } catch (error) {
-            console.error("Failed to fetch current player:", error);
-            setCurrentPlayer(null);
-        }
-    };
+    // Defensive: Make sure it's a valid player
+    if (!data || !data.id || typeof data.id !== "number") {
+      console.warn("Invalid current player object:", data);
+      setCurrentPlayer(null);
+      return;
+    }
+
+    if (res.status === 204) {
+  console.log("No current player found after reset");
+  setCurrentPlayer(null);
+  return;
+}
+
+    setCurrentPlayer(data);
+  } catch (err) {
+    console.error("🔥 Error fetching current player:", err);
+    setCurrentPlayer(null);
+  }
+};
+
+
 
 
 
@@ -738,7 +747,7 @@ const AdminPanel = () => {
             });
 
 
-            alert("✅ Auction has been fully reset.");
+            // alert("✅ Auction has been fully reset.");
             fetchPlayers(); // Refresh player list
             fetchTeams(tournamentId); // Optional
             fetchCurrentPlayer(); // Optional
