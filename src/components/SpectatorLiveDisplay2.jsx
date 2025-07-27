@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
@@ -44,10 +45,12 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [theme, setTheme] = useState('default');
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
+    const [secretBidActive, setSecretBidActive] = useState(false);
+    const { tournamentSlug } = useParams();
 
     useEffect(() => {
-  document.title = "Live2 | Auction Arena";
-}, []);
+        document.title = "Live2 | Auction Arena";
+    }, []);
 
     useEffect(() => {
         fetch(`${API}/api/theme`)
@@ -58,6 +61,27 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme));
         return () => socket.disconnect();
     }, []);
+
+    const [tournamentId, setTournamentId] = useState(null);
+
+    useEffect(() => {
+        const fetchTournamentId = async () => {
+            try {
+                const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
+                const data = await res.json();
+                if (res.ok && data?.id) {
+                    setTournamentId(data.id);
+                } else {
+                    console.error("❌ Tournament not found for slug:", tournamentSlug);
+                }
+            } catch (err) {
+                console.error("❌ Error fetching tournament by slug:", err);
+            }
+        };
+
+        fetchTournamentId();
+    }, [tournamentSlug]);
+
 
     const computeBasePrice = (player) => {
         if (player.base_price && player.base_price > 0) return player.base_price;
@@ -94,22 +118,24 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchPlayer = async () => {
         try {
-            const [playerRes, teamsRes] = await Promise.all([
-                fetch(`${API}/api/current-player`),
-                fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`)
-            ]);
-
-            const teams = await teamsRes.json();
+            const teamsRes = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
+            let teams = [];
+            try {
+                const text = await teamsRes.text();
+                teams = JSON.parse(text);
+                if (!Array.isArray(teams)) {
+                    console.error("❌ Expected an array for teams, got:", teams);
+                    teams = [];
+                }
+            } catch (e) {
+                console.error("❌ Failed to parse teams JSON:", e);
+                teams = [];
+            }
             setTeamSummaries(teams);
 
-            // Handle empty response for current-player
-            let basic = null;
-            if (playerRes.ok) {
-                const text = await playerRes.text();
-                if (text) {
-                    basic = JSON.parse(text);
-                }
-            }
+
+            const playerRes = await fetch(`${API}/api/current-player`);
+            const basic = await playerRes.json();
 
             if (!basic?.id) {
                 setPlayer(null);
@@ -139,9 +165,10 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
 
 
+
     const fetchAllPlayers = async () => {
         try {
-            const res = await fetch(`${API}/api/players?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
             const data = await res.json();
             setPlayerList(data);
         } catch { }
@@ -149,7 +176,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchTeams = async () => {
         try {
-            const res = await fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
             const data = await res.json();
             setTeamSummaries(data);
         } catch { }
@@ -157,7 +184,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
 
     const fetchTournament = async () => {
         try {
-            const res = await fetch(`${API}/api/tournaments/${CONFIG.TOURNAMENT_ID}`);
+            const res = await fetch(`${API}/api/tournaments/${tournamentId}`);
             const data = await res.json();
             setTournamentName(data.title || "AUCTION ARENA LIVE");
             if (data.logo) {
@@ -168,22 +195,31 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         }
     };
 
-    useEffect(() => { fetchTournament(); }, []);
 
-    useEffect(() => {
-        fetchPlayer();
-        fetchTeams();
-        fetchTournament();
-        fetchAllPlayers();
+   useEffect(() => {
+    if (!tournamentId) return;
 
-        const socket = io(API);
-        socket.on("playerSold", () => setTimeout(fetchPlayer, 100));
-        socket.on("playerChanged", () => setTimeout(fetchPlayer, 100));
-        socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
-        return () => socket.disconnect();
-    }, []);
+    fetchPlayer();
+    fetchTeams();
+    fetchTournament();
+    fetchAllPlayers();
 
-    const team = teamSummaries.find(t => t.id === Number(player?.team_id));
+    const socket = io(API);
+    socket.on("playerSold", () => setTimeout(fetchPlayer, 100));
+    socket.on("playerChanged", () => setTimeout(fetchPlayer, 100));
+    socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
+    socket.on("secretBiddingToggled", () => {
+        fetch(`${API}/api/current-player`)
+            .then(res => res.json())
+            .then(data => setSecretBidActive(data?.secret_bidding_enabled === true));
+    });
+
+    return () => socket.disconnect();
+}, [tournamentId]); // ✅ Wait for tournamentId
+
+    const team = Array.isArray(teamSummaries)
+        ? teamSummaries.find(t => t.id === Number(player?.team_id))
+        : null;
     const isSold = ["TRUE", "true", true].includes(player?.sold_status);
     const isUnsold = ["FALSE", "false", false].includes(player?.sold_status);
 
@@ -198,8 +234,12 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                     currentBid={highestBid}
                     biddingTeam={leadingTeam}
                     biddingTeamLogo={
-                        teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
+                        Array.isArray(teamSummaries)
+                            ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
+                            : undefined
                     }
+
+                    secretBidActive={secretBidActive} // ✅ new prop
                 />
             )}
 

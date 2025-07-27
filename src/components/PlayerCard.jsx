@@ -8,6 +8,7 @@ const PlayerCard = ({
   soldPrice,
   currentBid,
   biddingTeam,
+  secretBidActive, // ✅ add this line
   biddingTeamLogo
 }) => {
   const playerRef = useDraggable("playerImage");
@@ -43,7 +44,7 @@ const PlayerCard = ({
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
-        }}
+          }}
           style={{
             WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent 100%)",
             maskImage: "linear-gradient(to bottom, black 80%, transparent 100%)",
@@ -111,9 +112,16 @@ const PlayerCard = ({
                 className="w-10 h-10 object-contain rounded-full border border-white"
               />
             )}
-            <p className="text-white text-lg font-semibold">SOLD: {player.team_name}</p>
+            <p className="text-white text-lg font-semibold">
+              SOLD: {player.team_name || "Team"}
+            </p>
+          </div>
+        ) : !isUnsold && secretBidActive ? (
+          <div className="flex items-center gap-3 bg-yellow-600 rounded-lg px-4 py-2 shadow-md">
+            <p className="text-black text-lg font-bold">🔒 Secret Bid in Progress</p>
           </div>
         ) : !isUnsold && biddingTeam ? (
+
           <div className="flex items-center gap-3 bg-purple-800 rounded-lg px-4 py-2 shadow-md">
             {biddingTeamLogo && (
               <img
@@ -125,17 +133,40 @@ const PlayerCard = ({
             <p className="text-white text-lg font-semibold">{biddingTeam}</p>
           </div>
         ) : !isUnsold && !isSold ? (
-          <div className="text-white bg-purple-900 px-3 py-2 rounded-lg shadow-md">
-            <p className="text-sm italic text-gray-300">Waiting for a bid...</p>
+          <div className="flex items-center gap-3 bg-purple-800 rounded-full px-5 py-2 shadow-md animate-pulse">
+            <span className="text-white text-sm font-semibold flex items-center gap-2">
+              <svg
+                className="w-4 h-4 text-yellow-300 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                ></path>
+              </svg>
+              Waiting for a bid...
+            </span>
           </div>
         ) : (
+
           <div>
-          <img
-            src="/duck.gif"
-            alt="Sad Duck"
-            className="w-24 h-24 object-contain mx-auto"
-          />
-        </div>
+            <img
+              src="/duck.gif"
+              alt="Sad Duck"
+              className="w-24 h-24 object-contain mx-auto"
+            />
+          </div>
         )}
       </div>
 
