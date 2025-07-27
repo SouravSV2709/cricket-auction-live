@@ -6,6 +6,7 @@ import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import clsx from "clsx";
 import Navbar from "../components/Navbar";
 import BackgroundEffect from "../components/BackgroundEffect";
+import * as XLSX from "xlsx";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -19,6 +20,8 @@ const AllTeamCards = () => {
     const [tournamentLogo, setTournamentLogo] = useState(null);
     const [playersPerTeam, setPlayersPerTeam] = useState(0);
     const [selectedPlayerId, setSelectedPlayerId] = useState(null);
+    const [viewMode, setViewMode] = useState("card"); // or "list"
+
 
     const fetchPlayersRef = useRef(false);
 
@@ -65,6 +68,27 @@ const AllTeamCards = () => {
 
     const placeholdersToShow = Math.max(0, playersPerTeam - teamPlayers.length);
 
+    const exportToExcel = () => {
+        const teamName = selectedTeam?.name || "Team";
+        const data = [...teamPlayers]
+            .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
+            .map((player, idx) => ({
+                "#": idx + 1,
+                Name: player.name,
+                Role: player.role,
+                "Kit Size": `${player.jersey_size || "-"}/${player.pant_size || "-"}`,
+                Mobile: player.mobile || "-",
+                "Sold Amount": player.sold_price || 0,
+            }));
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Players");
+
+        XLSX.writeFile(workbook, `${teamName}-Players.xlsx`);
+    };
+
+
     return (
         // <div className="min-h-screen text-black bg-gradient-to-br from-yellow-100 to-black relative pb-12">
 
@@ -84,7 +108,6 @@ const AllTeamCards = () => {
             <div className="relative z-10">
                 <Navbar tournamentSlug={tournamentSlug} />
 
-                <Navbar tournamentSlug={tournamentSlug} />
                 <div className="pt-16">
 
                     <div className="flex items-center justify-center mx-8 my-8">
@@ -101,6 +124,7 @@ const AllTeamCards = () => {
                     {/* Team Selector */}
                     <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-wrap justify-center gap-4">
                         <div className="w-64">
+                            <h1 className="text-yellow-300 font-bold my-3">Select a Team</h1>
                             <Listbox value={selectedTeam} onChange={setSelectedTeam}>
                                 <div className="relative">
                                     <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-500 flex items-center gap-2">
@@ -155,6 +179,24 @@ const AllTeamCards = () => {
                         </div>
                     </div>
 
+                    <div className="flex flex-row justify-center items-center text-center my-4 mx-4">
+                        <button
+                            onClick={() => setViewMode(viewMode === "card" ? "list" : "card")}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-2 px-4 rounded"
+                        >
+                            Switch to {viewMode === "card" ? "Detailed View" : "Card View"}
+                        </button>
+                        <button
+                            onClick={exportToExcel}
+                            className="bg-green-600 hover:bg-green-700 text-black font-bold py-2 px-4 rounded ml-3"
+                        >
+                            📥 Download Excel
+                        </button>
+                    </div>
+
+
+
+
                     {/* Selected Team Title */}
                     {selectedTeam && (
                         <div className="text-center text-lg font-bold text-yellow-300 my-2 flex justify-center items-center gap-2">
@@ -170,95 +212,138 @@ const AllTeamCards = () => {
                     )}
 
                     {/* Player Cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-1 px-1">
-                        {[...teamPlayers, ...Array(placeholdersToShow).fill(null)].map((player, idx) => (
-                            <div
-                                key={player ? `player-${player.id}` : `placeholder-${idx}`}
-                                onMouseEnter={() => {
-                                    if (player && window.innerWidth > 768) {
-                                        setSelectedPlayerId((prevId) => (prevId === player.id ? null : player.id));
-                                    }
-                                }}
-                                onClick={() => {
-                                    if (player && window.innerWidth <= 768) {
-                                        setSelectedPlayerId((prevId) => (prevId === player.id ? null : player.id));
-                                    }
-                                }}
-                                className={`relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer
+                    {viewMode === "card" ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-1 px-1">
+                            {[...teamPlayers, ...Array(placeholdersToShow).fill(null)].map((player, idx) => (
+                                <div
+                                    key={player ? `player-${player.id}` : `placeholder-${idx}`}
+                                    onMouseEnter={() => {
+                                        if (player && window.innerWidth > 768) {
+                                            setSelectedPlayerId((prevId) => (prevId === player.id ? null : player.id));
+                                        }
+                                    }}
+                                    onClick={() => {
+                                        if (player && window.innerWidth <= 768) {
+                                            setSelectedPlayerId((prevId) => (prevId === player.id ? null : player.id));
+                                        }
+                                    }}
+                                    className={`relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer
                                     ${player && selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"}
                                 `} style={{
-                                    backgroundImage: 'url("/goldenbg.png")',
-                                    backgroundSize: 'contain',
-                                    backgroundPosition: 'center',
-                                    backgroundRepeat: 'no-repeat',
-                                    height: '320px'
-                                }}
-                            >
-                                {player ? (
-                                    <>
-                                        <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100 transition-transform duration-500 ease-in-out">
-                                            <div className="absolute top-12 left-8 sm:top-12 sm:left-10 md:top-12 md:left-12">
-                                                <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs md:text-sm font-bold px-2 py-1 rounded-full shadow-lg tracking-wide">
-                                                    #{player.id}
-                                                </span>
-                                            </div>
-
-                                            <img
-                                                src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
-                                                alt={player.name}
-                                                className={`object-contain mx-auto rounded-full ${selectedPlayerId === player.id ? "w-24 h-24 sm:w-24 sm:h-24 md:w-32 md:h-32" : "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24"}`}
-                                                onError={(e) => {
-                                                    e.target.onerror = null;
-                                                    e.target.src = "/no-image-found.png";
-                                                }}
-                                            // style={{
-                                            //     backgroundImage: 'url("/goldenbg.png")',
-                                            //     backgroundSize: 'contain', // better fill
-                                            //     backgroundPosition: 'top',
-                                            //     backgroundRepeat: 'no-repeat',
-                                            //     height: '320px'
-                                            // }}
-
-                                            />
-
-                                            <div className="text-xs items-center justify-center font-bold text-black uppercase mt-1">
-                                                {player.name}
-                                            </div>
-
-                                            {/* <div className="flex flex-col items-center justify-end text-xs font-semibold text-black text-center leading-tight"> */}
-                                            <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
-                                                <div>Role: {player.role || "-"}</div>
-                                                <div>District: {player.district || "-"}</div>
-                                                <div>🎉 ₹{player.sold_price.toLocaleString()}</div>
-                                            </div>
-
-                                            {tournamentLogo && (
-                                                <div className="flex justify-center items-center gap-1 mt-1 animate-pulse">
-                                                    <img
-                                                        src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-24,h-24`}
-                                                        alt="Tournament Logo"
-                                                        className="w-8 h-8 object-contain rounded"
-                                                    />
-                                                    <img
-                                                        src="/AuctionArena2.png"
-                                                        alt="Auction Arena"
-                                                        className="w-6 h-6 object-contain"
-                                                    />
+                                        backgroundImage: 'url("/goldenbg.png")',
+                                        backgroundSize: 'contain',
+                                        backgroundPosition: 'center',
+                                        backgroundRepeat: 'no-repeat',
+                                        height: '320px'
+                                    }}
+                                >
+                                    {player ? (
+                                        <>
+                                            <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100 transition-transform duration-500 ease-in-out">
+                                                <div className="absolute top-12 left-8 sm:top-12 sm:left-10 md:top-12 md:left-12">
+                                                    <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs md:text-sm font-bold px-2 py-1 rounded-full shadow-lg tracking-wide">
+                                                        #{player.id}
+                                                    </span>
                                                 </div>
-                                            )}
-                                            {/* </div> */}
-                                        </div>
 
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col justify-center items-center text-yellow-900 font-semibold h-full opacity-50 pt-28">
-                                        <span>Player Slot</span>
-                                        <span>Not Filled</span>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+                                                <img
+                                                    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
+                                                    alt={player.name}
+                                                    className={`object-contain mx-auto rounded-full ${selectedPlayerId === player.id ? "w-24 h-24 sm:w-24 sm:h-24 md:w-32 md:h-32" : "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24"}`}
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "/no-image-found.png";
+                                                    }}
+                                                // style={{
+                                                //     backgroundImage: 'url("/goldenbg.png")',
+                                                //     backgroundSize: 'contain', // better fill
+                                                //     backgroundPosition: 'top',
+                                                //     backgroundRepeat: 'no-repeat',
+                                                //     height: '320px'
+                                                // }}
+
+                                                />
+
+                                                <div className="text-xs items-center justify-center font-bold text-black uppercase mt-1">
+                                                    {player.name}
+                                                </div>
+
+                                                {/* <div className="flex flex-col items-center justify-end text-xs font-semibold text-black text-center leading-tight"> */}
+                                                <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
+                                                    <div>Role: {player.role || "-"}</div>
+                                                    <div>District: {player.district || "-"}</div>
+                                                    <div>🎉 ₹{player.sold_price.toLocaleString()}</div>
+                                                </div>
+
+                                                {tournamentLogo && (
+                                                    <div className="flex justify-center items-center gap-1 mt-1 animate-pulse">
+                                                        <img
+                                                            src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-24,h-24`}
+                                                            alt="Tournament Logo"
+                                                            className="w-8 h-8 object-contain rounded"
+                                                        />
+                                                        <img
+                                                            src="/AuctionArena2.png"
+                                                            alt="Auction Arena"
+                                                            className="w-6 h-6 object-contain"
+                                                        />
+                                                    </div>
+                                                )}
+                                                {/* </div> */}
+                                            </div>
+
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col justify-center items-center text-yellow-900 font-semibold h-full opacity-50 pt-28">
+                                            <span>Player Slot</span>
+                                            <span>Not Filled</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+
+                        <div className="max-w-5xl mx-auto bg-white/80 rounded-lg shadow p-4 overflow-x-auto">
+                            <table className="table-auto w-full text-sm text-left border border-gray-300 break-words">
+                                <thead>
+                                    <tr className="bg-yellow-200 text-black font-bold text-center">
+                                        <th className="px-2 py-2 border whitespace-normal break-words">#</th>
+                                        <th className="px-2 py-2 border whitespace-normal break-words">Name</th>
+                                        <th className="px-2 py-2 border whitespace-normal break-words">Role</th>
+                                        <th className="px-2 py-2 border whitespace-normal break-words w-[80px] max-w-[100px]">Kit Size<br />(Jersey / Pant)</th>
+                                        <th className="px-2 py-2 border whitespace-normal break-words w-[80px] max-w-[100px]">Mobile</th>
+                                        <th className="px-2 py-2 border whitespace-normal break-words">Sold<br />Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {[...teamPlayers]
+                                        .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
+                                        .map((player, idx) => (
+                                            <tr key={player.id} className="bg-white even:bg-gray-50">
+                                                <td className="border px-2 py-1">{idx + 1}</td>
+                                                <td className="border px-2 py-1">{player.name} ({player.nickname})</td>
+                                                <td className="border px-2 py-1 text-center">{player.role}</td>
+                                                <td className="border px-2 py-1">
+                                                    {player.jersey_size || "-"} / {player.pant_size || "-"}
+                                                </td>
+                                                <td className="border px-2 py-1">{player.mobile || "-"}</td>
+                                                <td className="border px-2 py-1 text-center">₹{player.sold_price?.toLocaleString() || "0"}</td>
+                                            </tr>
+                                        ))}
+                                    {Array(placeholdersToShow).fill(null).map((_, idx) => (
+                                        <tr key={`placeholder-${idx}`} className="text-gray-400 italic">
+                                            <td className="border px-2 py-1">-</td>
+                                            <td className="border px-2 py-1" colSpan={6}>Empty Player Slot</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                    )}
+
+
 
 
                     {/* Footer */}

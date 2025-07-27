@@ -9,13 +9,17 @@ const Navbar = ({ tournamentSlug }) => {
     <nav className="w-full bg-black text-white py-2 px-4 fixed top-0 z-50 shadow-md">
       <div className="flex justify-between items-center">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <img
-            src="/AuctionArena2.png"
-            alt="Auction Arena"
-            className="w-10 h-10 object-contain animate-pulse"
-          />
-        </div>
+        <div className="flex items-center gap-3">
+  <img
+    src="/AuctionArena2.png"
+    alt="Auction Arena"
+    className="w-10 h-10 object-contain animate-pulse"
+  />
+  <span className="text-xsm md:text-lg uppercase font-bold tracking-wide text-yellow-300 drop-shadow-sm italic animate-fade-in">
+    Bid.. <span className="text-white">Win..</span> <span className="text-yellow-500">Conquer..</span>
+  </span>
+</div>
+
 
         {/* Hamburger Icon */}
         <button
@@ -57,9 +61,8 @@ const Navbar = ({ tournamentSlug }) => {
 
       {/* Mobile Dropdown Links with Animation */}
       <div
-        className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${
-          isOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
-        }`}
+        className={`md:hidden overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
+          }`}
       >
         <div className="flex flex-col text-right mt-2 gap-2">
           <Link to={`/secret-bid/${tournamentSlug}`} className="hover:text-yellow-400">Secret Bid</Link>
