@@ -1,5 +1,6 @@
 import React from "react";
 import useDraggable from "./useDraggable";
+import BackgroundEffect from "./BackgroundEffect";
 
 const PlayerCard = ({
     player,
@@ -28,38 +29,62 @@ const PlayerCard = ({
                 style={{ top: 0, left: 0 }}
             >
                 {/* Horizontal Block Layout */}
-<div className="flex justify-center items-stretch gap-4 rounded-xl overflow-hidden shadow-2xl px-4 py-4 backdrop-blur-lg bg-white/10 border border-white/20 ring-4 ring-cyan-400 animate-glow relative before:absolute before:inset-0 before:rounded-xl before:bg-cyan-400/10 before:blur-xl before:opacity-75 before:z-[-1]">
-                    {/* Base Price */}
-                    <div className="flex flex-col justify-center items-center bg-blue-700 bg-opacity-80 text-white px-6 py-3 rounded-md shadow-lg shadow-blue-400/50">
-                        <p className="text-xs text-gray-200 tracking-widest">Base Price: {formatINR(player.base_price)} </p>
-                        <p className="text-xs text-gray-200 tracking-widest">
-                            Name: {player.name}
-                        </p>
-                        <p className="text-xs text-gray-200 tracking-widest">🏏 {player.role} || 📍 {player.district}</p>
-                    </div>
+                <div className="relative rounded-xl overflow-hidden ring-4 ring-cyan-400 animate-glow text-white max-w-2xl mx-auto px-2 py-2">
+                    {/* 🔲 Animated Parallax Grid */}
+<div
+  className="absolute inset-0 z-0 animate-grid-scroll"
+  style={{
+    backgroundImage: `
+      radial-gradient(circle, rgba(255, 255, 255, 0.2) 2px, transparent 2px)
+    `,
+    backgroundSize: "60px 60px", // 🔍 Larger spacing between dots
+    backgroundColor: "#4c1d95", // base purple
+    backgroundBlendMode: "overlay",
+  }}
+></div>
 
-                    {/* Player Info */}
-                    <div className="flex justify-center items-center text-white px-6 py-3 bg-gray-800 bg-opacity-80 rounded-md shadow-lg shadow-gray-500/40">
-                        <img
-                            src={player.profile_image?.startsWith("http")
-                                ? player.profile_image
-                                : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}`}
-                            alt={player.name}
-                            className="w-40 h-40 rounded-xl border-4 border-white object-cover"
-                            onError={(e) => (e.target.src = "/no-image-found.png")}
-                        />
-                    </div>
 
-                    {/* Current Bid */}
-                    <div className="flex flex-col justify-center items-center bg-yellow-500 bg-opacity-90 text-white px-6 py-3 rounded-md shadow-lg shadow-yellow-400/50">
-                        <p className="text-xs uppercase tracking-widest text-gray-100">
-                            {isSold ? "Sold Price" : isUnsold ? "Status" : "Current Bid"}
-                        </p>
-                        <p className={`text-2xl font-extrabold ${isSold ? "text-green-300" : isUnsold ? "text-red-300" : "text-white"}`}>
-                            {isUnsold ? "UNSOLD" : formatINR(isSold ? soldPrice : currentBid)}
-                        </p>
+
+
+
+                    {/* 💎 Actual 3-block content section */}
+                    <div className="relative z-10 flex justify-center">
+                        {/* Base Price */}
+                        <div className="flex flex-col items-left justify-center text-xs">
+                            <p className="text-yellow-200 tracking-widest">Base Price: {formatINR(player.base_price)}</p>
+                            <p className="text-yellow-200 tracking-widest">Name: {player.name}</p>
+                            <p className="text-yellow-200 tracking-widest">Role: {player.role}</p>
+                        </div>
+
+                        {/* Player Image with Decorative Frame */}
+                        <div
+                            className="relative w-52 h-52 rounded-full bg-center bg-contain bg-no-repeat flex items-center justify-center"
+                            style={{
+                                backgroundImage: "url('/frame.png')",
+                            }}
+                        >
+                            <img
+                                src={player.profile_image?.startsWith("http")
+                                    ? player.profile_image
+                                    : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}`}
+                                alt={player.name}
+                                className="w-36 h-36 object-cover rounded-full border-4 border-white shadow-md"
+                                onError={(e) => (e.target.src = "/no-image-found.png")}
+                            />
+                        </div>
+
+                        {/* Current Bid / Sold */}
+                        <div className="flex flex-col justify-center items-left">
+                            <p className="text-xs uppercase tracking-widest text-yellow-200">
+                                {isSold ? "Sold Price" : isUnsold ? "Status" : "Current Bid"}
+                            </p>
+                            <p className={`text-xl items-left font-extrabold ${isSold ? "text-green-300" : isUnsold ? "text-red-300" : "text-white"}`}>
+                                {isUnsold ? "UNSOLD" : formatINR(isSold ? soldPrice : currentBid)}
+                            </p>
+                        </div>
                     </div>
                 </div>
+
 
                 {/* 🟣 Team Info below card */}
                 <div className="mt-4">
@@ -125,23 +150,44 @@ const PlayerCard = ({
                 </div>
             </div>
 
+            {/* 🧠 Animations */}
             <style>{`
-  @keyframes glow {
-    0% {
-      box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee, 0 0 40px #22d3ee;
+    @keyframes parallaxGrid {
+      0% {
+        background-position: 0 0;
+      }
+      100% {
+        background-position: 100px 100px;
+      }
     }
-    50% {
-      box-shadow: 0 0 20px #22d3ee, 0 0 40px #22d3ee, 0 0 60px #22d3ee;
-    }
-    100% {
-      box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee, 0 0 40px #22d3ee;
-    }
-  }
 
-  .animate-glow {
-    animation: glow 3s ease-in-out infinite;
+    .animate-parallaxGrid {
+      animation: parallaxGrid 25s linear infinite;
+    }
+
+    @keyframes glow {
+      0% { box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee; }
+      50% { box-shadow: 0 0 20px #22d3ee, 0 0 40px #22d3ee; }
+      100% { box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee; }
+    }
+
+    .animate-glow {
+      animation: glow 3s ease-in-out infinite;
+    }
+      @keyframes scrollGrid {
+  0% {
+    background-position: 0 0;
   }
-`}</style>
+  100% {
+    background-position: 100px 100px;
+  }
+}
+
+.animate-grid-scroll {
+  animation: scrollGrid 30s linear infinite;
+}
+
+  `}</style>
 
         </>
     );
