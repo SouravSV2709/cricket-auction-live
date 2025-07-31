@@ -450,7 +450,7 @@ const AdminPanel = () => {
             bid_amount: 0,
             team_name: ""
         });
-    }, 1000);
+    }, 3000);
 };
 
 
