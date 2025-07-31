@@ -751,8 +751,8 @@ const SpectatorLiveDisplay = () => {
         );
 
         const teamLogoUrl = team?.logo
-    ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
-    : null;
+            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
+            : null;
 
 
         return (
@@ -811,7 +811,14 @@ const SpectatorLiveDisplay = () => {
         const restPlayers = sortedByPrice.slice(1);
 
         // Add before the return statement
-const team = teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow));
+        const team = teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow));
+        const totalSlots = Number(team?.team_squad) || 14;
+
+        // Fill placeholders to match totalSlots - 1 (excluding topPlayer)
+        const restWithPlaceholders = [
+            ...restPlayers,
+            ...Array(Math.max(0, totalSlots - 1 - restPlayers.length)).fill(null)
+        ];
 
 
         return (
@@ -857,14 +864,14 @@ const team = teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow));
                         {teamIdToShow && (
                             <>
                                 <img
-  src={
-    team?.logo
-      ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
-      : "/no-team-logo.png"
-  }
-  alt="Team Logo"
-  className="w-36 h-36 object-contain animate-pulse"
-/>
+                                    src={
+                                        team?.logo
+                                            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
+                                            : "/no-team-logo.png"
+                                    }
+                                    alt="Team Logo"
+                                    className="w-36 h-36 object-contain animate-pulse"
+                                />
 
                                 <h3 className="text-xl font-bold text-yellow-300 text-center mb-2">Team Squad</h3>
                             </>
@@ -872,9 +879,9 @@ const team = teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow));
                     </div>
                     <div className="flex flex-row justify-between gap-4">
                         {[0, 1].map((groupIdx) => {
-                            const playerGroup = restPlayers.length
-                                ? restPlayers.slice(groupIdx * 7, groupIdx * 7 + 7)
-                                : Array(5).fill(null);
+                            const playerGroup = restWithPlaceholders.length
+                                ? restWithPlaceholders.slice(groupIdx * 7, groupIdx * 7 + 7)
+                                : Array(7).fill(null);
 
                             return (
                                 <div key={groupIdx} className="flex-1 flex flex-col space-y-4">
