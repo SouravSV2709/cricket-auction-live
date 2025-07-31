@@ -304,10 +304,6 @@ const AdminPanel = () => {
 };
 
 
-
-
-
-
     const updateCurrentBid = async () => {
         if (!selectedTeam || bidAmount === 0) {
             alert("Please select a team and set a bid.");
@@ -332,121 +328,130 @@ const AdminPanel = () => {
     };
 
     const markAsSold = async () => {
-        if (!selectedTeam || bidAmount === 0) {
-            alert("Cannot mark as sold without a valid bid and team.");
-            return;
-        }
+    if (!selectedTeam || bidAmount === 0) {
+        alert("Cannot mark as sold without a valid bid and team.");
+        return;
+    }
 
-        if (bidAmount < (currentPlayer.base_price || 0)) {
-            alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
-            return;
-        }
+    if (bidAmount < (currentPlayer.base_price || 0)) {
+        alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
+        return;
+    }
 
-        const team = teams.find(t => t.name === selectedTeam);
-        if (!team) {
-            alert("Team not found!");
-            return;
-        }
+    const team = teams.find(t => t.name === selectedTeam);
+    if (!team) {
+        alert("Team not found!");
+        return;
+    }
 
-        const teamId = team.id;
+    const teamId = team.id;
 
-        // Save undo
-        setUndoStack(prev => [...prev, {
-            type: "sold",
-            player: currentPlayer,
-            teamName: selectedTeam,
-            bidAmount,
-        }]);
+    // Save undo
+    setUndoStack(prev => [...prev, {
+        type: "sold",
+        player: currentPlayer,
+        teamName: selectedTeam,
+        bidAmount,
+    }]);
 
-        // Prepare data
-        const updatedPlayer = {
-            ...currentPlayer,
-            sold_status: "TRUE",
-            team_id: teamId,
-            sold_price: bidAmount,
-            base_price: currentPlayer.base_price || computeBasePrice(currentPlayer)
-        };
+    // Prepare data
+    const updatedPlayer = {
+        ...currentPlayer,
+        sold_status: "TRUE",
+        team_id: teamId,
+        sold_price: bidAmount,
+        base_price: currentPlayer.base_price || computeBasePrice(currentPlayer)
+    };
 
-        const newPlayer = {
-            id: currentPlayer.id,
-            name: currentPlayer.name,
-            role: currentPlayer.role,
-            base_price: currentPlayer.base_price,
-            profile_image: currentPlayer.profile_image,
-            sold_price: bidAmount,
-            sold_status: "TRUE"
-        };
+    const newPlayer = {
+        id: currentPlayer.id,
+        name: currentPlayer.name,
+        role: currentPlayer.role,
+        base_price: currentPlayer.base_price,
+        profile_image: currentPlayer.profile_image,
+        sold_price: bidAmount,
+        sold_status: "TRUE"
+    };
 
-        const updatedTeam = {
-            ...team,
-            players: [...(team.players || []), newPlayer],
-            budget: team.budget - bidAmount
-        };
+    const updatedTeam = {
+        ...team,
+        players: [...(team.players || []), newPlayer],
+        budget: team.budget - bidAmount
+    };
 
-        // ✅ Perform critical updates in parallel
-        await Promise.all([
-            fetch(`${API}/api/current-player`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedPlayer)
-            }),
-            fetch(`${API}/api/players/${currentPlayer.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    sold_status: "TRUE",
-                    team_id: teamId,
-                    sold_price: bidAmount
-                })
-            }),
-            fetch(`${API}/api/teams/${team.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedTeam)
-            }),
-            fetch(`${API}/api/current-bid`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bid_amount: 0, team_name: "" })
+    // ✅ Perform critical updates in parallel (skip bid reset here)
+    await Promise.all([
+        fetch(`${API}/api/current-player`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedPlayer)
+        }),
+        fetch(`${API}/api/players/${currentPlayer.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                sold_status: "TRUE",
+                team_id: teamId,
+                sold_price: bidAmount
             })
-        ]);
+        }),
+        fetch(`${API}/api/teams/${team.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedTeam)
+        })
+    ]);
+
+    // Notify immediately with correct bid and team
+    socketRef.current?.emit("bidUpdated", {
+        bid_amount: bidAmount,
+        team_name: selectedTeam
+    });
+
+    // Fire notifications (non-blocking)
+    fetch(`${API}/api/notify-sold`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedPlayer),
+    });
+
+    fetch(`${API}/api/notify-player-change`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedPlayer),
+    });
+
+    // 🎉 Confetti
+    confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.6 },
+        colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
+    });
+
+    alert("🎉 Player SOLD and team updated!");
+
+    // 🔄 Update local state
+    setBidAmount(0);
+    setSelectedTeam('');
+    fetchPlayers();
+    fetchTeams(tournamentId);
+    fetchCurrentPlayer();
+
+    // ⏱️ Delay bid reset to avoid "Waiting for a Bid" flicker
+    setTimeout(() => {
+        fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bid_amount: 0, team_name: "" })
+        });
 
         socketRef.current?.emit("bidUpdated", {
             bid_amount: 0,
             team_name: ""
         });
-
-
-        // 🚀 Fire notifications (non-blocking, async side-effects)
-        fetch(`${API}/api/notify-sold`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer),
-        });
-
-        fetch(`${API}/api/notify-player-change`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer),
-        });
-
-        // 🎉 Visual feedback
-        confetti({
-            particleCount: 150,
-            spread: 100,
-            origin: { y: 0.6 },
-            colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
-        });
-
-        alert("🎉 Player SOLD and team updated!");
-
-        // 🔄 Update local state
-        setBidAmount(0);
-        setSelectedTeam('');
-        fetchPlayers();
-        fetchTeams(tournamentId);
-        fetchCurrentPlayer();
-    };
+    }, 1000);
+};
 
 
     const markAsUnsold = async () => {
