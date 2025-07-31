@@ -24,6 +24,7 @@ const AdminPanel = () => {
     const [searchId, setSearchId] = useState('');
     const [undoStack, setUndoStack] = useState([]);
     const [customMessage, setCustomMessage] = useState('');
+    const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
     const [selectedTheme, setSelectedTheme] = useState("default");
     const [isTeamViewActive, setIsTeamViewActive] = useState(false);
@@ -38,7 +39,10 @@ const AdminPanel = () => {
     const [isSecretBiddingActive, setIsSecretBiddingActive] = useState(false);
     const [secretBids, setSecretBids] = useState([]);
     const [showSecretBids, setShowSecretBids] = useState(false);
+    const [showSecretBiddingControls, setShowSecretBiddingControls] = useState(false);
     const [isBidManual, setIsBidManual] = useState(false);
+    const [showAuctionControls, setShowAuctionControls] = useState(true);
+    const [showResetPanel, setShowResetPanel] = useState(false);
     const themeOptions = ["default", "neon", "grid", "fireflies", "aurora", "meteor", "stars"];
 
 
@@ -273,35 +277,35 @@ const AdminPanel = () => {
 
 
     const fetchCurrentPlayer = async () => {
-  try {
-    const res = await fetch(`${API}/api/current-player`);
-    if (!res.ok) {
-      console.warn("No current player available yet.");
-      setCurrentPlayer(null);
-      return;
-    }
+        try {
+            const res = await fetch(`${API}/api/current-player`);
+            if (!res.ok) {
+                console.warn("No current player available yet.");
+                setCurrentPlayer(null);
+                return;
+            }
 
-    const data = await res.json();
+            const data = await res.json();
 
-    // Defensive: Make sure it's a valid player
-    if (!data || !data.id || typeof data.id !== "number") {
-      console.warn("Invalid current player object:", data);
-      setCurrentPlayer(null);
-      return;
-    }
+            // Defensive: Make sure it's a valid player
+            if (!data || !data.id || typeof data.id !== "number") {
+                console.warn("Invalid current player object:", data);
+                setCurrentPlayer(null);
+                return;
+            }
 
-    if (res.status === 204) {
-  console.log("No current player found after reset");
-  setCurrentPlayer(null);
-  return;
-}
+            if (res.status === 204) {
+                console.log("No current player found after reset");
+                setCurrentPlayer(null);
+                return;
+            }
 
-    setCurrentPlayer(data);
-  } catch (err) {
-    console.error("🔥 Error fetching current player:", err);
-    setCurrentPlayer(null);
-  }
-};
+            setCurrentPlayer(data);
+        } catch (err) {
+            console.error("🔥 Error fetching current player:", err);
+            setCurrentPlayer(null);
+        }
+    };
 
 
     const updateCurrentBid = async () => {
@@ -328,130 +332,130 @@ const AdminPanel = () => {
     };
 
     const markAsSold = async () => {
-    if (!selectedTeam || bidAmount === 0) {
-        alert("Cannot mark as sold without a valid bid and team.");
-        return;
-    }
+        if (!selectedTeam || bidAmount === 0) {
+            alert("Cannot mark as sold without a valid bid and team.");
+            return;
+        }
 
-    if (bidAmount < (currentPlayer.base_price || 0)) {
-        alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
-        return;
-    }
+        if (bidAmount < (currentPlayer.base_price || 0)) {
+            alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
+            return;
+        }
 
-    const team = teams.find(t => t.name === selectedTeam);
-    if (!team) {
-        alert("Team not found!");
-        return;
-    }
+        const team = teams.find(t => t.name === selectedTeam);
+        if (!team) {
+            alert("Team not found!");
+            return;
+        }
 
-    const teamId = team.id;
+        const teamId = team.id;
 
-    // Save undo
-    setUndoStack(prev => [...prev, {
-        type: "sold",
-        player: currentPlayer,
-        teamName: selectedTeam,
-        bidAmount,
-    }]);
+        // Save undo
+        setUndoStack(prev => [...prev, {
+            type: "sold",
+            player: currentPlayer,
+            teamName: selectedTeam,
+            bidAmount,
+        }]);
 
-    // Prepare data
-    const updatedPlayer = {
-        ...currentPlayer,
-        sold_status: "TRUE",
-        team_id: teamId,
-        sold_price: bidAmount,
-        base_price: currentPlayer.base_price || computeBasePrice(currentPlayer)
-    };
+        // Prepare data
+        const updatedPlayer = {
+            ...currentPlayer,
+            sold_status: "TRUE",
+            team_id: teamId,
+            sold_price: bidAmount,
+            base_price: currentPlayer.base_price || computeBasePrice(currentPlayer)
+        };
 
-    const newPlayer = {
-        id: currentPlayer.id,
-        name: currentPlayer.name,
-        role: currentPlayer.role,
-        base_price: currentPlayer.base_price,
-        profile_image: currentPlayer.profile_image,
-        sold_price: bidAmount,
-        sold_status: "TRUE"
-    };
+        const newPlayer = {
+            id: currentPlayer.id,
+            name: currentPlayer.name,
+            role: currentPlayer.role,
+            base_price: currentPlayer.base_price,
+            profile_image: currentPlayer.profile_image,
+            sold_price: bidAmount,
+            sold_status: "TRUE"
+        };
 
-    const updatedTeam = {
-        ...team,
-        players: [...(team.players || []), newPlayer],
-        budget: team.budget - bidAmount
-    };
+        const updatedTeam = {
+            ...team,
+            players: [...(team.players || []), newPlayer],
+            budget: team.budget - bidAmount
+        };
 
-    // ✅ Perform critical updates in parallel (skip bid reset here)
-    await Promise.all([
-        fetch(`${API}/api/current-player`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer)
-        }),
-        fetch(`${API}/api/players/${currentPlayer.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                sold_status: "TRUE",
-                team_id: teamId,
-                sold_price: bidAmount
+        // ✅ Perform critical updates in parallel (skip bid reset here)
+        await Promise.all([
+            fetch(`${API}/api/current-player`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedPlayer)
+            }),
+            fetch(`${API}/api/players/${currentPlayer.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sold_status: "TRUE",
+                    team_id: teamId,
+                    sold_price: bidAmount
+                })
+            }),
+            fetch(`${API}/api/teams/${team.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedTeam)
             })
-        }),
-        fetch(`${API}/api/teams/${team.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedTeam)
-        })
-    ]);
+        ]);
 
-    // Notify immediately with correct bid and team
-    socketRef.current?.emit("bidUpdated", {
-        bid_amount: bidAmount,
-        team_name: selectedTeam
-    });
-
-    // Fire notifications (non-blocking)
-    fetch(`${API}/api/notify-sold`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedPlayer),
-    });
-
-    fetch(`${API}/api/notify-player-change`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedPlayer),
-    });
-
-    // 🎉 Confetti
-    confetti({
-        particleCount: 150,
-        spread: 100,
-        origin: { y: 0.6 },
-        colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
-    });
-
-    alert("🎉 Player SOLD and team updated!");
-
-    // 🔄 Update local state
-    setBidAmount(0);
-    setSelectedTeam('');
-    fetchPlayers();
-    fetchTeams(tournamentId);
-    fetchCurrentPlayer();
-
-    // ⏱️ Delay bid reset to avoid "Waiting for a Bid" flicker
-    setTimeout(() => {
-        fetch(`${API}/api/current-bid`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bid_amount: 0, team_name: "" })
-        });
-
+        // Notify immediately with correct bid and team
         socketRef.current?.emit("bidUpdated", {
-            bid_amount: 0,
-            team_name: ""
+            bid_amount: bidAmount,
+            team_name: selectedTeam
         });
-    }, 3000);
-};
+
+        // Fire notifications (non-blocking)
+        fetch(`${API}/api/notify-sold`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedPlayer),
+        });
+
+        fetch(`${API}/api/notify-player-change`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updatedPlayer),
+        });
+
+        // 🎉 Confetti
+        confetti({
+            particleCount: 150,
+            spread: 100,
+            origin: { y: 0.6 },
+            colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
+        });
+
+        alert("🎉 Player SOLD and team updated!");
+
+        // 🔄 Update local state
+        setBidAmount(0);
+        setSelectedTeam('');
+        fetchPlayers();
+        fetchTeams(tournamentId);
+        fetchCurrentPlayer();
+
+        // ⏱️ Delay bid reset to avoid "Waiting for a Bid" flicker
+        setTimeout(() => {
+            fetch(`${API}/api/current-bid`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bid_amount: 0, team_name: "" })
+            });
+
+            socketRef.current?.emit("bidUpdated", {
+                bid_amount: 0,
+                team_name: ""
+            });
+        }, 3000);
+    };
 
 
     const markAsUnsold = async () => {
@@ -978,6 +982,13 @@ const AdminPanel = () => {
                 body: JSON.stringify({ id: null }),
             });
 
+            // 👇 Trigger spectator to show No Player view
+            await fetch(`${API}/api/custom-message`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: "__SHOW_NO_PLAYERS__" }),
+            });
+
             alert("✅ Current player cleared.");
             setCurrentPlayer(null);
         } catch (err) {
@@ -985,6 +996,7 @@ const AdminPanel = () => {
             alert("❌ Failed to clear current player.");
         }
     };
+
 
     return (
         <div className="p-6 bg-gray-900 min-h-screen text-white">
@@ -1049,25 +1061,25 @@ const AdminPanel = () => {
                     id="themeSelect"
                     className="bg-black text-white border border-gray-400 px-3 py-1 rounded-md"
                     onChange={async (e) => {
-                    const selectedTheme = e.target.value;
+                        const selectedTheme = e.target.value;
 
-                    await fetch(`${API}/api/theme`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ theme: selectedTheme }),
-                    });
+                        await fetch(`${API}/api/theme`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ theme: selectedTheme }),
+                        });
 
-                    alert(`🎨 Theme changed to ${selectedTheme}`);
+                        alert(`🎨 Theme changed to ${selectedTheme}`);
                     }}
                     defaultValue={"default"}
                 >
                     {themeOptions.map((theme) => (
-                    <option key={theme} value={theme}>
-                        {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                    </option>
+                        <option key={theme} value={theme}>
+                            {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                        </option>
                     ))}
                 </select>
-                </div>
+            </div>
 
 
             {/* Set Bid increment */}
@@ -1170,518 +1182,581 @@ const AdminPanel = () => {
             </div>
 
 
-
-            <div className="mb-4">
-                <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-base font-semibold">Select Team:</h3>
-                    <label className="flex items-center cursor-pointer">
-                        <span className="mr-2 text-sm">Team Loop</span>
-                        <input
-                            type="checkbox"
-                            checked={isTeamLoopActive}
-                            onChange={async () => {
-                                if (!isTeamLoopActive) {
-                                    await fetch(`${API}/api/start-team-loop/${tournamentSlug}`, { method: "POST" });
-                                } else {
-                                    await fetch(`${API}/api/stop-team-loop`, { method: "POST" });
-                                }
-                                setIsTeamLoopActive(!isTeamLoopActive);
-                            }}
-                            className="sr-only"
-                        />
-                        <div className={`w-10 h-5 rounded-full ${isTeamLoopActive ? 'bg-yellow-400' : 'bg-gray-400'} relative`}>
-                            <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamLoopActive ? 'translate-x-5' : ''}`}></div>
-                        </div>
-                    </label>
+            {/* 👇 Collapsible Auction Control Block (All-in-One) */}
+            <div className="my-6 border border-gray-700 rounded bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-gray-700 hover:bg-gray-600 rounded-t flex justify-between items-center"
+                    onClick={() => setShowAuctionControls(prev => !prev)}
+                >
+                    <h3 className="text-lg font-bold text-green-300">🏏 Live Auction Controls</h3>
+                    <span className="text-white text-xl">{showAuctionControls ? '−' : '+'}</span>
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-                    {teams.map(team => (
-                        <button
-                            key={team.id}
-                            onClick={() => handleTeamClick(team)}
-                            className={`flex items-center justify-start gap-1 px-2 py-1 rounded-md border text-xs font-medium transition
-          ${selectedTeam === team.name ? "border-green-400 bg-green-900 text-white scale-105" : "border-gray-700 bg-gray-800 text-gray-200"}
-          hover:bg-indigo-700 hover:scale-105`}
-                        >
-                            {team.logo && (
-                                <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
-                                    alt={team.name}
-                                    className="w-5 h-5 rounded-full"
-                                />
+
+                {showAuctionControls && (
+                    <div className="p-4 space-y-6">
+
+                        {/* 🟩 Team Selection */}
+                        <div>
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-base font-semibold text-white">Select Team:</h3>
+                                <label className="flex items-center cursor-pointer">
+                                    <span className="mr-2 text-sm text-white">Team Loop</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={isTeamLoopActive}
+                                        onChange={async () => {
+                                            if (!isTeamLoopActive) {
+                                                // 🟢 Turning ON Team Loop
+                                                await fetch(`${API}/api/start-team-loop/${tournamentSlug}`, { method: "POST" });
+                                                setIsTeamLoopActive(true);
+                                            } else {
+                                                // 🔴 Turning OFF Team Loop
+                                                await fetch(`${API}/api/stop-team-loop`, { method: "POST" });
+                                                setIsTeamLoopActive(false);
+
+                                                // ✅ ALSO disable Squad View (return to live mode)
+                                                await fetch(`${API}/api/show-team`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ team_id: null }),
+                                                });
+                                                setIsTeamViewActive(false);
+                                                setIsLiveAuctionActive(true); // return to live
+                                            }
+                                        }}
+
+                                        className="sr-only"
+                                    />
+                                    <div className={`w-10 h-5 rounded-full ${isTeamLoopActive ? 'bg-yellow-400' : 'bg-gray-400'} relative`}>
+                                        <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamLoopActive ? 'translate-x-5' : ''}`}></div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                                {teams.map(team => (
+                                    <button
+                                        key={team.id}
+                                        onClick={() => handleTeamClick(team)}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all
+                ${selectedTeam === team.name ? "bg-green-800 text-white" : "bg-gray-700 text-gray-200"}
+                hover:bg-indigo-600 hover:text-white`}
+                                    >
+                                        {team.logo && (
+                                            <img
+                                                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                alt={team.name}
+                                                className="w-5 h-5 rounded-full"
+                                            />
+                                        )}
+                                        <span className="truncate">{team.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {selectedTeam && (
+                                <div className="mt-2 text-sm text-green-300">
+                                    ✅ Selected: <strong>{selectedTeam}</strong>
+                                </div>
                             )}
-                            <span className="truncate">{team.name}</span>
-                        </button>
-                    ))}
-                </div>
-
-                {selectedTeam && (
-                    <div className="mt-2 text-sm text-green-300">
-                        ✅ Selected: <strong>{selectedTeam}</strong>
-                    </div>
-                )}
-            </div>
-            <div className="flex items-center space-x-4">
-                <button
-                    className="bg-green-500 hover:bg-green-400 text-black font-bold px-2 py-2 rounded shadow"
-                    onClick={markAsSold}
-                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
-                >
-                    ✅ MARK SOLD
-                </button>
-
-                <button
-                    className="bg-red-600 hover:bg-red-500 text-white font-bold px-2 py-2 rounded shadow"
-                    onClick={markAsUnsold}
-                    disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
-                >
-                    ❌ MARK UNSOLD
-                </button>
-            </div>
-
-
-            <div className="flex items-center space-x-4 my-6">
-                <label className="flex items-center cursor-pointer space-x-2">
-                    <span className="text-sm">Team Squad</span>
-                    <input
-                        type="checkbox"
-                        checked={isTeamViewActive}
-                        onChange={async () => {
-                            let team = teams.find(t => t.name === selectedTeam);
-
-                            // 🛠️ If not selected yet, fallback to the first team
-                            if (!team && teams.length > 0) {
-                                team = teams[0];
-                                setSelectedTeam(team.name);
-                            }
-
-                            if (!team) return;
-
-
-                            const newState = !isTeamViewActive;
-
-                            if (newState) {
-                                // Turn off live auction if Show Squad is being activated
-                                setIsLiveAuctionActive(false);
-                                await fetch(`${API}/api/show-team`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ team_id: team.id })
-                                });
-                            } else {
-                                // If turning off Show Squad, re-enable Live Auction
-                                setIsLiveAuctionActive(true);
-                                await fetch(`${API}/api/show-team`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ team_id: null })
-                                });
-                            }
-
-                            setIsTeamViewActive(newState);
-                        }}
-                        className="sr-only"
-                    />
-                    <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-red-400'} relative`}>
-                        <div
-                            className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''
-                                }`}
-                        ></div>
-                    </div>
-                </label>
-
-                <label className="flex items-center cursor-pointer space-x-2">
-                    <span className="text-sm">Live Auction</span>
-                    <input
-                        type="checkbox"
-                        checked={isLiveAuctionActive}
-                        onChange={async () => {
-                            const newState = !isLiveAuctionActive;
-
-                            // If turning on Live Auction, turn off Show Squad
-                            if (newState) {
-                                await fetch(`${API}/api/show-team`, {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ team_id: null })
-                                });
-                                setIsTeamViewActive(false);
-                            }
-
-                            setIsLiveAuctionActive(newState);
-                        }}
-                        className="sr-only"
-                    />
-                    <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-green-500' : 'bg-red-400'} relative`}>
-                        <div
-                            className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}
-                        ></div>
-                    </div>
-                </label>
-            </div>
-
-
-
-            <div className="mb-4 mt-4">
-                <label className="block mb-1">Bid Amount (₹)</label>
-                <input
-                    type="number"
-                    className="w-full p-2 rounded text-black"
-                    value={bidAmount}
-                    onChange={e => {
-                        const value = parseInt(e.target.value, 10) || 0;
-                        setBidAmount(value);
-                        setIsBidManual(true); // 🟢 Set manual flag on input
-                    }}
-                    disabled={isTeamViewActive}
-                />
-                <div className={`text-sm mt-1 ${isTeamViewActive ? 'text-gray-600' : 'text-gray-400'}`}>
-                    Bid Increments:
-                    {bidIncrements.map((r, i) => (
-                        <div key={i}>
-                            ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
                         </div>
-                    ))}
-                </div>
-            </div>
 
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2">🔍 Search Player by ID:</h3>
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                        type="number"
-                        min="1"
-                        className="p-2 rounded text-black w-full sm:w-1/3"
-                        placeholder="Enter Player ID"
-                        onChange={(e) => setSearchId(e.target.value.trim())}
-                    />
-                    <button
-                        onClick={handleSearchById}
-                        className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold shadow"
-                        disabled={isTeamViewActive}
-                    >
-                        🔍 Show Player
-                    </button>
-                    <button
-                        className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
-                        onClick={handleNextPlayer}
-                        disabled={isTeamViewActive}
-                    >
-                        ➡️ Next Player
-                    </button>
-
-                    <button
-                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
-                        onClick={clearCurrentPlayer}
-                        disabled={isTeamViewActive}
-                    >
-                        🚫 Clear Current Player
-                    </button>
-
-                </div>
-            </div>
-
-            {/* Selected player details */}
-
-            {currentPlayer ? (
-                <div className="mb-6">
-                    <h3 className="text-xl font-semibold mb-2">Current Player:</h3>
-                    <p>ID: {currentPlayer.id}</p>
-                    <p>Auction-serial: {currentPlayer.auction_serial}</p>
-                    <p>Name: {currentPlayer.name}</p>
-                    <p>Role: {currentPlayer.role}</p>
-                    <p>Base Price: ₹{currentPlayer.base_price}</p>
-                    {currentPlayer.sold_status && (
-                        <p className="mt-1 text-yellow-300">
-                            Status: {String(currentPlayer.sold_status).toUpperCase()}
-                        </p>
-                    )}
-                </div>
-            ) : (
-                <p>No current player selected.</p>
-            )}
-
-            <div className="mt-8 mb-6">
-                <h3 className="text-lg font-semibold mb-2">📢 Custom Spectator Message</h3>
-                <textarea
-                    rows="3"
-                    placeholder="Enter message to show on spectator screen"
-                    className="w-full p-3 rounded text-black"
-                    onChange={(e) => setCustomMessage(e.target.value)}
-                />
-                <button
-                    onClick={async () => {
-                        await fetch(`${API}/api/custom-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ message: customMessage }),
-                        });
-                        alert("Custom message broadcasted.");
-                    }}
-                    className="mt-2 bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded shadow font-bold"
-                >
-                    🚀 Show on Spectator
-                </button>
-
-                <button
-                    onClick={async () => {
-                        await fetch(`${API}/api/custom-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ message: "__SHOW_TEAM_STATS__" }),
-                        });
-                        alert("📊 Showing Team Statistics...");
-                    }}
-                    className="bg-teal-500 hover:bg-teal-400 text-black font-bold px-4 py-2 m-2 rounded shadow"
-                >
-                    📊 Show Team Stats
-                </button>
-
-                <button
-                    onClick={async () => {
-                        await fetch(`${API}/api/custom-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ message: "__SHOW_TOP_10_EXPENSIVE__" }),
-                        });
-                        alert("📈 Showing Top 10 Expensive Players...");
-                    }}
-                    className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-4 py-2 m-2 rounded shadow"
-                >
-                    💰 Show Top 10 Expensive Players
-                </button>
-
-
-                <button
-                    onClick={async () => {
-                        await fetch(`${API}/api/custom-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__" }),
-                        });
-                        alert("✅ Cleared custom view. Back to live mode.");
-                    }}
-                    className="bg-red-500 hover:bg-red-400 text-white font-bold px-4 py-2 m-1 rounded shadow"
-                >
-                    🔄 Clear Custom View
-                </button>
-            </div>
-
-            {/* Countdown Timer Trigger */}
-            <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-2">⏱️ Start Countdown Timer</h3>
-                <input
-                    type="number"
-                    placeholder="Enter seconds (e.g., 120)"
-                    className="p-2 rounded text-black mr-4"
-                    value={countdownDuration}
-                    onChange={(e) => setCountdownDuration(Number(e.target.value))}
-                />
-                <button
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded"
-                    onClick={async () => {
-                        const message = `__START_COUNTDOWN__${countdownDuration}`;
-
-                        console.log("⏳ Admin triggering countdown:", message);
-                        await fetch(`${API}/api/custom-message`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ message }),
-                        });
-
-                        alert("⏱️ Countdown started!");
-                    }}
-                >
-                    🚀 Start Countdown
-                </button>
-            </div>
-
-            <div className="mt-6 border border-purple-700 rounded-lg bg-gray-800 p-4">
-                <h3 className="text-lg font-bold text-purple-300 mb-2">🕵️‍♂️ Secret Bidding Controls</h3>
-
-                <div className="flex gap-4 mb-4">
-                    <button
-                        onClick={async () => {
-                            setIsSecretBiddingActive(true);
-                            await fetch(`${API}/api/current-player`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ secret_bidding_enabled: true }),
-                            });
-                            alert("✅ Secret Bidding ENABLED for current player");
-                            socketRef.current?.emit("secretBiddingToggled"); // ✅ Emits real-time update
-                        }}
-                        className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
-                        disabled={isSecretBiddingActive}
-                    >
-                        ✅ Enable Secret Bidding
-                    </button>
-
-                    <button
-                        onClick={async () => {
-                            setIsSecretBiddingActive(false);
-                            setShowSecretBids(false);
-                            await fetch(`${API}/api/current-player`, {
-                                method: "PATCH",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ secret_bidding_enabled: false }),
-                            });
-                            alert("❌ Secret Bidding DISABLED for current player");
-                            socketRef.current?.emit("secretBiddingToggled"); // ✅ Emits real-time update
-                        }}
-                        className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold"
-                        disabled={!isSecretBiddingActive}
-                    >
-                        ❌ Disable Secret Bidding
-                    </button>
-
-                    <button
-                        onClick={async () => {
-                            const res = await fetch(
-                                `${API}/api/secret-bids?tournament_id=${tournamentId}&player_serial=${currentPlayer?.auction_serial}`
-                            );
-                            const data = await res.json();
-                            setSecretBids(data);
-                            setShowSecretBids(true);
-
-                            // ✅ Emit to Spectator via Socket.IO
-                            socketRef.current?.emit("revealSecretBids", {
-                                tournament_id: tournamentId,
-                                player_serial: currentPlayer?.auction_serial
-                            });
-                        }}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold"
-                        disabled={!isSecretBiddingActive}
-                    >
-                        👁️ Reveal Bids
-                    </button>
-
-                </div>
-
-                {showSecretBids && secretBids.length > 0 && (
-                    <div className="space-y-2">
-                        {secretBids.map((bid, idx) => (
-                            <div
-                                key={idx}
-                                className={`p-3 rounded shadow bg-gray-900 border ${idx === 0 ? "border-green-400" : "border-gray-600"}`}
+                        {/* 🟥 Mark Sold/Unsold Buttons */}
+                        <div className="flex items-center gap-4">
+                            <button
+                                className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
+                                onClick={markAsSold}
+                                disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
                             >
-                                <p><strong>Team:</strong> {bid.team_name}</p>
-                                <p><strong>Bid:</strong> ₹{bid.bid_amount}</p>
-                                <button
-                                    onClick={async () => {
-                                        await fetch(`${API}/api/secret-bid/winner`, {
-                                            method: "POST",
-                                            headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({
-                                                player_id: currentPlayer.id,
-                                                team_id: bid.team_id,
-                                                bid_amount: bid.bid_amount,
-                                            }),
-                                        });
-                                        alert("✅ Player assigned via secret bid!");
-                                        setShowSecretBids(false);
-                                        setIsSecretBiddingActive(false);
-                                        fetchPlayers();
-                                        fetchTeams(tournamentId);
-                                        fetchCurrentPlayer();
+                                ✅ MARK SOLD
+                            </button>
 
-                                        socketRef.current?.emit("secretBidWinnerAssigned", {
-                                            player_id: currentPlayer.id,
-                                            team_id: bid.team_id,
-                                            team_name: bid.team_name,
-                                            bid_amount: bid.bid_amount,
-                                            team_logo: bid.logo
-                                        });
+                            <button
+                                className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded shadow"
+                                onClick={markAsUnsold}
+                                disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                            >
+                                ❌ MARK UNSOLD
+                            </button>
+                        </div>
+
+                        {/* 🔄 Toggles */}
+                        <div className="flex items-center space-x-4">
+                            <label className="flex items-center cursor-pointer space-x-2">
+                                <span className="text-sm text-white">Team Squad</span>
+                                <input
+                                    type="checkbox"
+                                    checked={isTeamViewActive}
+                                    onChange={async () => {
+                                        let team = teams.find(t => t.name === selectedTeam);
+                                        if (!team && teams.length > 0) {
+                                            team = teams[0];
+                                            setSelectedTeam(team.name);
+                                        }
+                                        if (!team) return;
+                                        const newState = !isTeamViewActive;
+                                        if (newState) {
+                                            setIsLiveAuctionActive(false);
+                                            await fetch(`${API}/api/show-team`, {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ team_id: team.id })
+                                            });
+                                        } else {
+                                            setIsLiveAuctionActive(true);
+                                            await fetch(`${API}/api/show-team`, {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ team_id: null })
+                                            });
+                                        }
+                                        setIsTeamViewActive(newState);
                                     }}
-                                    className="mt-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold"
+                                    className="sr-only"
+                                />
+                                <div className={`w-10 h-5 rounded-full ${isTeamViewActive ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                    <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isTeamViewActive ? 'translate-x-5' : ''}`}></div>
+                                </div>
+                            </label>
+
+                            <label className="flex items-center cursor-pointer space-x-2">
+                                <span className="text-sm text-white">Live Auction</span>
+                                <input
+                                    type="checkbox"
+                                    checked={isLiveAuctionActive}
+                                    onChange={async () => {
+                                        const newState = !isLiveAuctionActive;
+                                        if (newState) {
+                                            await fetch(`${API}/api/show-team`, {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ team_id: null })
+                                            });
+                                            setIsTeamViewActive(false);
+                                        }
+                                        setIsLiveAuctionActive(newState);
+                                    }}
+                                    className="sr-only"
+                                />
+                                <div className={`w-10 h-5 rounded-full ${isLiveAuctionActive ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                    <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* 💰 Bid Amount Input */}
+                        <div>
+                            <label className="block mb-1 text-white">Bid Amount (₹)</label>
+                            <input
+                                type="number"
+                                className="w-full p-2 rounded text-black"
+                                value={bidAmount}
+                                onChange={e => {
+                                    const value = parseInt(e.target.value, 10) || 0;
+                                    setBidAmount(value);
+                                    setIsBidManual(true);
+                                }}
+                                disabled={isTeamViewActive}
+                            />
+                            <div className={`text-sm mt-1 ${isTeamViewActive ? 'text-gray-600' : 'text-gray-400'}`}>
+                                Bid Increments:
+                                {bidIncrements.map((r, i) => (
+                                    <div key={i}>
+                                        ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 🔍 Player Search Section */}
+                        <div>
+                            <h3 className="text-lg font-semibold mb-2 text-white">🔍 Search Player by ID:</h3>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    className="p-2 rounded text-black w-full sm:w-1/3"
+                                    placeholder="Enter Player ID"
+                                    onChange={(e) => setSearchId(e.target.value.trim())}
+                                />
+                                <button
+                                    onClick={handleSearchById}
+                                    className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold shadow"
+                                    disabled={isTeamViewActive}
                                 >
-                                    🏆 Assign to this Team
+                                    🔍 Show Player
+                                </button>
+                                <button
+                                    className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
+                                    onClick={handleNextPlayer}
+                                    disabled={isTeamViewActive}
+                                >
+                                    ➡️ Next Player
+                                </button>
+                                <button
+                                    className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
+                                    onClick={clearCurrentPlayer}
+                                    disabled={isTeamViewActive}
+                                >
+                                    🚫 Clear Current Player
                                 </button>
                             </div>
-                        ))}
+                        </div>
+
+                        {/* 👤 Current Player Details */}
+                        <div className="bg-gray-900 p-4 border border-gray-700 rounded-lg">
+                            <h3 className="text-lg font-semibold mb-2 text-white">🎯 Current Player:</h3>
+                            {currentPlayer ? (
+                                <div className="text-sm space-y-1 text-white">
+                                    <p><strong>ID:</strong> {currentPlayer.id}</p>
+                                    <p><strong>Auction-serial:</strong> {currentPlayer.auction_serial}</p>
+                                    <p><strong>Name:</strong> {currentPlayer.name}</p>
+                                    <p><strong>Role:</strong> {currentPlayer.role}</p>
+                                    <p><strong>Base Price:</strong> ₹{currentPlayer.base_price}</p>
+                                    {currentPlayer.sold_status && (
+                                        <p className="text-yellow-300">
+                                            <strong>Status:</strong> {String(currentPlayer.sold_status).toUpperCase()}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-gray-400">No current player selected.</p>
+                            )}
+                        </div>
+
                     </div>
                 )}
+            </div>
 
-                {showSecretBids && secretBids.length === 0 && (
-                    <p className="text-red-300 font-semibold">No bids submitted yet.</p>
+            <div className="mt-6 border border-purple-700 rounded-lg bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-purple-900 hover:bg-purple-800 rounded-t flex justify-between items-center"
+                    onClick={() => setShowSecretBiddingControls(prev => !prev)}
+                >
+                    <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2">
+                        🕵️‍♂️ Secret Bidding Controls
+                    </h3>
+                    <span className="text-white text-xl">{showSecretBiddingControls ? '−' : '+'}</span>
+                </div>
+
+                {showSecretBiddingControls && (
+                    <div className="p-4 space-y-4">
+                        {/* 🔘 Secret Bidding Buttons */}
+                        <div className="flex gap-4 mb-2">
+                            <button
+                                onClick={async () => {
+                                    setIsSecretBiddingActive(true);
+                                    await fetch(`${API}/api/current-player`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ secret_bidding_enabled: true }),
+                                    });
+                                    alert("✅ Secret Bidding ENABLED for current player");
+                                    socketRef.current?.emit("secretBiddingToggled");
+                                }}
+                                className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
+                                disabled={isSecretBiddingActive}
+                            >
+                                ✅ Enable Secret Bidding
+                            </button>
+
+                            <button
+                                onClick={async () => {
+                                    setIsSecretBiddingActive(false);
+                                    setShowSecretBids(false);
+                                    await fetch(`${API}/api/current-player`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ secret_bidding_enabled: false }),
+                                    });
+                                    alert("❌ Secret Bidding DISABLED for current player");
+                                    socketRef.current?.emit("secretBiddingToggled");
+                                }}
+                                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold"
+                                disabled={!isSecretBiddingActive}
+                            >
+                                ❌ Disable Secret Bidding
+                            </button>
+
+                            <button
+                                onClick={async () => {
+                                    const res = await fetch(
+                                        `${API}/api/secret-bids?tournament_id=${tournamentId}&player_serial=${currentPlayer?.auction_serial}`
+                                    );
+                                    const data = await res.json();
+                                    setSecretBids(data);
+                                    setShowSecretBids(true);
+
+                                    socketRef.current?.emit("revealSecretBids", {
+                                        tournament_id: tournamentId,
+                                        player_serial: currentPlayer?.auction_serial
+                                    });
+                                }}
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold"
+                                disabled={!isSecretBiddingActive}
+                            >
+                                👁️ Reveal Bids
+                            </button>
+                        </div>
+
+                        {/* 🏆 Show Secret Bid List */}
+                        {showSecretBids && secretBids.length > 0 && (
+                            <div className="space-y-2">
+                                {secretBids.map((bid, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`p-3 rounded shadow bg-gray-900 border ${idx === 0 ? "border-green-400" : "border-gray-600"}`}
+                                    >
+                                        <p><strong>Team:</strong> {bid.team_name}</p>
+                                        <p><strong>Bid:</strong> ₹{bid.bid_amount}</p>
+                                        <button
+                                            onClick={async () => {
+                                                await fetch(`${API}/api/secret-bid/winner`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        player_id: currentPlayer.id,
+                                                        team_id: bid.team_id,
+                                                        bid_amount: bid.bid_amount,
+                                                    }),
+                                                });
+                                                alert("✅ Player assigned via secret bid!");
+                                                setShowSecretBids(false);
+                                                setIsSecretBiddingActive(false);
+                                                fetchPlayers();
+                                                fetchTeams(tournamentId);
+                                                fetchCurrentPlayer();
+
+                                                socketRef.current?.emit("secretBidWinnerAssigned", {
+                                                    player_id: currentPlayer.id,
+                                                    team_id: bid.team_id,
+                                                    team_name: bid.team_name,
+                                                    bid_amount: bid.bid_amount,
+                                                    team_logo: bid.logo
+                                                });
+                                            }}
+                                            className="mt-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold"
+                                        >
+                                            🏆 Assign to this Team
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {showSecretBids && secretBids.length === 0 && (
+                            <p className="text-red-300 font-semibold">No bids submitted yet.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+
+
+            {/* 📢 Collapsible Custom Message + Countdown */}
+            <div className="mt-6 border border-pink-600 rounded-lg bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-pink-900 hover:bg-pink-800 rounded-t flex justify-between items-center"
+                    onClick={() => setShowCustomMessagePanel(prev => !prev)}
+                >
+                    <h3 className="text-lg font-bold text-pink-300">📢 Custom Spectator Message & Countdown</h3>
+                    <span className="text-white text-xl">{showCustomMessagePanel ? '−' : '+'}</span>
+                </div>
+
+                {showCustomMessagePanel && (
+                    <div className="p-4 space-y-6">
+
+                        {/* 📝 Message Input */}
+                        <div>
+                            <label className="block text-white font-semibold mb-1">Custom Message</label>
+                            <textarea
+                                rows="3"
+                                placeholder="Enter message to show on spectator screen"
+                                className="w-full p-3 rounded text-black"
+                                onChange={(e) => setCustomMessage(e.target.value)}
+                            />
+                            <div className="flex flex-wrap gap-3 mt-3">
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: customMessage }),
+                                        });
+                                        alert("Custom message broadcasted.");
+                                    }}
+                                    className="bg-pink-500 hover:bg-pink-400 text-white font-bold px-4 py-2 rounded shadow"
+                                >
+                                    🚀 Show on Spectator
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: "__SHOW_TEAM_STATS__" }),
+                                        });
+                                        alert("📊 Showing Team Statistics...");
+                                    }}
+                                    className="bg-teal-500 hover:bg-teal-400 text-black font-bold px-4 py-2 rounded shadow"
+                                >
+                                    📊 Show Team Stats
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: "__SHOW_TOP_10_EXPENSIVE__" }),
+                                        });
+                                        alert("💰 Showing Top 10 Expensive Players...");
+                                    }}
+                                    className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-4 py-2 rounded shadow"
+                                >
+                                    💰 Show Top 10 Expensive Players
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__" }),
+                                        });
+                                        alert("✅ Cleared custom view.");
+                                    }}
+                                    className="bg-red-500 hover:bg-red-400 text-white font-bold px-4 py-2 rounded shadow"
+                                >
+                                    🔄 Clear Custom View
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* ⏱️ Countdown Timer */}
+                        <div>
+                            <label className="block text-white font-semibold mb-1">Start Countdown Timer</label>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <input
+                                    type="number"
+                                    placeholder="Enter seconds (e.g., 120)"
+                                    className="p-2 rounded text-black sm:w-1/4"
+                                    value={countdownDuration}
+                                    onChange={(e) => setCountdownDuration(Number(e.target.value))}
+                                />
+                                <button
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded shadow"
+                                    onClick={async () => {
+                                        const message = `__START_COUNTDOWN__${countdownDuration}`;
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message }),
+                                        });
+                                        alert("⏱️ Countdown started!");
+                                    }}
+                                >
+                                    🚀 Start Countdown
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
                 )}
             </div>
 
 
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8 mt-4">
-                <button
-                    className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded shadow"
-                    onClick={undoLastAction}
-                    disabled={undoStack.length === 0}
-                >
-                    ⬅️ Undo ({undoStack.length})
-                </button>
 
-                {["TRUE", "FALSE", true, false, "true", "false"].includes(currentPlayer?.sold_status) && (
-                    <button
-                        className="bg-orange-500 hover:bg-orange-400 text-white font-bold px-4 py-2 rounded shadow"
-                        onClick={handleReopenPlayer}
-                    >
-                        ♻️ Reopen Player
-                    </button>
+
+            {/* ♻️ Collapsible Undo / Reset / Secret Code Panel */}
+            <div className="mt-6 border border-orange-600 rounded-lg bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-orange-900 hover:bg-orange-800 rounded-t flex justify-between items-center"
+                    onClick={() => setShowResetPanel(prev => !prev)}
+                >
+                    <h3 className="text-lg font-bold text-orange-300">♻️ Undo / Reset Controls</h3>
+                    <span className="text-white text-xl">{showResetPanel ? '−' : '+'}</span>
+                </div>
+
+                {showResetPanel && (
+                    <div className="p-4 space-y-4">
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                            <button
+                                className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded shadow"
+                                onClick={undoLastAction}
+                                disabled={undoStack.length === 0}
+                            >
+                                ⬅️ Undo ({undoStack.length})
+                            </button>
+
+                            {["TRUE", "FALSE", true, false, "true", "false"].includes(currentPlayer?.sold_status) && (
+                                <button
+                                    className="bg-orange-500 hover:bg-orange-400 text-white font-bold px-4 py-2 rounded shadow"
+                                    onClick={handleReopenPlayer}
+                                >
+                                    ♻️ Reopen Player
+                                </button>
+                            )}
+
+                            <button
+                                className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded shadow"
+                                onClick={resetUnsoldPlayers}
+                            >
+                                🔄 Reset Unsold
+                            </button>
+
+                            <button
+                                className={`px-4 py-2 rounded shadow font-bold ${resetInProgress
+                                    ? 'bg-gray-500 cursor-not-allowed text-white'
+                                    : 'bg-red-600 hover:bg-red-500 text-white'
+                                    }`}
+                                disabled={resetInProgress}
+                                onClick={async () => {
+                                    const firstConfirm = window.confirm("⚠️ This will reset the entire auction. Are you sure?");
+                                    if (!firstConfirm) return;
+
+                                    const secondConfirm = window.prompt("This will reset ALL player statuses and team budgets.\n\nTo confirm, type RESET in capital letters:");
+                                    if (secondConfirm !== "RESET") {
+                                        alert("❌ Reset cancelled. You did not type RESET.");
+                                        return;
+                                    }
+
+                                    try {
+                                        setResetInProgress(true);
+                                        await resetAuction();
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: "__RESET_AUCTION__" }),
+                                        });
+                                        alert("✅ Auction reset successfully.");
+                                    } catch (err) {
+                                        console.error("Error during auction reset:", err);
+                                        alert("❌ Failed to reset auction.");
+                                    } finally {
+                                        setResetInProgress(false);
+                                    }
+                                }}
+                            >
+                                {resetInProgress ? "⏳ Resetting..." : "🔁 Reset Auction"}
+                            </button>
+
+                            <button
+                                onClick={handleGenerateCodes}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow font-bold col-span-2"
+                            >
+                                🧾 Generate Secret Codes for Teams
+                            </button>
+                        </div>
+
+                    </div>
                 )}
-
-                <button
-                    className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded shadow"
-                    onClick={resetUnsoldPlayers}
-                >
-                    🔄 Reset Unsold
-                </button>
-
-                <button
-                    className={`px-4 py-2 rounded shadow font-bold ${resetInProgress
-                        ? 'bg-gray-500 cursor-not-allowed text-white'
-                        : 'bg-orange-700 hover:bg-orange-600 text-white'
-                        }`}
-                    disabled={resetInProgress}
-                    onClick={async () => {
-                        const firstConfirm = window.confirm("⚠️ This will reset the entire auction. Are you sure?");
-                        if (!firstConfirm) return;
-
-                        const secondConfirm = window.prompt("This will reset ALL player statuses and team budgets.\n\nTo confirm, type RESET in capital letters:");
-                        if (secondConfirm !== "RESET") {
-                            alert("❌ Reset cancelled. You did not type RESET.");
-                            return;
-                        }
-
-                        try {
-                            setResetInProgress(true);
-                            await resetAuction();
-                            // 🔔 Notify spectators to refresh team stats
-                            await fetch(`${API}/api/custom-message`, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ message: "__RESET_AUCTION__" }),
-                            });
-
-
-                            alert("✅ Auction reset successfully.");
-                        } catch (err) {
-                            console.error("Error during auction reset:", err);
-                            alert("❌ Failed to reset auction.");
-                        } finally {
-                            setResetInProgress(false);
-                        }
-                    }}
-                >
-                    {resetInProgress ? "⏳ Resetting..." : "🔁 Reset Auction"}
-                </button>
-
-                <button
-                    onClick={handleGenerateCodes}
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mt-4"
-                >
-                    Generate Secret Codes
-                </button>
-
             </div>
-            <footer className="text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
+
+            <footer className="bottom-0 left-0 text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse w-full py-2 mt-2">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
             </footer>
         </div>

@@ -38,6 +38,7 @@ const unsoldAudio = new Audio('/sounds/unsold4.mp3');
 
 const SpectatorLiveDisplay = () => {
     const [player, setPlayer] = useState(null);
+    const socketRef = useRef(null);
     const [teamSummaries, setTeamSummaries] = useState([]);
     const { width, height } = useWindowSize();
     const [customMessage, setCustomMessage] = useState(null);
@@ -346,60 +347,14 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-
         const socket = io(API);
+        socketRef.current = socket;
 
-        socket.on("playerSold", () => {
-            fetchPlayer();
-            fetchAllPlayers();
-            fetchTeams();
-        });
-
-        socket.on("playerChanged", () => {
-            fetchPlayer();
-        });
-
-        socket.on("secretBiddingToggled", () => {
-            console.log("📡 Secret bidding toggle received");
-            fetchPlayer(); // ⏱️ Immediately refresh current player data
-        });
-
-        socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
-            console.log("📡 Spectator received revealSecretBids:", tournament_id, player_serial);
-            try {
-                const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
-                const data = await res.json();
-                setRevealedBids(data || []);
-                setCustomView("reveal-bids");
-            } catch (err) {
-                console.error("❌ Failed to fetch secret bids:", err);
-            }
-        });
-
-        socket.on("secretBidWinnerAssigned", () => {
-            console.log("📡 [Spectator] Received secretBidWinnerAssigned socket event");
-
-            // Clear reveal-bids view
-            setCustomView(null);
-            setRevealedBids([]);
-            setCustomMessage(null);
-
-            setTimeout(() => {
-                console.log("⏳ [Spectator] Fetching player after delay...");
-                fetchPlayer(); // Ensure we hit this log before/after fetch
-            }, 100);
-        });
-
-
-
-
+        // 🔌 Custom message logic
         socket.on("customMessageUpdate", (msg) => {
             console.log("📩 Spectator received custom message:", msg);
 
-            if (!msg || typeof msg !== "string") {
-                console.warn("⛔ Ignored invalid custom message:", msg);
-                return;
-            }
+            if (!msg || typeof msg !== "string") return;
 
             if (msg === "__SHOW_TEAM_STATS__") {
                 setCustomView("team-stats");
@@ -408,23 +363,21 @@ const SpectatorLiveDisplay = () => {
                 setCustomView("no-players");
                 setCustomMessage(null);
             } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-                setIsLoading(false); // 🔥 Bypass loader
+                setIsLoading(false);
                 setCustomView(null);
                 setCustomMessage(null);
                 setCountdownTime(null);
                 if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-                fetchPlayer(); // still fetch to update player info
+                fetchPlayer();
             } else if (msg === "__RESET_AUCTION__") {
                 fetchAllPlayers();
                 fetchTeams();
                 setCustomView("no-players");
                 setCustomMessage(null);
-                setCountdownTime(null); // Reset countdown
+                setCountdownTime(null);
                 if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
             } else if (msg.startsWith("__START_COUNTDOWN__")) {
-                console.log("⏱️ Initializing countdown with seconds:", msg);
                 const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
-                console.log("🔁 Countdown state before starting:", seconds);
                 setCustomMessage(null);
                 setCountdownTime(seconds);
 
@@ -433,11 +386,9 @@ const SpectatorLiveDisplay = () => {
                 countdownIntervalRef.current = setInterval(() => {
                     setCountdownTime(prev => {
                         if (prev <= 1) {
-                            console.log("✅ Countdown finished");
                             clearInterval(countdownIntervalRef.current);
                             return 0;
                         }
-                        console.log("⏳ Countdown ticking:", prev - 1);
                         return prev - 1;
                     });
                 }, 1000);
@@ -450,45 +401,62 @@ const SpectatorLiveDisplay = () => {
             }
         });
 
+        // 🔁 Other event bindings (move your socket.on(...) here)
+        socket.on("playerSold", () => {
+            fetchPlayer();
+            fetchAllPlayers();
+            fetchTeams();
+        });
+
+        socket.on("playerChanged", fetchPlayer);
+        socket.on("secretBiddingToggled", fetchPlayer);
+
+        socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
+            try {
+                const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
+                const data = await res.json();
+                setRevealedBids(data || []);
+                setCustomView("reveal-bids");
+            } catch (err) {
+                console.error("❌ Failed to fetch secret bids:", err);
+            }
+        });
+
+        socket.on("secretBidWinnerAssigned", () => {
+            setCustomView(null);
+            setRevealedBids([]);
+            setCustomMessage(null);
+            setTimeout(() => fetchPlayer(), 100);
+        });
+
+        socket.on("showTeam", (payload) => {
+            if (!payload || payload.team_id === null) {
+                setTeamIdToShow(null);
+                setCustomMessage(null);
+                setCustomView("live");
+            } else {
+                setTeamIdToShow(payload.team_id);
+                if (payload.empty) {
+                    setCustomMessage("No players yet for this team.");
+                    setCustomView("noPlayers");
+                } else {
+                    setCustomMessage(null);
+                    setCustomView("team");
+                    fetchAllPlayers();
+                }
+            }
+        });
 
         socket.on("bidUpdated", ({ bid_amount, team_name }) => {
-            console.log("🎯 bidUpdated received:", bid_amount, team_name);
             setHighestBid(bid_amount);
             setLeadingTeam(team_name);
         });
 
+        return () => {
+            socket.disconnect();
+        };
+    }, [tournamentId]); // Use tournamentId to rebind only when necessary
 
-        return () => socket.disconnect();
-    }, []);
-
-    useEffect(() => {
-        if (teamSummaries.length === 0) return;
-
-        const socket = io(API);
-
-        socket.on("showTeam", (payload) => {
-            if (!payload || payload.team_id === null) {
-                setTeamIdToShow(null);        // ✅ Reset teamId
-                setCustomMessage(null);       // ✅ Clear message
-                setCustomView("live");        // ✅ Back to live
-                return;
-            }
-
-
-            setTeamIdToShow(payload.team_id); // ✅ Always set team ID
-
-            if (payload.empty) {
-                setCustomMessage("No players yet for this team.");
-                setCustomView("noPlayers");
-            } else {
-                setCustomMessage(null);          // ✅ Reset custom message
-                setCustomView("team");
-                fetchAllPlayers();  // 🔥 AUTOMATIC REFRESH TO FETCH ALL PLAYERS IN TEAM
-            }
-        });
-
-        return () => socket.disconnect();
-    }, [teamSummaries]);
 
     useEffect(() => {
         fetch(`${API}/api/custom-message`)
@@ -873,7 +841,7 @@ const SpectatorLiveDisplay = () => {
                                     className="w-36 h-36 object-contain animate-pulse"
                                 />
 
-                                <h3 className="text-xl font-bold text-yellow-300 text-center mb-2">Team Squad</h3>
+                                <h3 className="text-xl font-bold text-yellow-300 text-center mb-2 uppercase">{team.name} Squad</h3>
                             </>
                         )}
                     </div>
@@ -896,11 +864,11 @@ const SpectatorLiveDisplay = () => {
                                                     src={
                                                         player?.profile_image
                                                             ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4`
-                                                            : "/no-player-found.png"
+                                                            : "/no-image-found.png"
                                                     }
                                                     onError={(e) => {
                                                         e.target.onerror = null;
-                                                        e.target.src = "/no-player-found.png";
+                                                        e.target.src = "/no-image-found.png";
                                                     }}
                                                     alt={player?.name || "No Player"}
                                                     className="w-14 h-14 rounded-full border border-white object-cover"
