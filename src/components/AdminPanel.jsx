@@ -971,32 +971,43 @@ const AdminPanel = () => {
     // Clear current player from db
 
     const clearCurrentPlayer = async () => {
-        try {
-            await fetch(`${API}/api/current-player/reset`, {
-                method: "POST",
-            });
+    try {
+        // 1. Clear current player
+        await fetch(`${API}/api/current-player/reset`, { method: "POST" });
 
-            // 👇 Notify Spectator
-            await fetch(`${API}/api/notify-player-change`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: null }),
-            });
+        // 2. Clear current bid
+        await fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bid_amount: 0, team_name: "" })
+        });
 
-            // 👇 Trigger spectator to show No Player view
-            await fetch(`${API}/api/custom-message`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: "__SHOW_NO_PLAYERS__" }),
-            });
+        // 3. Notify spectators
+        await fetch(`${API}/api/notify-player-change`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: null }),
+        });
 
-            alert("✅ Current player cleared.");
-            setCurrentPlayer(null);
-        } catch (err) {
-            console.error("Failed to clear current player:", err);
-            alert("❌ Failed to clear current player.");
-        }
-    };
+        // 4. Update spectator UI
+        await fetch(`${API}/api/custom-message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: "__SHOW_NO_PLAYERS__" }),
+        });
+
+         // ✅ Broadcast the change via socket
+        socketRef.current?.emit("playerChanged");  // 🔥 Add this line
+
+        alert("✅ Current player cleared.");
+        setCurrentPlayer(null);
+        setBidAmount(0);
+        setSelectedTeam('');
+    } catch (err) {
+        console.error("Failed to clear current player:", err);
+        alert("❌ Failed to clear current player.");
+    }
+};
 
 
     return (
@@ -1414,11 +1425,11 @@ const AdminPanel = () => {
                                     <p><strong>Name:</strong> {currentPlayer.name}</p>
                                     <p><strong>Role:</strong> {currentPlayer.role}</p>
                                     <p><strong>Base Price:</strong> ₹{currentPlayer.base_price}</p>
-                                    {currentPlayer.sold_status && (
-                                        <p className="text-yellow-300">
-                                            <strong>Status:</strong> {String(currentPlayer.sold_status).toUpperCase()}
-                                        </p>
-                                    )}
+
+                                    <p className="text-yellow-300">
+                                        <strong>Sold Status:</strong> {String(currentPlayer.sold_status).toUpperCase()}
+                                    </p>
+
                                     <p><strong>Secret Bididng:</strong> {String(currentPlayer.secret_bidding_enabled).toUpperCase()}</p>
                                 </div>
                             ) : (
@@ -1449,9 +1460,9 @@ const AdminPanel = () => {
                                 onClick={async () => {
                                     setIsSecretBiddingActive(true);
                                     await fetch(`${API}/api/current-player`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ secret_bidding_enabled: true }),
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ secret_bidding_enabled: true }),
                                     });
                                     await fetchCurrentPlayer();
                                     alert("✅ Secret Bidding ENABLED for current player");
@@ -1459,9 +1470,9 @@ const AdminPanel = () => {
                                 }}
                                 className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
                                 disabled={isSecretBiddingActive || bidAmount <= 0} // 👈 disable if bid is 0
-                                >
+                            >
                                 ✅ Enable Secret Bidding
-                                </button>
+                            </button>
                             <button
                                 onClick={async () => {
                                     setIsSecretBiddingActive(false);

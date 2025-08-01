@@ -171,12 +171,14 @@ const SpectatorLiveDisplay = () => {
             const text = await res.text();
             if (!text || text.trim().length === 0) {
                 console.warn("⚠️ Empty response from /api/current-player — skipping update");
+                setPlayer(null);
                 return;
             }
 
             const basic = JSON.parse(text);
             if (!basic?.id) {
                 console.warn("⚠️ No player ID found in current-player response — skipping update");
+                setPlayer(null); // ✅ Reset player view
                 return;
             }
 
