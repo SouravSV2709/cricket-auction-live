@@ -156,7 +156,7 @@ async function updateTeamStats(teamId, tournamentId) {
     const totalBudget = team.budget;
 
     const tournamentRes = await pool.query(
-      `SELECT min_base_price, players_per_team FROM tournaments WHERE id = $1`,
+      `SELECT base_price, min_base_price, players_per_team FROM tournaments WHERE id = $1`,
       [tournamentId]
     );
     if (tournamentRes.rowCount === 0) return;
@@ -172,11 +172,12 @@ async function updateTeamStats(teamId, tournamentId) {
     const totalSpent = playersRes.rows.reduce((sum, p) => sum + Number(p.sold_price || 0), 0);
     const remaining = Math.max(tournament.players_per_team - boughtCount, 0);
     const remainingPurse = totalBudget - totalSpent;
-    const minBasePrice = tournament.min_base_price || 100;
+    const minBasePrice = tournament.base_price ?? tournament.min_base_price ?? 0;
 
     const maxBidAllowed = remaining > 0
       ? remainingPurse - (remaining - 1) * minBasePrice
       : 0;
+
 
     console.log(`🔁 Team ${teamId} Stats:
         Total Budget: ${totalBudget}

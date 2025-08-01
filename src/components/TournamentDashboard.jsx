@@ -131,7 +131,7 @@ const TournamentDashboard = () => {
               {group.map((team) => {
                 const teamPlayers = players.filter(p => Number(p.team_id) === Number(team.id));
                 const totalSpent = teamPlayers.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
-                const remainingPurse = Math.max((team.budget || 0) - totalSpent, 0);
+                const remainingPurse = Math.max((team.budget || 0));
                 const playersLeftToBuy = (totalPlayersToBuy || 14) - (team.bought_count || 0);
 
                 return (
