@@ -199,6 +199,9 @@ const SpectatorLiveDisplay = () => {
             fullPlayer.team_data = teams.find(t => Number(t.id) === Number(fullPlayer.team_id));
 
             setPlayer(fullPlayer);
+            setHighestBid(0);
+            setLeadingTeam("");
+
 
             // Play UNSOLD audio if needed
             if (["FALSE", "false", false].includes(fullPlayer?.sold_status)) {
