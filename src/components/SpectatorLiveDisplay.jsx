@@ -265,7 +265,7 @@ const SpectatorLiveDisplay = () => {
                         ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4`
                         : ""
                 );
-                setTotalPlayersToBuy(data.total_players_to_buy || 14);
+                setTotalPlayersToBuy(data.players_per_team || 14);
 
                 const tournamentId = data.id;
                 setTournamentId(tournamentId); // ✅ So other functions can use it
@@ -1071,12 +1071,12 @@ const SpectatorLiveDisplay = () => {
                             <div className="overflow-y-auto max-h-[calc(100vh-300px)] mt-2 space-y-2 pr-1">
                                 {group.map((team, idx) => {
                                     const teamPlayers = getTeamPlayers(team.id);
-                                    // const spent = teamPlayers.reduce((sum, p) => {
-                                    //     const price = Number(p.sold_price);
-                                    //     return sum + (isNaN(price) ? 0 : price);
-                                    // }, 0);
-                                    // const purse = Math.max(Number(team.budget || 0) - spent, 0);
-                                    const purse = Number(team.budget || 0); // Already updated in DB
+                                    const spent = teamPlayers.reduce((sum, p) => {
+                                        const price = Number(p.sold_price);
+                                        return sum + (isNaN(price) ? 0 : price);
+                                    }, 0);
+                                    const purse = Math.max(Number(team.budget || 0) - spent, 0);
+                                    // const purse = Number(team.budget || 0); // Already updated in DB
                                     const leftSlots = (totalPlayersToBuy || 14) - (team.bought_count || 0);
 
                                     return (

@@ -27,7 +27,7 @@ const TournamentDashboard = () => {
       const data = await res.json();
       setTournamentName(data.title || tournamentSlug);
       setTournamentLogo(data.logo);
-      setTotalPlayersToBuy(data.total_players_to_buy || 14);
+      setTotalPlayersToBuy(data.players_per_team || 14);
 
       const tournamentId = data.id;
 
@@ -131,7 +131,7 @@ const TournamentDashboard = () => {
               {group.map((team) => {
                 const teamPlayers = players.filter(p => Number(p.team_id) === Number(team.id));
                 const totalSpent = teamPlayers.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
-                const remainingPurse = Math.max((team.budget || 0));
+                const remainingPurse = Math.max((team.budget-totalSpent || 0));
                 const playersLeftToBuy = (totalPlayersToBuy || 14) - (team.bought_count || 0);
 
                 return (
