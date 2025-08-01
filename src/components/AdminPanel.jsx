@@ -301,6 +301,7 @@ const AdminPanel = () => {
             }
 
             setCurrentPlayer(data);
+            setIsSecretBiddingActive(Boolean(data.secret_bidding_enabled));
         } catch (err) {
             console.error("🔥 Error fetching current player:", err);
             setCurrentPlayer(null);
@@ -1418,6 +1419,7 @@ const AdminPanel = () => {
                                             <strong>Status:</strong> {String(currentPlayer.sold_status).toUpperCase()}
                                         </p>
                                     )}
+                                    <p><strong>Secret Bididng:</strong> {String(currentPlayer.secret_bidding_enabled).toUpperCase()}</p>
                                 </div>
                             ) : (
                                 <p className="text-gray-400">No current player selected.</p>
@@ -1447,19 +1449,19 @@ const AdminPanel = () => {
                                 onClick={async () => {
                                     setIsSecretBiddingActive(true);
                                     await fetch(`${API}/api/current-player`, {
-                                        method: "PATCH",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ secret_bidding_enabled: true }),
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ secret_bidding_enabled: true }),
                                     });
+                                    await fetchCurrentPlayer();
                                     alert("✅ Secret Bidding ENABLED for current player");
                                     socketRef.current?.emit("secretBiddingToggled");
                                 }}
                                 className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
-                                disabled={isSecretBiddingActive}
-                            >
+                                disabled={isSecretBiddingActive || bidAmount <= 0} // 👈 disable if bid is 0
+                                >
                                 ✅ Enable Secret Bidding
-                            </button>
-
+                                </button>
                             <button
                                 onClick={async () => {
                                     setIsSecretBiddingActive(false);
@@ -1469,6 +1471,7 @@ const AdminPanel = () => {
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({ secret_bidding_enabled: false }),
                                     });
+                                    await fetchCurrentPlayer(); // ← ADD THIS
                                     alert("❌ Secret Bidding DISABLED for current player");
                                     socketRef.current?.emit("secretBiddingToggled");
                                 }}
