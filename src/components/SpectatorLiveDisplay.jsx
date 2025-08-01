@@ -199,8 +199,12 @@ const SpectatorLiveDisplay = () => {
             fullPlayer.team_data = teams.find(t => Number(t.id) === Number(fullPlayer.team_id));
 
             setPlayer(fullPlayer);
-            setHighestBid(0);
-            setLeadingTeam("");
+            // Only reset bid/team if it's a NEW player
+            if (isPlayerChanged && !fullPlayer.secret_bidding_enabled) {
+                setHighestBid(0);
+                setLeadingTeam("");
+            }
+           
 
 
             // Play UNSOLD audio if needed
@@ -1266,7 +1270,8 @@ const SpectatorLiveDisplay = () => {
 
     const isWaitingForBid =
         !["TRUE", "true", true].includes(player?.sold_status) &&
-        (!highestBid || Number(highestBid) === 0);
+        (!highestBid || Number(highestBid) === 0) &&
+        !player?.secret_bidding_enabled;
 
 
 
@@ -1435,11 +1440,11 @@ const SpectatorLiveDisplay = () => {
                                 <div>
                                     {/* 👇 Secret Bidding Flag Message */}
                                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
-                                        player?.secret_bidding_enabled && (
-                                            <p className="text-2xl mt-4 text-yellow-300 font-bold animate-pulse">
-                                                Secret Bidding In Progress...
-                                            </p>
-                                        )}
+                                    player?.secret_bidding_enabled && (
+                                        <p className="text-2xl mt-4 text-yellow-300 font-bold animate-pulse">
+                                        Secret Bidding In Progress...
+                                        </p>
+                                    )}
                                 </div>
 
                             </>
