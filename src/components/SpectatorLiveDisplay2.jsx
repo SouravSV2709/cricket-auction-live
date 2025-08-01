@@ -154,6 +154,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
             }
 
             setPlayer(fullPlayer);
+            setSecretBidActive(fullPlayer?.secret_bidding_enabled === true);
             triggerConfettiIfSold(fullPlayer);
 
         } catch (err) {
@@ -209,10 +210,15 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     socket.on("playerChanged", () => setTimeout(fetchPlayer, 100));
     socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
     socket.on("secretBiddingToggled", () => {
-        fetch(`${API}/api/current-player`)
-            .then(res => res.json())
-            .then(data => setSecretBidActive(data?.secret_bidding_enabled === true));
+  fetch(`${API}/api/current-player`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data?.secret_bidding_enabled !== undefined) {
+        setSecretBidActive(data.secret_bidding_enabled === true);
+      }
     });
+});
+
 
     return () => socket.disconnect();
 }, [tournamentId]); // ✅ Wait for tournamentId
@@ -238,7 +244,6 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                             ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
                             : undefined
                     }
-
                     secretBidActive={secretBidActive} // ✅ new prop
                 />
             )}
