@@ -345,7 +345,7 @@ app.get('/api/players/:id', async (req, res) => {
     const componentMap = { A: 1700, B: 3000, C: 5000 };
     player.base_price = tournamentBase ?? componentMap[player.component] ?? 0;
 
-    player.profile_image = `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=h-300,w-300,fo-face,z-0.4`;
+    player.profile_image = `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=h-300,w-300,fo-face,z-1`;
 
     res.json(player);
   } catch (err) {

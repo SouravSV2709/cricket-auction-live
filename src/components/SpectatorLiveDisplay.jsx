@@ -55,9 +55,7 @@ const SpectatorLiveDisplay = () => {
     const [tournamentId, setTournamentId] = useState(null);
     const [revealedBids, setRevealedBids] = useState([]);
     const [secretBidWinner, setSecretBidWinner] = useState(null);
-
-
-
+    const [auctionDatetime, setAuctionDatetime] = useState(null);
 
 
 
@@ -204,7 +202,7 @@ const SpectatorLiveDisplay = () => {
                 setHighestBid(0);
                 setLeadingTeam("");
             }
-           
+
 
 
             // Play UNSOLD audio if needed
@@ -270,6 +268,7 @@ const SpectatorLiveDisplay = () => {
                         : ""
                 );
                 setTotalPlayersToBuy(data.players_per_team || 14);
+                setAuctionDatetime(data.auction_datetime || null);
 
                 const tournamentId = data.id;
                 setTournamentId(tournamentId); // ✅ So other functions can use it
@@ -827,7 +826,7 @@ const SpectatorLiveDisplay = () => {
                         src={
                             topPlayer?.profile_image
                                 ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4`
-                                : "/no-player-found.png"
+                                : "/no-image-found.png"
                         }
                         alt={topPlayer?.name || "No Player"}
                         className="w-[300px] h-[400px] object-cover rounded-2xl border-4 border-yellow-400 shadow-2xl"
@@ -1202,62 +1201,225 @@ const SpectatorLiveDisplay = () => {
 
     // Live Auction and no player is selected
 
+    // if (!player) {
+    //     return (
+
+    //         // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
+    //         <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+    //             <BackgroundEffect theme={theme} />
+
+    //             <div className="absolute inset-0 flex flex-row items-center justify-center h-screen px-6">
+
+    //                 {/* Left Branding Panel */}
+    //                 <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
+    //                     <img
+    //                         src="/AuctionArena2.png"
+    //                         alt="Auction Arena"
+    //                         className="w-64 h-64 object-contain mb-2 animate-shake"
+    //                     />
+    //                     <div className="text-xl text-white text-center leading-snug">
+    //                         <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
+    //                         <p>seamless auction experience</p>
+    //                     </div>
+    //                     <div className="flex items-center justify-center gap-2 text-yellow-400 text-lg font-bold">
+    //                         <span className="text-pink-400 text-xl">📞</span>
+    //                         <span>+91-9547652702</span>
+    //                     </div>
+    //                     <p className="text-sm text-white font-semibold italic">Sourav Mukherjee</p>
+    //                 </div>
+
+    //                 {/* 🔸 Pulse Divider Bar */}
+    //                 <div className="w-[2px] h-[300px] bg-white/30 animate-pulse mx-8 rounded-full" />
+
+    //                 {/* Center – Logo and Message */}
+    //                 <div className="flex flex-col items-center justify-center gap-6 text-center animate-ring-explode">
+    //                     {tournamentLogo && (
+    //                         // <img
+    //                         //     src={tournamentLogo}
+    //                         //     alt="Tournament Logo"
+    //                         //     className="w-64 h-64 object-contain animate-shake"
+    //                         // />
+    //                         <img
+    //                             src="/bbplposter.png"
+    //                             alt="BBPL Poster"
+    //                             className="w-96 h-auto object-contain rounded-2xl"
+    //                         />
+    //                     )}
+
+    //                     <div className="bg-white/10 border border-white/30 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-2xl">
+    //                         <p className="text-xl md:text-2xl font-extrabold text-white drop-shadow-md animate-typing">
+    //                             Live auction will resume soon...
+    //                         </p>
+    //                     </div>
+    //                 </div>
+
+    //             </div>
+    //         </div>
+    //     );
+    // }
+
     if (!player) {
+        const midpoint = Math.ceil(teamSummaries.length / 2);
+        const leftTeams = teamSummaries.slice(0, midpoint);
+        const rightTeams = teamSummaries.slice(midpoint);
+
+        const splitIntoPattern = (teams, pattern) => {
+            const result = [];
+            let index = 0;
+            for (let size of pattern) {
+                result.push(teams.slice(index, index + size));
+                index += size;
+            }
+            return result;
+        };
+
+        const leftPattern = [3, 3, 2];  // 8 total
+        const rightPattern = [3, 3, 2]; // 8 total
+
+        const leftGrid = splitIntoPattern(leftTeams, leftPattern);
+        const rightGrid = splitIntoPattern(rightTeams, rightPattern);
+
         return (
+            <div className="w-screen h-screen relative overflow-hidden text-white p-4 border-8 border-yellow-400 rounded-[30px] box-border">
 
-            // <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
-            <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
-                <BackgroundEffect theme={theme} />
+                {/* Layout */}
+                <div className="absolute inset-0 z-10 flex items-center justify-between px-2 py-4 bg-black">
+                    {/* Background particles */}
+                    <BackgroundEffect theme={theme} />
+                    {/* Left Logos: 3-3-2 */}
+                    <div className="flex flex-col gap-6 items-center pl-2">
+                        {leftGrid.map((row, i) => (
+                            <div key={i} className="flex justify-center gap-2">
+                                {row.map(team => (
+                                    <div key={team.id} className="w-48 h-48 m-3">
+                                        <img
+                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                            alt={team.name}
+                                            className="w-full h-full object-contain rounded-full shadow-xl border-l-8 border-yellow-300"
+                                            style={{ background: `url('/flame-ring.png') center/contain no-repeat` }}
+                                        />
 
-                <div className="absolute inset-0 flex flex-row items-center justify-center h-screen px-6">
-
-                    {/* Left Branding Panel */}
-                    <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
-                        <img
-                            src="/AuctionArena2.png"
-                            alt="Auction Arena"
-                            className="w-64 h-64 object-contain mb-2 animate-shake"
-                        />
-                        <div className="text-xl text-white text-center leading-snug">
-                            <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
-                            <p>seamless auction experience</p>
-                        </div>
-                        <div className="flex items-center justify-center gap-2 text-yellow-400 text-lg font-bold">
-                            <span className="text-pink-400 text-xl">📞</span>
-                            <span>+91-9547652702</span>
-                        </div>
-                        <p className="text-sm text-white font-semibold italic">Sourav Mukherjee</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
                     </div>
 
-                    {/* 🔸 Pulse Divider Bar */}
-                    <div className="w-[2px] h-[300px] bg-white/30 animate-pulse mx-8 rounded-full" />
-
-                    {/* Center – Logo and Message */}
-                    <div className="flex flex-col items-center justify-center gap-6 text-center animate-ring-explode">
+                    {/* Center Info */}
+                    <div className="flex flex-col items-center justify-center text-center px-1">
                         {tournamentLogo && (
-                            // <img
-                            //     src={tournamentLogo}
-                            //     alt="Tournament Logo"
-                            //     className="w-64 h-64 object-contain animate-shake"
-                            // />
                             <img
-                                src="/bbplposter.png"
-                                alt="BBPL Poster"
-                                className="w-96 h-auto object-contain rounded-2xl"
+                                src={tournamentLogo}
+                                alt="Tournament Logo"
+                                style={{
+                                    width: '180px',
+                                    height: '180px',
+                                    objectFit: 'contain',
+                                    marginBottom: '1rem',
+                                    animation: 'pulse 2s infinite',
+                                    filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.4))',
+                                }}
                             />
                         )}
+                        <h1
+                            style={{
+                                fontFamily: "'Orbitron', sans-serif",
+                                fontWeight: 800,
+                                fontSize: '4rem',
+                                color: '#f87171',
+                                letterSpacing: '0.15em',
+                                textShadow: '2px 2px 10px rgba(255,0,0,0.4)',
+                            }}
+                        >
+                            {tournamentName?.split(' ')[0] || 'TOURNAMENT'}
+                        </h1>
 
-                        <div className="bg-white/10 border border-white/30 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-2xl">
-                            <p className="text-xl md:text-2xl font-extrabold text-white drop-shadow-md animate-typing">
-                                Live auction will resume soon...
-                            </p>
+                        <h2
+                            style={{
+                                fontFamily: "'Poppins', sans-serif",
+                                fontWeight: 600,
+                                fontSize: '1.5rem',
+                                color: '#ffffff',
+                                letterSpacing: '0.2em',
+                                textTransform: 'uppercase',
+                            }}
+                        >
+                            {tournamentName?.split(' ').slice(1).join(' ') || ''}
+                        </h2>
+
+                        <h1 className="text-6xl md:text-8xl font-extrabold text-yellow-300 mb-4 drop-shadow-lg">
+                            AUCTION
+                        </h1>
+                        <p
+                            style={{
+                                fontFamily: "'Poppins', sans-serif",
+                                fontWeight: 600,
+                                fontSize: '1.5rem',
+                                color: '#ffffff',
+                                marginTop: '1rem',
+                                animation: 'pulse 2s infinite',
+                            }}
+                        >
+                            {auctionDatetime
+                                ? `TIME – ${new Date(auctionDatetime).toLocaleTimeString('en-IN', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                })}`
+                                : 'TIME – TBD'}
+                        </p>
+
+                        <div className="flex items-center justify-center gap-4 mb-6">
+                            <div className="bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full animate-pulse">
+                                🔴 LIVE STREAMING
+                            </div>
+                            <img src="/hammer.png" alt="Gavel" className="w-10 h-10 object-contain" />
+                            <img src="/AuctionArena2.png" alt="Auction Arena" className="w-20 h-20 object-contain" />
+                        </div>
+
+                        <div className="text-white text-xl bg-black/60 border border-white/30 px-6 py-2 rounded-lg tracking-widest font-semibold">
+                            📅{" "}
+                            {auctionDatetime
+                                ? new Date(auctionDatetime).toLocaleDateString('en-IN', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    year: 'numeric',
+                                }).toUpperCase()
+                                : 'TBD'}
+
                         </div>
                     </div>
 
+                    {/* Right Logos: 2-3-3 (mirror layout) */}
+                    <div className="flex flex-col gap-6 items-center pr-2">
+                        {rightGrid.map((row, i) => (
+                            <div key={i} className="flex justify-center gap-4">
+                                {row.map(team => (
+                                    <div key={team.id} className="w-48 h-48 m-3">
+                                        <img
+                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                            alt={team.name}
+                                            className="w-full h-full object-contain rounded-full shadow-xl border-r-8 border-yellow-300"
+                                            style={{ background: `url('/flame-ring.png') center/contain no-repeat` }}
+                                        />
+
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
                 </div>
+
+                {/* Footer */}
+                <footer className="absolute bottom-0 left-0 w-full text-center text-white text-sm bg-black/80 border-t border-purple-600 animate-pulse z-50 py-2">
+                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                </footer>
             </div>
         );
     }
+
+
+
 
 
     // Show Broadcast message
@@ -1440,11 +1602,11 @@ const SpectatorLiveDisplay = () => {
                                 <div>
                                     {/* 👇 Secret Bidding Flag Message */}
                                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
-                                    player?.secret_bidding_enabled && (
-                                        <p className="text-2xl mt-4 text-yellow-300 font-bold animate-pulse">
-                                        Secret Bidding In Progress...
-                                        </p>
-                                    )}
+                                        player?.secret_bidding_enabled && (
+                                            <p className="text-2xl mt-4 text-yellow-300 font-bold animate-pulse">
+                                                Secret Bidding In Progress...
+                                            </p>
+                                        )}
                                 </div>
 
                             </>

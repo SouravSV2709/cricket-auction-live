@@ -31,17 +31,17 @@ const PlayerCard = ({
                 {/* Horizontal Block Layout */}
                 <div className="relative rounded-xl overflow-hidden ring-4 ring-cyan-400 animate-glow text-white max-w-2xl mx-auto px-2 py-2">
                     {/* 🔲 Animated Parallax Grid */}
-<div
-  className="absolute inset-0 z-0 animate-grid-scroll"
-  style={{
-    backgroundImage: `
+                    <div
+                        className="absolute inset-0 z-0 animate-grid-scroll"
+                        style={{
+                            backgroundImage: `
       radial-gradient(circle, rgba(255, 255, 255, 0.2) 2px, transparent 2px)
     `,
-    backgroundSize: "60px 60px", // 🔍 Larger spacing between dots
-    backgroundColor: "#4c1d95", // base purple
-    backgroundBlendMode: "overlay",
-  }}
-></div>
+                            backgroundSize: "60px 60px", // 🔍 Larger spacing between dots
+                            backgroundColor: "#4c1d95", // base purple
+                            backgroundBlendMode: "overlay",
+                        }}
+                    ></div>
 
 
 
@@ -66,7 +66,7 @@ const PlayerCard = ({
                             <img
                                 src={player.profile_image?.startsWith("http")
                                     ? player.profile_image
-                                    : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}`}
+                                    : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
                                 alt={player.name}
                                 className="w-36 h-36 object-cover rounded-full border-4 border-white shadow-md"
                                 onError={(e) => (e.target.src = "/no-image-found.png")}
