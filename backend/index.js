@@ -28,7 +28,7 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["https://arena.auctionarena.live", "http://localhost:3000"],
+  origin: ["https://arena.auctionarena.live", "http://localhost:3000", "https://cricket-auction-live.pages.dev"],
   credentials: true
 }));
 app.use(express.json());
