@@ -19,7 +19,7 @@ const port = CONFIG.PORT;
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["https://arena.auctionarena.live", "http://localhost:3000", "https://cricket-auction-live.pages.dev"],
+    origin: ["https://arena.auctionarena.live", "http://localhost:3000", "https://cricket-auction-live.pages.dev", "https://live.eaarena.in"],
     methods: ["GET", "POST"],
     credentials: true
   },
@@ -28,7 +28,7 @@ const io = new Server(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["https://arena.auctionarena.live", "http://localhost:3000", "https://cricket-auction-live.pages.dev"],
+  origin: ["https://arena.auctionarena.live", "http://localhost:3000", "https://cricket-auction-live.pages.dev", "https://live.eaarena.in"],
   credentials: true
 }));
 app.use(express.json());
