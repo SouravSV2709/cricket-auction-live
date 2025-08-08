@@ -295,40 +295,43 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-        if (!player) return;
+    if (!player || !["TRUE", "true", true].includes(player.sold_status)) return;
 
-        const isSold = ["TRUE", "true", true].includes(player.sold_status);
-        if (isSold) {
-            console.log("🎉 SOLD player detected in useEffect:", player.name);
+    if (player.id === lastPlayerId.current) {
+        console.log("⏭️ Skipping confetti - player already shown as SOLD:", player.name);
+        return;
+    }
 
-            // 🔊 Play sound
-            if (currentSoldAudio) {
-                currentSoldAudio.pause();
-                currentSoldAudio.currentTime = 0;
-            }
+    console.log("🎉 SOLD player detected:", player.name);
+    lastPlayerId.current = player.id;
 
-            const selectedSrc = getRandomSoldAudio();
-            currentSoldAudio = new Audio(selectedSrc);
-            currentSoldAudio.volume = 1.0;
-            currentSoldAudio.play().catch(err => {
-                console.warn("Autoplay prevented:", err);
-            });
+    // 🔊 Confetti + Audio
+    if (currentSoldAudio) {
+        currentSoldAudio.pause();
+        currentSoldAudio.currentTime = 0;
+    }
 
-            // 🎊 Confetti burst
-            const duration = 3000;
-            const end = Date.now() + duration;
+    const selectedSrc = getRandomSoldAudio();
+    currentSoldAudio = new Audio(selectedSrc);
+    currentSoldAudio.volume = 1.0;
+    currentSoldAudio.play().catch(err => {
+        console.warn("Autoplay prevented:", err);
+    });
 
-            const frame = () => {
-                confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
-                confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-                confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-                confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
-                if (Date.now() < end) requestAnimationFrame(frame);
-            };
+    const duration = 3000;
+    const end = Date.now() + duration;
 
-            setTimeout(frame, 100);
-        }
-    }, [player?.sold_status]);
+    const frame = () => {
+        confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
+        confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
+        confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
+        confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+        if (Date.now() < end) requestAnimationFrame(frame);
+    };
+
+    setTimeout(frame, 100);
+}, [player?.sold_status]);
+
 
     useEffect(() => {
         if (!tournamentId) return;
