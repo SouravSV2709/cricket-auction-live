@@ -61,7 +61,7 @@ const PlayerCard = ({
           }}
         />
         <div className="text-base font-bold text-black uppercase text-center">
-          NAME: {player.name}
+          NAME: {player.name} || {player.auction_serial}
         </div>
         <div className="text-sm text-black font-semibold text-center">
           Role: {player.role}

@@ -52,7 +52,7 @@ const PlayerCard = ({
                         {/* Base Price */}
                         <div className="flex flex-col items-left justify-center text-xs">
                             <p className="text-yellow-200 tracking-widest">Base Price: {formatINR(player.base_price)}</p>
-                            <p className="text-yellow-200 tracking-widest">Name: {player.name}</p>
+                            <p className="text-yellow-200 tracking-widest">Name: {player.name} || {player.auction_serial}</p>
                             <p className="text-yellow-200 tracking-widest">Role: {player.role}</p>
                         </div>
 
