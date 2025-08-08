@@ -231,7 +231,7 @@ const SpectatorLiveDisplay = () => {
             } else {
                 // Immediate update for same player (like secret bid sold)
                 setIsLoading(false);
-                triggerConfettiIfSold(fullPlayer);
+                // triggerConfettiIfSold(fullPlayer);
             }
 
 
