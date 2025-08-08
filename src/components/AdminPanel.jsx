@@ -26,7 +26,7 @@ const AdminPanel = () => {
     const [customMessage, setCustomMessage] = useState('');
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
-    const [selectedTheme, setSelectedTheme] = useState("default");
+    const [selectedTheme, setSelectedTheme] = useState("fireflies");
     const [isTeamViewActive, setIsTeamViewActive] = useState(false);
     const [isTeamLoopActive, setIsTeamLoopActive] = useState(false);
     const [bidIncrements, setBidIncrements] = useState([]);
@@ -1083,7 +1083,7 @@ const AdminPanel = () => {
 
                         alert(`🎨 Theme changed to ${selectedTheme}`);
                     }}
-                    defaultValue={"default"}
+                    defaultValue={"Fireflies"}
                 >
                     {themeOptions.map((theme) => (
                         <option key={theme} value={theme}>

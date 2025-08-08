@@ -46,7 +46,7 @@ const SpectatorLiveDisplay = () => {
     const [playerList, setPlayerList] = useState([]);
     const [unsoldClip, setUnsoldClip] = useState(null);
     const [customView, setCustomView] = useState(null);
-    const [theme, setTheme] = useState('default');
+    const [theme, setTheme] = useState('fireflies');
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +66,7 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         fetch(`${API}/api/theme`)
             .then(res => res.json())
-            .then(data => setTheme(data.theme || "default"));
+            .then(data => setTheme(data.theme || "fireflies"));
 
         const socket = io(API);
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme));
