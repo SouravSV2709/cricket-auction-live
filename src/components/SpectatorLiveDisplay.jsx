@@ -16,7 +16,7 @@ const API = CONFIG.API_BASE_URL;
 let currentSoldAudio = null;
 
 const soldAudioFiles = [
-    '/sounds/clapping.wav',
+    // '/sounds/clapping.wav',
     '/sounds/bbpl1.wav',
     '/sounds/bbpl2.wav',
     '/sounds/bbpl3.wav'
@@ -106,10 +106,10 @@ const SpectatorLiveDisplay = () => {
                 const end = Date.now() + duration;
 
                 const frame = () => {
-                    confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
-                    confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-                    confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-                    confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+                    confetti({ particleCount: 10, angle: 60, spread: 200, origin: { x: 0 } });
+                    confetti({ particleCount: 10, angle: 120, spread: 200, origin: { x: 1 } });
+                    confetti({ particleCount: 10, angle: 270, spread: 200, origin: { y: 0 } });
+                    confetti({ particleCount: 10, angle: 90, spread: 200, origin: { y: 1 } });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 };
 
@@ -231,7 +231,7 @@ const SpectatorLiveDisplay = () => {
             } else {
                 // Immediate update for same player (like secret bid sold)
                 setIsLoading(false);
-                // triggerConfettiIfSold(fullPlayer);
+                triggerConfettiIfSold(fullPlayer);
             }
 
 
@@ -1489,7 +1489,7 @@ const SpectatorLiveDisplay = () => {
                             e.target.onerror = null;
                             e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
                         }}
-                        className="w-[48rem] h-[48rem] object-cover rounded-2xl border-4 border-white shadow-2xl"
+                        className="w-[48rem] h-[48rem] object-cover rounded-2xl"
                     />
                     <h1 className="text-2xl font-extrabold mt-6 uppercase">{player.name}</h1>
                     <p className="text-xl font-bold mt-2">({player.nickname || "-"})</p>
@@ -1524,7 +1524,6 @@ const SpectatorLiveDisplay = () => {
                 <div className="w-1/4 flex flex-col justify-center items-center space-y-8">
                     {["TRUE", "true", true].includes(player?.sold_status) && (
                         <div>
-                            <div className="spark-burst" />
                             <img
                                 src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogoId}?`}
                                 alt={teamName}

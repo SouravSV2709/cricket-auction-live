@@ -27,6 +27,8 @@ const AllPlayerCards = () => {
     const [filterName, setFilterName] = useState("");
     const [filterRole, setFilterRole] = useState("");
     const [filterDistrict, setFilterDistrict] = useState("");
+    const [filtersoldstatus, setFiltersoldstatus] = useState("notauctioned");
+    const [filterCategory, setFilterCategory] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
@@ -42,8 +44,19 @@ const AllPlayerCards = () => {
         (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
         (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
         (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
-        (player.auction_serial || "").toString().includes(filterSerial)
+        (player.auction_serial || "").toString().includes(filterSerial) &&
+        (
+            filtersoldstatus === "" ||
+            (filtersoldstatus === "true" && player.sold_status === true) ||
+            (filtersoldstatus === "false" && player.sold_status === false) ||
+            (filtersoldstatus === "notauctioned" && (player.sold_status === null || player.sold_status === undefined))
+        ) &&
+        (
+            filterCategory === "" || player.base_category === filterCategory
+        )
     );
+
+
 
 
     const serialMap = React.useMemo(() => {
@@ -64,6 +77,8 @@ const AllPlayerCards = () => {
         if (filterDistrict) filters.push(`District: ${filterDistrict}`);
         if (filterName) filters.push(`Name: ${filterName}`);
         if (filterSerial) filters.push(`Serial: ${filterSerial}`);
+        if (filterCategory) filters.push(`Category: ${filterCategory}`);
+        if (filtersoldstatus) filters.push(`Sold Status: ${filtersoldstatus}`);
 
         if (filters.length > 0) {
             return `Page ${pageIndex + 1} [Filtered – ${filters.join(" | ")}]`;
@@ -416,82 +431,53 @@ const AllPlayerCards = () => {
         //     }}
         // >
 
-        
+
         <div className="min-h-screen text-black relative overflow-hidden">
-        <BackgroundEffect theme="grid" />
-        <div className="relative z-10">
+            <BackgroundEffect theme="grid" />
+            <div className="relative z-10">
 
-            {errorMessage && (
-                <div className="bg-red-100 text-red-700 border border-red-400 p-4 rounded-md max-w-xl mx-auto mt-4 text-center">
-                    {errorMessage}
-                </div>
-            )}
+                {errorMessage && (
+                    <div className="bg-red-100 text-red-700 border border-red-400 p-4 rounded-md max-w-xl mx-auto mt-4 text-center">
+                        {errorMessage}
+                    </div>
+                )}
 
-            {!errorMessage && (
-                <>
-                    <Navbar tournamentSlug={tournamentSlug} />
-                    <div className="pt-6 mt-6">
-                        <div className="flex items-center justify-center my-2">
-                            {tournamentLogo && (
-                                <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
-                                    alt="Tournament Logo"
-                                    className="w-40 h-40 object-contain animate-pulse"
-                                    loading="lazy"
+                {!errorMessage && (
+                    <>
+                        <Navbar tournamentSlug={tournamentSlug} />
+                        <div className="pt-6 mt-6">
+                            <div className="flex items-center justify-center my-2">
+                                {tournamentLogo && (
+                                    <img
+                                        src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
+                                        alt="Tournament Logo"
+                                        className="w-40 h-40 object-contain animate-pulse"
+                                        loading="lazy"
+                                    />
+                                )}
+                                <h1 className="text-xl font-bold text-center text-yellow-300 p-3">{tournamentName}</h1>
+                            </div>
+
+                            <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-2 sm:gap-4">
+                                <input
+                                    type="number"
+                                    placeholder="Filter by Serial Number"
+                                    value={filterSerial}
+                                    onChange={(e) => setFilterSerial(e.target.value)}
+                                    className="p-2 rounded-md border w-full sm:w-48"
                                 />
-                            )}
-                            <h1 className="text-xl font-bold text-center text-yellow-300 p-3">{tournamentName}</h1>
-                        </div>
+                                <input
+                                    type="text"
+                                    value={filterName}
+                                    onChange={(e) => setFilterName(e.target.value)}
+                                    placeholder="Filter by name"
+                                    className="p-2 rounded-md border w-full sm:w-48"
+                                />
 
-                        <div className="bg-yellow/80 rounded-lg shadow-md p-4 max-w-5xl mx-auto mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-2 sm:gap-4">
-                            <input
-                                type="number"
-                                placeholder="Filter by Serial Number"
-                                value={filterSerial}
-                                onChange={(e) => setFilterSerial(e.target.value)}
-                                className="p-2 rounded-md border w-full sm:w-48"
-                            />
-                            <input
-                                type="text"
-                                value={filterName}
-                                onChange={(e) => setFilterName(e.target.value)}
-                                placeholder="Filter by name"
-                                className="p-2 rounded-md border w-full sm:w-48"
-                            />
-
-                            <Listbox value={filterRole} onChange={setFilterRole}>
-                                <div className="relative w-60">
-                                    <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
-                                        <span className="block truncate">{filterRole || "All Roles"}</span>
-                                        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                            <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
-                                        </span>
-                                    </Listbox.Button>
-                                    <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
-                                        <Listbox.Option key="" value="">
-                                            {({ active }) => (
-                                                <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>All Roles</li>
-                                            )}
-                                        </Listbox.Option>
-                                        {uniqueRoles.map((role, idx) => (
-                                            <Listbox.Option key={idx} value={role}>
-                                                {({ selected, active }) => (
-                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
-                                                        {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
-                                                        {role}
-                                                    </li>
-                                                )}
-                                            </Listbox.Option>
-                                        ))}
-                                    </Listbox.Options>
-                                </div>
-                            </Listbox>
-
-                            {hasAnyDistrict && (
-                                <Listbox value={filterDistrict} onChange={setFilterDistrict}>
+                                <Listbox value={filterRole} onChange={setFilterRole}>
                                     <div className="relative w-60">
                                         <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
-                                            <span className="block truncate">{filterDistrict || "All Districts"}</span>
+                                            <span className="block truncate">{filterRole || "All Roles"}</span>
                                             <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                                                 <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
                                             </span>
@@ -499,17 +485,15 @@ const AllPlayerCards = () => {
                                         <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
                                             <Listbox.Option key="" value="">
                                                 {({ active }) => (
-                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
-                                                        All Districts
-                                                    </li>
+                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>All Roles</li>
                                                 )}
                                             </Listbox.Option>
-                                            {uniqueDistricts.map((district, idx) => (
-                                                <Listbox.Option key={idx} value={district}>
+                                            {uniqueRoles.map((role, idx) => (
+                                                <Listbox.Option key={idx} value={role}>
                                                     {({ selected, active }) => (
                                                         <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
                                                             {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
-                                                            {district}
+                                                            {role}
                                                         </li>
                                                     )}
                                                 </Listbox.Option>
@@ -517,39 +501,160 @@ const AllPlayerCards = () => {
                                         </Listbox.Options>
                                     </div>
                                 </Listbox>
-                            )}
 
 
-                            <button
-                                onClick={() => {
-                                    setFilterSerial("");
-                                    setFilterName("");
-                                    setFilterRole("");
-                                    setFilterDistrict("");
-                                }}
-                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition w-full sm:w-auto"
-                            >
-                                Clear Filters
-                            </button>
+                                {hasAnyDistrict && (
+                                    <Listbox value={filterDistrict} onChange={setFilterDistrict}>
+                                        <div className="relative w-60">
+                                            <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
+                                                <span className="block truncate">{filterDistrict || "All Districts"}</span>
+                                                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                                </span>
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
+                                                <Listbox.Option key="" value="">
+                                                    {({ active }) => (
+                                                        <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                            All Districts
+                                                        </li>
+                                                    )}
+                                                </Listbox.Option>
+                                                {uniqueDistricts.map((district, idx) => (
+                                                    <Listbox.Option key={idx} value={district}>
+                                                        {({ selected, active }) => (
+                                                            <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                                {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
+                                                                {district}
+                                                            </li>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+                                )}
 
-                            <button
-                                onClick={downloadAllCardsAsPDF}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                            >
-                                📥 Download All Player Cards (PDF)
-                            </button>
+                                {players.some(p => p.base_category && p.base_category.trim() !== "") && (
+                                    <Listbox value={filterCategory} onChange={setFilterCategory}>
+                                        <div className="relative w-60">
+                                            <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
+                                                <span className="block truncate">
+                                                    {filterCategory === "" ? "All Categories" : filterCategory}
+                                                </span>
+                                                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                                </span>
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
+                                                <Listbox.Option key="" value="">
+                                                    {({ active }) => (
+                                                        <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                            All Categories
+                                                        </li>
+                                                    )}
+                                                </Listbox.Option>
+                                                {Array.from(new Set(players
+                                                    .map(p => p.base_category)
+                                                    .filter(c => c && c.trim() !== "")))
+                                                    .map((cat) => (
+                                                        <Listbox.Option key={cat} value={cat}>
+                                                            {({ active }) => (
+                                                                <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                                    {cat}
+                                                                </li>
+                                                            )}
+                                                        </Listbox.Option>
+                                                    ))
+                                                }
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+                                )}
 
 
-                        </div>
 
-                        <div className="text-center my-4">
-                            <span className="bg-black text-yellow-300 px-4 py-2 rounded-full shadow-md font-semibold text-sm">
-                                {filteredPlayers.length} player{filteredPlayers.length !== 1 ? "s" : ""} found
-                            </span>
-                        </div>
+                                <Listbox value={filtersoldstatus} onChange={setFiltersoldstatus}>
+                                    <div className="relative w-60">
+                                        <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
+                                            <span className="block truncate">
+                                                {filtersoldstatus === "" ? "All Status" :
+                                                    filtersoldstatus === "true" ? "Sold" :
+                                                        filtersoldstatus === "false" ? "Unsold" :
+                                                            filtersoldstatus === "notauctioned" ? "Not Auctioned" :
+                                                                filtersoldstatus}
+                                            </span>
+                                            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                            </span>
+                                        </Listbox.Button>
 
-                        <div id="pdf-cards-clone" style={{ position: "absolute", top: "-9999px", left: "-9999px", width: "1000px" }} ref={pdfRef}>
-                            {/* <div
+                                        <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
+                                            <Listbox.Option key="" value="">
+                                                {({ active }) => (
+                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                        All Status
+                                                    </li>
+                                                )}
+                                            </Listbox.Option>
+                                            <Listbox.Option key="true" value="true">
+                                                {({ active }) => (
+                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                        Sold
+                                                    </li>
+                                                )}
+                                            </Listbox.Option>
+                                            <Listbox.Option key="false" value="false">
+                                                {({ active }) => (
+                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                        Unsold
+                                                    </li>
+                                                )}
+                                            </Listbox.Option>
+                                            <Listbox.Option key="notauctioned" value="notauctioned">
+                                                {({ active }) => (
+                                                    <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                        Not Auctioned
+                                                    </li>
+                                                )}
+                                            </Listbox.Option>
+                                        </Listbox.Options>
+                                    </div>
+                                </Listbox>
+
+
+                                <button
+                                    onClick={() => {
+                                        setFilterSerial("");
+                                        setFilterName("");
+                                        setFilterRole("");
+                                        setFilterDistrict("");
+                                        setFiltersoldstatus("");
+                                        setFilterCategory("")
+                                    }}
+                                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition w-full sm:w-auto"
+                                >
+                                    Clear Filters
+                                </button>
+
+                                <button
+                                    onClick={downloadAllCardsAsPDF}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                                >
+                                    📥 Download All Player Cards (PDF)
+                                </button>
+
+
+                            </div>
+
+                            <div className="text-center my-4">
+                                <span className="bg-black text-yellow-300 px-4 py-2 rounded-full shadow-md font-semibold text-sm">
+                                    {filteredPlayers.length} player{filteredPlayers.length !== 1 ? "s" : ""} found
+                                </span>
+                            </div>
+
+                            <div id="pdf-cards-clone" style={{ position: "absolute", top: "-9999px", left: "-9999px", width: "1000px" }} ref={pdfRef}>
+                                {/* <div
                             id="pdf-cards-clone"
                             ref={pdfRef}
                             style={{
@@ -564,64 +669,64 @@ const AllPlayerCards = () => {
                             }}
                         > */}
 
-                            <div className="flex flex-wrap justify-center gap-4">
-                                {(filteredPlayers.length ? filteredPlayers : players).map((player) => (
-                                    <div
-                                        id={`player-card-${player.id}`}
-                                        className="w-[240px] h-[320px]"
-                                        key={player.id}
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    {(filteredPlayers.length ? filteredPlayers : players).map((player) => (
+                                        <div
+                                            id={`player-card-${player.id}`}
+                                            className="w-[240px] h-[320px]"
+                                            key={player.id}
+                                        >
+                                            <PlayerCard
+                                                player={player}
+                                                style={{ width: "240px", height: "320px" }}
+                                                serial={serialMap[player.id]}
+                                            />
+                                        </div>
+                                    ))}
+
+                                </div>
+                            </div>
+
+                            <div className="pb-24">
+                                <div id="player-cards-container">
+                                    <Grid
+                                        columnCount={columnCount}
+                                        columnWidth={columnWidth}
+                                        height={Math.max(window.innerHeight - 250, 400)}
+                                        rowCount={rowCount}
+                                        rowHeight={340}
+                                        width={windowWidth - 20}
                                     >
-                                        <PlayerCard
-                                            player={player}
-                                            style={{ width: "240px", height: "320px" }}
-                                            serial={serialMap[player.id]}
-                                        />
-                                    </div>
-                                ))}
-
+                                        {({ columnIndex, rowIndex, style }) => {
+                                            const index = rowIndex * columnCount + columnIndex;
+                                            const player = filteredPlayers[index];
+                                            return player ? <PlayerCard key={player.id} player={player} style={style} serial={serialMap[player.id]} /> : null;
+                                        }}
+                                    </Grid>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="pb-24">
-                            <div id="player-cards-container">
-                                <Grid
-                                    columnCount={columnCount}
-                                    columnWidth={columnWidth}
-                                    height={Math.max(window.innerHeight - 250, 400)}
-                                    rowCount={rowCount}
-                                    rowHeight={340}
-                                    width={windowWidth - 20}
-                                >
-                                    {({ columnIndex, rowIndex, style }) => {
-                                        const index = rowIndex * columnCount + columnIndex;
-                                        const player = filteredPlayers[index];
-                                        return player ? <PlayerCard key={player.id} player={player} style={style} serial={serialMap[player.id]} /> : null;
-                                    }}
-                                </Grid>
-                            </div>
+                            <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
+                                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                            </footer>
                         </div>
+                    </>
+                )}
 
-                        <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
-                            🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
-                        </footer>
+                {isDownloading && (
+                    <div className="fixed inset-0 bg-black bg-opacity-70 z-[99999] flex flex-col items-center justify-center text-white text-xl font-semibold">
+                        📥 Downloading Page {downloadProgress.current} of {downloadProgress.total}...
                     </div>
-                </>
-            )}
+                )}
 
-            {isDownloading && (
-                <div className="fixed inset-0 bg-black bg-opacity-70 z-[99999] flex flex-col items-center justify-center text-white text-xl font-semibold">
-                    📥 Downloading Page {downloadProgress.current} of {downloadProgress.total}...
-                </div>
-            )}
-
-            {showToast && (
-                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg z-[99999] animate-bounce">
-                    ✅ All Player Cards PDF Downloaded!
-                </div>
-            )}
+                {showToast && (
+                    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg z-[99999] animate-bounce">
+                        ✅ All Player Cards PDF Downloaded!
+                    </div>
+                )}
 
 
-        </div>
+            </div>
         </div>
     );
 };
