@@ -102,9 +102,9 @@ const PlayerCard = ({
           </div>
         ) : (
           <img
-            src="/duck.gif"
+            src="/unsold5.gif"
             alt="No Bid"
-            className="w-20 h-20 object-contain mx-auto"
+            className="w-36 h-36 object-contain mx-auto"
           />
         )}
       </div>

@@ -26,9 +26,12 @@ const getRandomSoldAudio = () => {
 };
 
 const unsoldMedia = [
-    '/sounds/unsold.mp4',
-    '/sounds/unsold2.gif',
-    '/sounds/unsold3.gif'
+    // '/sounds/unsold.mp4',
+    // '/sounds/unsold2.gif',
+    '/sounds/unsold3.gif',
+    '/sounds/unsold5.gif',
+    '/sounds/unsold6.gif',
+    '/sounds/unsold7.gif'
 ];
 
 const unsoldAudio = new Audio('/sounds/unsold4.mp3');
