@@ -1582,7 +1582,7 @@ const SpectatorLiveDisplay = () => {
 
 
                                     return (
-                                        <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 border border-white-400/30 text-center justify-center">
+                                        <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 text-center justify-center">
                                             <p className="text-2xl uppercase tracking-wider font-bold drop-shadow-sm">Leading Team</p>
 
                                             {leadingTeamLogo && (
