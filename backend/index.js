@@ -1734,47 +1734,20 @@ app.get("/api/cricheroes-stats/:playerId", async (req, res) => {
         const { data: html } = await axios.get(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0",
-                // Add your logged-in cookie if needed for pro stats:
-                // Cookie: "your_pro_account_cookie_here"
             }
         });
 
         const $ = cheerio.load(html);
 
         const getStatValue = (label) => {
-            label = label.toUpperCase();
-
-            // Find the first element containing the exact label (case-insensitive)
-            const el = $("*")
-                .filter((i, e) => $(e).text().trim().toUpperCase() === label)
+            const el = $("span")
+                .filter((i, e) => $(e).text().trim().toUpperCase() === label.toUpperCase())
                 .first();
 
-            if (!el.length) return null;
+            if (!el.length) return 0;
 
-            const tryParse = (txt) => {
-                const clean = txt.replace(/[^\d]/g, "").trim();
-                return clean || null;
-            };
-
-            // 1️⃣ Try previous sibling
-            let val = tryParse(el.prev().text());
-            if (val) return val;
-
-            // 2️⃣ Try next sibling
-            val = tryParse(el.next().text());
-            if (val) return val;
-
-            // 3️⃣ Look within parent for a number (excluding the label itself)
-            val = tryParse(
-                el.parent().children().not(el).text()
-            );
-            if (val) return val;
-
-            // 4️⃣ Look in nearby siblings up the DOM
-            val = tryParse(el.parent().next().text());
-            if (val) return val;
-
-            return null;
+            const val = el.closest("li").find(".stat").text().trim();
+            return val && !isNaN(val) ? parseInt(val) : 0;
         };
 
         const stats = {
@@ -1789,6 +1762,9 @@ app.get("/api/cricheroes-stats/:playerId", async (req, res) => {
         res.status(500).json({ error: "Failed to fetch Cricheroes stats" });
     }
 });
+
+
+
 
 
 
