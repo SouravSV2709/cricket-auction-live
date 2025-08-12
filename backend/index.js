@@ -1017,7 +1017,7 @@ app.get('/api/current-player', async (req, res) => {
 
     // ✅ Query only if playerId is valid
     const pResult = await pool.query(
-      `SELECT auction_serial FROM players WHERE id = $1`,
+      `SELECT auction_serial, cricheroes_id FROM players WHERE id = $1`,
       [playerId]
     );
 
