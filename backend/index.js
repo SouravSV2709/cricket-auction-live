@@ -1734,25 +1734,53 @@ app.get("/api/cricheroes-stats/:playerId", async (req, res) => {
         const { data: html } = await axios.get(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0",
-                // If login required, add:
+                // Add your logged-in cookie if needed for pro stats:
                 // Cookie: "your_pro_account_cookie_here"
             }
         });
 
         const $ = cheerio.load(html);
 
-        // Helper: find the number before the label
-        const getStatBefore = (label) => {
-            const el = $(`*:contains('${label}')`)
-                .filter((i, el) => $(el).text().trim() === label)
+        const getStatValue = (label) => {
+            label = label.toUpperCase();
+
+            // Find the first element containing the exact label (case-insensitive)
+            const el = $("*")
+                .filter((i, e) => $(e).text().trim().toUpperCase() === label)
                 .first();
-            return el.prev().text().trim();
+
+            if (!el.length) return null;
+
+            const tryParse = (txt) => {
+                const clean = txt.replace(/[^\d]/g, "").trim();
+                return clean || null;
+            };
+
+            // 1️⃣ Try previous sibling
+            let val = tryParse(el.prev().text());
+            if (val) return val;
+
+            // 2️⃣ Try next sibling
+            val = tryParse(el.next().text());
+            if (val) return val;
+
+            // 3️⃣ Look within parent for a number (excluding the label itself)
+            val = tryParse(
+                el.parent().children().not(el).text()
+            );
+            if (val) return val;
+
+            // 4️⃣ Look in nearby siblings up the DOM
+            val = tryParse(el.parent().next().text());
+            if (val) return val;
+
+            return null;
         };
 
         const stats = {
-            matches: getStatBefore("MATCHES"),
-            runs: getStatBefore("RUNS"),
-            wickets: getStatBefore("WICKETS")
+            matches: getStatValue("MATCHES"),
+            runs: getStatValue("RUNS"),
+            wickets: getStatValue("WICKETS")
         };
 
         res.json(stats);
