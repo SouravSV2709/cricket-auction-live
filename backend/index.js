@@ -7,6 +7,8 @@ import { Pool } from 'pg';
 import http from 'http';
 import { Server } from 'socket.io';
 import CONFIG from './config.js';
+import axios from "axios";
+import * as cheerio from "cheerio";
 
 dotenv.config();
 
@@ -15,6 +17,7 @@ const TOURNAMENT_ID = CONFIG.TOURNAMENT_ID;
 
 const app = express();
 const port = CONFIG.PORT;
+
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -1719,6 +1722,46 @@ app.post('/api/teams/generate-secret-codes', async (req, res) => {
     res.status(500).json({ error: '❌ Failed to generate secret codes.' });
   }
 });
+
+
+
+app.get("/api/cricheroes-stats/:playerId", async (req, res) => {
+    const { playerId } = req.params;
+
+    try {
+        const url = `https://cricheroes.com/player-profile/${playerId}/stats`;
+
+        const { data: html } = await axios.get(url, {
+            headers: {
+                "User-Agent": "Mozilla/5.0",
+                // If login required, add:
+                // Cookie: "your_pro_account_cookie_here"
+            }
+        });
+
+        const $ = cheerio.load(html);
+
+        // Helper: find the number before the label
+        const getStatBefore = (label) => {
+            const el = $(`*:contains('${label}')`)
+                .filter((i, el) => $(el).text().trim() === label)
+                .first();
+            return el.prev().text().trim();
+        };
+
+        const stats = {
+            matches: getStatBefore("MATCHES"),
+            runs: getStatBefore("RUNS"),
+            wickets: getStatBefore("WICKETS")
+        };
+
+        res.json(stats);
+    } catch (err) {
+        console.error("Error scraping Cricheroes:", err.message);
+        res.status(500).json({ error: "Failed to fetch Cricheroes stats" });
+    }
+});
+
 
 
 

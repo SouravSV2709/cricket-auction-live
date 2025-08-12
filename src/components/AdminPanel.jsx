@@ -50,6 +50,7 @@ const AdminPanel = () => {
     const [activePool, setActivePool] = useState("A");
     const [teamPoolState, setTeamPoolState] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
+    const [playerStats, setPlayerStats] = useState(null);
 
 
 
@@ -57,6 +58,7 @@ const AdminPanel = () => {
     useEffect(() => {
         document.title = "Admin Panel | Auction Arena";
     }, []);
+
 
     useEffect(() => {
         const fetchTournamentId = async () => {
@@ -184,6 +186,17 @@ const AdminPanel = () => {
 
         initKCPL();
     }, [tournamentId]);
+
+    useEffect(() => {
+    if (currentPlayer?.cricheroes_id) {
+        fetch(`${API}/api/cricheroes-stats/${currentPlayer.cricheroes_id}`)
+            .then(res => res.json())
+            .then(data => setPlayerStats(data))
+            .catch(err => console.error("Error fetching Cricheroes stats:", err));
+    } else {
+        setPlayerStats(null);
+    }
+}, [currentPlayer]);
 
 
 

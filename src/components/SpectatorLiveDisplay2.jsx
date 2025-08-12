@@ -50,6 +50,8 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     const [tournamentLogo, setTournamentLogo] = useState("");
     const [secretBidActive, setSecretBidActive] = useState(false);
     const { tournamentSlug } = useParams();
+    const [cricheroesStats, setCricheroesStats] = useState(null);
+
 
     useEffect(() => {
         document.title = "Live2 | Auction Arena";
@@ -120,53 +122,67 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
     const fetchPlayer = async () => {
+    try {
+        const teamsRes = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
+        let teams = [];
         try {
-            const teamsRes = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
-            let teams = [];
-            try {
-                const text = await teamsRes.text();
-                teams = JSON.parse(text);
-                if (!Array.isArray(teams)) {
-                    console.error("❌ Expected an array for teams, got:", teams);
-                    teams = [];
-                }
-            } catch (e) {
-                console.error("❌ Failed to parse teams JSON:", e);
+            const text = await teamsRes.text();
+            teams = JSON.parse(text);
+            if (!Array.isArray(teams)) {
+                console.error("❌ Expected an array for teams, got:", teams);
                 teams = [];
             }
-            setTeamSummaries(teams);
-
-
-            const playerRes = await fetch(`${API}/api/current-player`);
-            const basic = await playerRes.json();
-
-            if (!basic?.id) {
-                setPlayer(null);
-                setUnsoldClip(null);
-                return;
-            }
-
-            const fullRes = await fetch(`${API}/api/players/${basic.id}`);
-            const fullPlayer = await fullRes.json();
-            fullPlayer.base_price = computeBasePrice(fullPlayer);
-
-            const team = teams.find(t => t.id === fullPlayer.team_id);
-            if (team) {
-                fullPlayer.team_name = team.name;
-                fullPlayer.team_logo = team.logo;
-            }
-
-            setPlayer(fullPlayer);
-            setSecretBidActive(fullPlayer?.secret_bidding_enabled === true);
-            triggerConfettiIfSold(fullPlayer);
-
-        } catch (err) {
-            console.error("❌ Error in fetchPlayer", err);
-            setPlayer(null);
-            setUnsoldClip(null);
+        } catch (e) {
+            console.error("❌ Failed to parse teams JSON:", e);
+            teams = [];
         }
-    };
+        setTeamSummaries(teams);
 
+        const playerRes = await fetch(`${API}/api/current-player`);
+        const basic = await playerRes.json();
+
+        if (!basic?.id) {
+            setPlayer(null);
+            setCricheroesStats(null);
+            setUnsoldClip(null);
+            return;
+        }
+
+        const fullRes = await fetch(`${API}/api/players/${basic.id}`);
+        const fullPlayer = await fullRes.json();
+        fullPlayer.base_price = computeBasePrice(fullPlayer);
+
+        const team = teams.find(t => t.id === fullPlayer.team_id);
+        if (team) {
+            fullPlayer.team_name = team.name;
+            fullPlayer.team_logo = team.logo;
+        }
+
+        setPlayer(fullPlayer);
+        setSecretBidActive(fullPlayer?.secret_bidding_enabled === true);
+        triggerConfettiIfSold(fullPlayer);
+
+        // 🔹 Fetch Cricheroes stats if ID exists
+        if (fullPlayer.cricheroes_id) {
+            try {
+                const statsRes = await fetch(`${API}/api/cricheroes-stats/${fullPlayer.cricheroes_id}`);
+                const stats = await statsRes.json();
+                setCricheroesStats(stats);
+            } catch (err) {
+                console.error("❌ Error fetching Cricheroes stats:", err);
+                setCricheroesStats(null);
+            }
+        } else {
+            setCricheroesStats(null);
+        }
+
+    } catch (err) {
+        console.error("❌ Error in fetchPlayer", err);
+        setPlayer(null);
+        setCricheroesStats(null);
+        setUnsoldClip(null);
+    }
+};
 
 
 
@@ -250,6 +266,14 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                     secretBidActive={secretBidActive} // ✅ new prop
                 />
             )}
+
+            {cricheroesStats && (
+    <div style={{ position: "absolute", top: 20, right: 20, background: "#0008", padding: "10px", borderRadius: "8px", color: "#fff" }}>
+        <p>Matches: {cricheroesStats.matches}</p>
+        <p>Runs: {cricheroesStats.runs}</p>
+        <p>Wickets: {cricheroesStats.wickets}</p>
+    </div>
+)}
 
         </div>
     );
