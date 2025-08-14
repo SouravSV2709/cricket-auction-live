@@ -1764,12 +1764,6 @@ app.get("/api/cricheroes-stats/:playerId", async (req, res) => {
 });
 
 
-
-
-
-
-
-
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
 });

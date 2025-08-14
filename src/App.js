@@ -4,6 +4,7 @@ import AdminPanel from './components/AdminPanel';
 import SpectatorLiveDisplay from './components/SpectatorLiveDisplay';
 import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
 import SpectatorLiveDisplay3 from './components/SpectatorLiveDisplay3';
+import SpectatorLiveDisplay4 from './components/SpectatorLiveDisplay4';
 import CONFIG from './components/config';
 import AllPlayerCards from './components/AllPlayerCards';
 import AllPlayerCards2 from './components/AllPlayerCards2';
@@ -116,6 +117,17 @@ const AppWrapper = () => {
         path="/spectator3/:tournamentSlug"
         element={
           <SpectatorLiveDisplay3
+            player={currentPlayer}
+            highestBid={currentBid.bid_amount}
+            leadingTeam={currentBid.team_name}
+            teamSummaries={teams}
+          />
+        }
+      />
+      <Route
+        path="/spectator4/:tournamentSlug"
+        element={
+          <SpectatorLiveDisplay4
             player={currentPlayer}
             highestBid={currentBid.bid_amount}
             leadingTeam={currentBid.team_name}
