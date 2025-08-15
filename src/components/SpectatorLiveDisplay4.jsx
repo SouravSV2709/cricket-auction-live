@@ -956,7 +956,7 @@ const SpectatorLiveDisplay = () => {
 
         const getRankText = (rank) => {
             if (rank === 1) return 'text-yellow-300';
-            if (rank === 2) return 'text-gray-300';
+            if (rank === 2) return 'test-yellow-400';
             if (rank === 3) return 'text-orange-300';
             return 'text-yellow-100';
         };
@@ -1544,13 +1544,13 @@ const SpectatorLiveDisplay = () => {
                             {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
                                 <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
                                     <div className="flex flex-col items-center py-3 bg-black/40">
-                                        <p className="text-xs text-gray-300 uppercase tracking-wider">Players Bought</p>
+                                        <p className="text-xs test-yellow-400 uppercase tracking-wider">Players Bought</p>
                                         <p className="text-xl font-bold text-white">
                                             🧑‍🤝‍🧑 {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 14}
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-center py-3 bg-black/40">
-                                        <p className="text-xs text-gray-300 uppercase tracking-wider">Max Bid Allowed</p>
+                                        <p className="text-xs test-yellow-400 uppercase tracking-wider">Max Bid Allowed</p>
                                         <p className="text-xl font-bold text-green-400">
                                             🚀 ₹{team.max_bid_allowed.toLocaleString()}
                                         </p>
@@ -1669,43 +1669,56 @@ const SpectatorLiveDisplay = () => {
                             />
                         )}
                     </div> */}
-                    <div className="bg-black/50 backdrop-blur-lg shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm">
-                        <div className="grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl">
-                            <div className="px-3 py-2 text-gray-300">Serial No</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.auction_serial}</div>
+                    <div
+                        className="relative shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm"
+                        style={{
+                            backgroundImage: `url('/backdrop11.jpg')`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                        }}
+                    >
+                        {/* Dark overlay */}
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
 
-                            <div className="px-3 py-2 text-gray-300">Name</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.name}</div>
+                        {/* Content above overlay */}
+                        <div className="relative grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl text-yellow-400 drop-shadow-[0_0_6px_rgba(255,255,255,0.8)]">
+                            <div className="px-3 py-2 test-yellow-400">Serial No</div>
+                            <div className="px-3 py-2 font-bold">{player.auction_serial}</div>
 
-                            <div className="px-3 py-2 text-gray-300">Nick Name</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.nickname || "-"}</div>
+                            <div className="px-3 py-2 test-yellow-400">Name</div>
+                            <div className="px-3 py-2 font-bold">{player.name}</div>
 
-                            <div className="px-3 py-2 text-gray-300">Role</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.role}</div>
+                            <div className="px-3 py-2 test-yellow-400">Nick Name</div>
+                            <div className="px-3 py-2 font-bold">{player.nickname || "-"}</div>
 
-                            <div className="px-3 py-2 text-gray-300">Batting-hand</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.batting_hand || "-"}</div>
+                            <div className="px-3 py-2 test-yellow-400">Role</div>
+                            <div className="px-3 py-2 font-bold">{player.role}</div>
 
-                            <div className="px-3 py-2 text-gray-300">Bowling-hand</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.bowling_hand || "-"}</div>
+                            <div className="px-3 py-2 test-yellow-400">Batting-hand</div>
+                            <div className="px-3 py-2 font-bold">{player.batting_hand || "-"}</div>
 
-                            <div className="px-3 py-2 text-gray-300">District</div>
-                            <div className="px-3 py-2 font-bold text-white">{player.district || "-"}</div>
+                            <div className="px-3 py-2 test-yellow-400">Bowling-hand</div>
+                            <div className="px-3 py-2 font-bold">{player.bowling_hand || "-"}</div>
+
+                            <div className="px-3 py-2 test-yellow-400">District</div>
+                            <div className="px-3 py-2 font-bold">{player.district || "-"}</div>
                         </div>
                     </div>
+
+
                     {cricheroesStats && (
-                    <div className="bg-black/50 backdrop-blur-lg shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm mt-4">
-                        <div className="grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl">
-                            <div className="px-3 py-2 text-gray-300">Matches</div>
-                            <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.matches || "-"}</div>
+                        <div className="bg-black/50 backdrop-blur-lg shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm mt-4">
+                            <div className="grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl">
+                                <div className="px-3 py-2 test-yellow-400">Matches</div>
+                                <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.matches || "-"}</div>
 
-                            <div className="px-3 py-2 text-gray-300">Runs</div>
-                            <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.runs || "-"}</div>
+                                <div className="px-3 py-2 test-yellow-400">Runs</div>
+                                <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.runs || "-"}</div>
 
-                            <div className="px-3 py-2 text-gray-300">Wickets</div>
-                            <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.wickets || "-"}</div>
+                                <div className="px-3 py-2 test-yellow-400">Wickets</div>
+                                <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.wickets || "-"}</div>
+                            </div>
                         </div>
-                    </div>
                     )}
 
 
