@@ -90,7 +90,7 @@ const AppWrapper = () => {
 
   return (
     <Routes>
-      <Route path="/:tournamentSlug" element={<AdminPanel />} />
+      <Route path="2709/:tournamentSlug" element={<AdminPanel />} />
       <Route
         path="/spectator/:tournamentSlug"
         element={
