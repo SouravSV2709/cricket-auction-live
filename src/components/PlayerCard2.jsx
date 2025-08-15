@@ -31,58 +31,60 @@ const PlayerCard = ({
                 {/* Horizontal Block Layout */}
                 <div className="relative rounded-xl overflow-hidden ring-4 ring-cyan-400 animate-glow text-white max-w-2xl mx-auto px-2 py-2">
                     {/* 🔲 Animated Parallax Grid */}
+                    {/* 🔲 BBPL Branded Static Background */}
+                    {/* 🔲 Colorful Streaks Background */}
                     <div
-                        className="absolute inset-0 z-0 animate-grid-scroll"
-                        style={{
-                            backgroundImage: `
-      radial-gradient(circle, rgba(255, 255, 255, 0.2) 2px, transparent 2px)
-    `,
-                            backgroundSize: "60px 60px", // 🔍 Larger spacing between dots
-                            backgroundColor: "#4c1d95", // base purple
-                            backgroundBlendMode: "overlay",
-                        }}
-                    ></div>
-
-
-
-
-
-                    {/* 💎 Actual 3-block content section */}
-                    <div className="relative z-10 flex justify-center">
-                        {/* Base Price */}
-                        <div className="flex flex-col items-left justify-center text-xs">
-                            <p className="text-yellow-200 tracking-widest">Base Price: {formatINR(player.base_price)}</p>
-                            <p className="text-yellow-200 tracking-widest">Name: {player.name} || {player.auction_serial}</p>
-                            <p className="text-yellow-200 tracking-widest">Role: {player.role}</p>
-                        </div>
-
-                        {/* Player Image with Decorative Frame */}
+                        className="relative flex items-center justify-between rounded-2xl overflow-hidden ring-4 ring-cyan-400 animate-glow text-white max-w-4xl mx-auto h-64"
+                    >
+                        {/* Blurred Background */}
                         <div
-                            className="relative w-52 h-52 rounded-full bg-center bg-contain bg-no-repeat flex items-center justify-center"
+                            className="absolute inset-0 z-0"
                             style={{
-                                backgroundImage: "url('/frame.png')",
+                                backgroundImage: "url('/backdrop11.jpg')",
+                                backgroundSize: "cover",
+                                backgroundPosition: "center",
+                                filter: "blur(6px) brightness(0.85)", // blur + darken
                             }}
-                        >
-                            <img
-                                src={player.profile_image?.startsWith("http")
-                                    ? player.profile_image
-                                    : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
-                                alt={player.name}
-                                className="w-36 h-36 object-cover rounded-full border-4 border-white shadow-md"
-                                onError={(e) => (e.target.src = "/no-image-found.png")}
-                            />
+                        ></div>
+
+                        {/* Gradient Overlay for Left Side */}
+                        <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-black/80 via-black/50 to-transparent z-0"></div>
+
+                        {/* Left: Player Info */}
+                        <div className="relative z-10 flex flex-col justify-center px-6 text-lg font-bold tracking-wide w-2/3">
+                            <p>Serial: {player.auction_serial} </p>
+                            <p>NAME: {player.name}</p>
+                            <p>ROLE: {player.role}</p>
+                            <p>BASE PRICE: {formatINR(player.base_price)}</p>
                         </div>
 
-                        {/* Current Bid / Sold */}
-                        <div className="flex flex-col justify-center items-left">
-                            <p className="text-xs uppercase tracking-widest text-yellow-200">
+                        {/* Middle: Player Image (Fixed) */}
+                        <div className="relative z-10 flex justify-center items-center w-1/3">
+                            <div className="w-44 h-44 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white">
+                                <img
+                                    src={player.profile_image?.startsWith("http")
+                                        ? player.profile_image
+                                        : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-300,fo-face`}
+                                    alt={player.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => (e.target.src = "/no-image-found.png")}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Right: Bid Info */}
+                        <div className="relative z-10 flex flex-col justify-center items-end px-6 w-1/3">
+                            <p className="text-lg uppercase tracking-widest text-yellow-200 text-center">
                                 {isSold ? "Sold Price" : isUnsold ? "Status" : "Current Bid"}
                             </p>
-                            <p className={`text-xl items-left font-extrabold ${isSold ? "text-green-300" : isUnsold ? "text-red-300" : "text-white"}`}>
+                            <p className={`text-2xl text-center font-extrabold ${isSold ? "text-green-300" : isUnsold ? "text-red-300" : "text-white"}`}>
                                 {isUnsold ? "UNSOLD" : formatINR(isSold ? soldPrice : currentBid)}
                             </p>
                         </div>
                     </div>
+
+
+
                 </div>
 
 

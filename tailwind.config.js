@@ -3,6 +3,12 @@ module.exports = {
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
+  extend: {
+  fontFamily: {
+    orbitron: ['Orbitron', 'sans-serif'],
+  },
+},
+
   theme: {
     extend: {
       animation: {
@@ -38,5 +44,6 @@ module.exports = {
       },
     },
   },
+  
   plugins: [],
 }

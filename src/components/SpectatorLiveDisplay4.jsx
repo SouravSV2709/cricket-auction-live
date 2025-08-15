@@ -522,7 +522,7 @@ const SpectatorLiveDisplay = () => {
 
                 {/* LEFT: Player Info Centered */}
                 <div className="w-1/3 h-full flex flex-col items-center justify-center p-6 border-r border-white/20">
-                    <h2 className="text-lg font-bold text-yellow-400 mb-4 text-center">
+                    <h2 className="text-lg font-bold tracking-wider uppercase mb-4 text-center">
                         PLAYER #{player.auction_serial}
                     </h2>
 
@@ -564,7 +564,7 @@ const SpectatorLiveDisplay = () => {
                         </div>
 
                         {/* Player-specific Bid Header */}
-                        <h2 className="text-3xl font-extrabold text-yellow-400 mb-6 text-center">
+                        <h2 className="text-3xl font-extrabold tracking-wider uppercase mb-6 text-center">
                             Secret Bids for Player #{player.auction_serial}: {player.name}
                         </h2>
 
@@ -976,7 +976,7 @@ const SpectatorLiveDisplay = () => {
                                 className="w-24 h-24 object-contain mb-2 animate-pulse"
                             />
                         )}
-                        <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow-md text-center">
+                        <h2 className="text-3xl font-extrabold tracking-wider uppercase drop-shadow-md text-center">
                             {tournamentName || "AUCTION ARENA"} <br />
                             <span className="text-white text-xl">Top 10 Most Expensive Players</span>
                         </h2>
@@ -1158,7 +1158,7 @@ const SpectatorLiveDisplay = () => {
                             <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
                             <p>seamless auction experience</p>
                         </div>
-                        <div className="flex items-center justify-center gap-2 text-yellow-400 text-lg font-bold">
+                        <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg font-bold">
                             <span className="text-pink-400 text-xl">📞</span>
                             <span>+91-9547652702</span>
                         </div>
@@ -1247,7 +1247,7 @@ const SpectatorLiveDisplay = () => {
     //                         <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
     //                         <p>seamless auction experience</p>
     //                     </div>
-    //                     <div className="flex items-center justify-center gap-2 text-yellow-400 text-lg font-bold">
+    //                     <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg font-bold">
     //                         <span className="text-pink-400 text-xl">📞</span>
     //                         <span>+91-9547652702</span>
     //                     </div>
@@ -1481,7 +1481,7 @@ const SpectatorLiveDisplay = () => {
                     className="w-14 h-14 object-contain animate-pulse"
                 />
                 <h1 className="text-4xl font-extrabold tracking-wide text-center flex-1 animate-pulse">
-                    {tournamentName?.toUpperCase() || "AUCTION ARENA LIVE"}-AUCTION
+                    {tournamentName?.toUpperCase() || "AUCTION ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
                 </h1>
                 {tournamentLogo && (
                     <img
@@ -1681,26 +1681,26 @@ const SpectatorLiveDisplay = () => {
                         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
 
                         {/* Content above overlay */}
-                        <div className="relative grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl text-yellow-400 drop-shadow-[0_0_6px_rgba(255,255,255,0.8)]">
-                            <div className="px-3 py-2 test-yellow-400">Serial No</div>
+                        <div className="relative grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl font-orbitron">
+                            <div className="px-3 py-2 tracking-wider uppercase">Serial No</div>
                             <div className="px-3 py-2 font-bold">{player.auction_serial}</div>
 
-                            <div className="px-3 py-2 test-yellow-400">Name</div>
+                            <div className="px-3 py-2 tracking-wider uppercase">Name</div>
                             <div className="px-3 py-2 font-bold">{player.name}</div>
 
-                            <div className="px-3 py-2 test-yellow-400">Nick Name</div>
+                            <div className="px-3 py-2 tracking-wider uppercase">Nick Name</div>
                             <div className="px-3 py-2 font-bold">{player.nickname || "-"}</div>
 
-                            <div className="px-3 py-2 test-yellow-400">Role</div>
+                            <div className="px-3 py-2 tracking-wider uppercase">Role</div>
                             <div className="px-3 py-2 font-bold">{player.role}</div>
 
-                            <div className="px-3 py-2 test-yellow-400">Batting-hand</div>
+                            <div className="px-3 py-2 tracking-wider uppercase">Batting-hand</div>
                             <div className="px-3 py-2 font-bold">{player.batting_hand || "-"}</div>
 
-                            <div className="px-3 py-2 test-yellow-400">Bowling-hand</div>
+                            <div className="px-3 py-2 tracking-wider uppercase">Bowling-hand</div>
                             <div className="px-3 py-2 font-bold">{player.bowling_hand || "-"}</div>
 
-                            <div className="px-3 py-2 test-yellow-400">District</div>
+                            <div className="px-3 py-2 tracking-wider uppercase">District</div>
                             <div className="px-3 py-2 font-bold">{player.district || "-"}</div>
                         </div>
                     </div>
@@ -1726,7 +1726,7 @@ const SpectatorLiveDisplay = () => {
                     {/* Base Price Section */}
                     <div className="mt-2 bg-yellow-500/20 border border-yellow-400/30 rounded-xl px-6 py-2 text-center text-2xl">
                         <p className="text-yellow-300">Base Price</p>
-                        <p className="font-bold text-yellow-400">₹{(player.base_price || 0).toLocaleString()}</p>
+                        <p className="font-bold tracking-wider uppercase">₹{(player.base_price || 0).toLocaleString()}</p>
                     </div>
 
 
