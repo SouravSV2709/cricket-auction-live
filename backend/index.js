@@ -470,7 +470,7 @@ io.on("connection", (socket) => {
 
 // Adding themes to the layout
 
-let currentTheme = 'default';
+let currentTheme = 'fireflies';
 
 app.get('/api/theme', (req, res) => {
   res.json({ theme: currentTheme });
@@ -848,7 +848,7 @@ app.get('/api/players/:id', async (req, res) => {
     if (filename.startsWith("http")) {
       return filename;
     }
-    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-300,h-300,fo-face,z-0.4`;
+    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,h-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
   try {
@@ -914,7 +914,7 @@ app.get('/api/players/by-serial/:serial', async (req, res) => {
     if (filename.startsWith("http")) {
       return filename;
     }
-    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-300,h-300,fo-face,z-0.4`;
+    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,h-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
       try {

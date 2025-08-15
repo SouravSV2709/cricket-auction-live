@@ -48,7 +48,7 @@ const SpectatorLiveDisplay = () => {
     const [playerList, setPlayerList] = useState([]);
     const [unsoldClip, setUnsoldClip] = useState(null);
     const [customView, setCustomView] = useState(null);
-    const [theme, setTheme] = useState('fireflies');
+    const [theme, setTheme] = useState("Fireflies");
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -281,7 +281,7 @@ const SpectatorLiveDisplay = () => {
                 setTournamentName(data.title || tournamentSlug);
                 setTournamentLogo(
                     data.logo
-                        ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4`
+                        ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4,q-95,e-sharpen`
                         : ""
                 );
                 setTotalPlayersToBuy(data.players_per_team || 14);
@@ -522,7 +522,7 @@ const SpectatorLiveDisplay = () => {
 
                 {/* LEFT: Player Info Centered */}
                 <div className="w-1/3 h-full flex flex-col items-center justify-center p-6 border-r border-white/20">
-                    <h2 className="text-lg font-bold tracking-wider uppercase mb-4 text-center">
+                    <h2 className="text-lg  tracking-wider uppercase mb-4 text-center">
                         PLAYER #{player.auction_serial}
                     </h2>
 
@@ -530,14 +530,14 @@ const SpectatorLiveDisplay = () => {
                         src={
                             player.profile_image?.startsWith("http")
                                 ? player.profile_image
-                                : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-400,fo-face,z-0.4`
+                                : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-400,fo-face,z-0.4,q-95,e-sharpen`
                         }
                         alt={player.name}
                         className="w-[30rem] h-[36rem] object-cover rounded-xl border-2 border-white shadow-lg mb-4"
                     />
 
                     <div className="text-center space-y-2">
-                        <h1 className="text-2xl font-bold">{player.name}</h1>
+                        <h1 className="text-2xl ">{player.name}</h1>
                         <p className="text-sm italic text-yellow-200">
                             {player.role} | {player.district || "NA"}
                         </p>
@@ -560,7 +560,7 @@ const SpectatorLiveDisplay = () => {
                                     className="w-24 h-24 object-contain mb-2 animate-pulse"
                                 />
                             )}
-                            <h1 className="text-xl font-bold text-white tracking-wide text-center m-6">{tournamentName}</h1>
+                            <h1 className="text-xl  text-white tracking-wide text-center m-6">{tournamentName}</h1>
                         </div>
 
                         {/* Player-specific Bid Header */}
@@ -586,7 +586,7 @@ const SpectatorLiveDisplay = () => {
                                         {revealedBids.map((bid, idx) => (
                                             <tr
                                                 key={bid.team_id}
-                                                className={`${bid.team_id === winningTeamId ? "bg-green-700/70 font-bold animate-pulse" : "bg-white/5"
+                                                className={`${bid.team_id === winningTeamId ? "bg-green-700/70  animate-pulse" : "bg-white/5"
                                                     }`}
                                             >
                                                 <td className="px-4 py-2">{idx + 1}</td>
@@ -662,7 +662,7 @@ const SpectatorLiveDisplay = () => {
                                             {group.map((bid, idx) => (
                                                 <tr
                                                     key={bid.team_id}
-                                                    className={`${bid.team_id === winningTeamId ? "bg-green-700/70 font-bold animate-pulse" : "bg-white/5"
+                                                    className={`${bid.team_id === winningTeamId ? "bg-green-700/70  animate-pulse" : "bg-white/5"
                                                         }`}
                                                 >
                                                     <td className="px-3 py-2">{idx + 1 + (i === 1 ? midpoint : 0)}</td>
@@ -769,7 +769,7 @@ const SpectatorLiveDisplay = () => {
                     <h1 className="text-2xl font-extrabold text-center mb-4">{team?.name || "Team Not Found"}</h1>
 
 
-                    <p className="text-red-500 font-bold text-3xl mb-4 text-center">
+                    <p className="text-red-500  text-3xl mb-4 text-center">
                         {customMessage || "No players yet!"}
                     </p>
 
@@ -834,18 +834,18 @@ const SpectatorLiveDisplay = () => {
 
                 {/* Left Panel – Highlight Player */}
                 <div className="w-1/3 flex flex-col items-center justify-center p-6">
-                    <h3 className="text-2xl font-bold text-yellow-300 mb-3">#1 Most Expensive Player</h3>
+                    <h3 className="text-2xl  text-yellow-300 mb-3">#1 Most Expensive Player</h3>
                     <div className="text-center mb-4">
                         <h1 className="text-3xl font-extrabold">{topPlayer?.name || "No Player"}</h1>
                         <p className="text-yellow-200 text-sm">{topPlayer?.role || "Not Assigned"}</p>
-                        <p className="text-2xl text-green-400 font-bold mt-2">
+                        <p className="text-2xl text-green-400  mt-2">
                             ₹{topPlayer?.sold_price?.toLocaleString() || "0"}
                         </p>
                     </div>
                     <img
                         src={
                             topPlayer?.profile_image
-                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4`
+                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4,q-95,e-sharpen`
                                 : "/no-image-found.png"
                         }
                         alt={topPlayer?.name || "No Player"}
@@ -869,7 +869,7 @@ const SpectatorLiveDisplay = () => {
                                     className="w-36 h-36 object-contain animate-pulse"
                                 />
 
-                                <h3 className="text-xl font-bold text-yellow-300 text-center mb-2 uppercase">{team.name} Squad</h3>
+                                <h3 className="text-xl  text-yellow-300 text-center mb-2 uppercase">{team.name} Squad</h3>
                             </>
                         )}
                     </div>
@@ -887,11 +887,11 @@ const SpectatorLiveDisplay = () => {
                                             className="flex items-center justify-between bg-white/10 border-l-4 pl-4 pr-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border-white/20"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className="text-2xl font-bold text-yellow-300 w-8">#{groupIdx * 7 + idx + 2}</div>
+                                                <div className="text-2xl  text-yellow-300 w-8">#{groupIdx * 7 + idx + 2}</div>
                                                 <img
                                                     src={
                                                         player?.profile_image
-                                                            ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4`
+                                                            ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4,q-95,e-sharpen`
                                                             : "/no-image-found.png"
                                                     }
                                                     onError={(e) => {
@@ -902,11 +902,11 @@ const SpectatorLiveDisplay = () => {
                                                     className="w-14 h-14 rounded-full border border-white object-cover"
                                                 />
                                                 <div className="flex flex-col">
-                                                    <div className="font-bold text-white">{player?.name || "No Player"}</div>
+                                                    <div className=" text-white">{player?.name || "No Player"}</div>
                                                     <div className="text-sm text-yellow-100">{player?.role || "Not Assigned"}</div>
                                                 </div>
                                             </div>
-                                            <div className="text-xl font-bold text-green-400">
+                                            <div className="text-xl  text-green-400">
                                                 ₹{player?.sold_price?.toLocaleString() || "0"}
                                             </div>
                                         </div>
@@ -1000,10 +1000,10 @@ const SpectatorLiveDisplay = () => {
                                             style={{ animationDelay: `${rank * 0.1}s` }}
                                         >
                                             <div className="flex items-center gap-4">
-                                                <div className={`text-2xl font-bold w-8 ${getRankText(rank)}`}>#{rank}</div>
+                                                <div className={`text-2xl  w-8 ${getRankText(rank)}`}>#{rank}</div>
                                                 <img
                                                     src={player.profile_image
-                                                        ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-90,h-90,fo-face,z-0.4`
+                                                        ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`
                                                         : "/no-image-found.png"}
                                                     onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
                                                     className={`rounded-full border border-white object-cover 
@@ -1011,11 +1011,11 @@ const SpectatorLiveDisplay = () => {
                                                     alt={player.name}
                                                 />
                                                 <div className="flex flex-col">
-                                                    <div className="font-bold text-lg">{player.name}</div>
+                                                    <div className=" text-lg">{player.name}</div>
                                                     <div className="text-sm text-yellow-100">{team?.name || "Unknown"}</div>
                                                 </div>
                                             </div>
-                                            <div className="text-xl font-bold text-green-400">
+                                            <div className="text-xl  text-green-400">
                                                 ₹{player.sold_price?.toLocaleString()}
                                             </div>
                                         </div>
@@ -1028,16 +1028,16 @@ const SpectatorLiveDisplay = () => {
 
                 {/* Right Panel */}
                 <div className="w-1/3 flex flex-col items-center justify-center p-6 bg-gradient-to-t from-black to-black-900 shadow-inner animate-fadeIn">
-                    <h3 className="text-2xl font-bold text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
+                    <h3 className="text-2xl  text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
                     <div className="text-center mb-4">
                         <h1 className="text-3xl font-extrabold">{topPlayer.name}</h1>
                         <p className="text-yellow-200 text-sm">{topTeam?.name}</p>
-                        <p className="text-2xl text-green-400 font-bold mt-2">₹{topPlayer.sold_price?.toLocaleString()}</p>
+                        <p className="text-2xl text-green-400  mt-2">₹{topPlayer.sold_price?.toLocaleString()}</p>
                     </div>
                     <img
                         src={
                             topPlayer.profile_image
-                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4`
+                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4,q-95,e-sharpen`
                                 : "/no-image-found.png"
                         }
                         onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
@@ -1081,15 +1081,15 @@ const SpectatorLiveDisplay = () => {
                             className="w-36 h-36 object-contain animate-pulse"
                         />
                     )}
-                    <h1 className="text-2xl font-bold text-center mt-2">{tournamentName}</h1>
+                    <h1 className="text-2xl  text-center mt-2">{tournamentName}</h1>
                 </div>
 
-                <h2 className="text-3xl font-bold text-center py-5 text-white">📊 Team Statistics</h2>
+                <h2 className="text-3xl  text-center py-5 text-white">📊 Team Statistics</h2>
                 <div className="flex gap-2 items-start justify-center">
                     {[leftTeams, rightTeams].map((group, groupIdx) => (
                         <div key={groupIdx} className="flex flex-col w-auto max-w-[48%] overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-xl">
                             {/* Header */}
-                            <div className="grid grid-cols-4 gap-2 px-3 py-2 font-bold text-sm bg-gray-800 rounded-lg text-white">
+                            <div className="grid grid-cols-4 gap-2 px-3 py-2  text-sm bg-gray-800 rounded-lg text-white">
                                 <div>TEAM NAME</div>
                                 <div className="text-center">PURSE REMAINING</div>
                                 <div className="text-center">MAX BID</div>
@@ -1155,10 +1155,10 @@ const SpectatorLiveDisplay = () => {
                             className="w-64 h-64 object-contain mb-2 animate-shake"
                         />
                         <div className="text-xl text-white text-center leading-snug">
-                            <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
+                            <p>Contact <span className="text-yellow-300 ">Auction-Arena</span> for</p>
                             <p>seamless auction experience</p>
                         </div>
-                        <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg font-bold">
+                        <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg ">
                             <span className="text-pink-400 text-xl">📞</span>
                             <span>+91-9547652702</span>
                         </div>
@@ -1244,10 +1244,10 @@ const SpectatorLiveDisplay = () => {
     //                         className="w-64 h-64 object-contain mb-2 animate-shake"
     //                     />
     //                     <div className="text-xl text-white text-center leading-snug">
-    //                         <p>Contact <span className="text-yellow-300 font-bold">Auction-Arena</span> for</p>
+    //                         <p>Contact <span className="text-yellow-300 ">Auction-Arena</span> for</p>
     //                         <p>seamless auction experience</p>
     //                     </div>
-    //                     <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg font-bold">
+    //                     <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg ">
     //                         <span className="text-pink-400 text-xl">📞</span>
     //                         <span>+91-9547652702</span>
     //                     </div>
@@ -1396,7 +1396,7 @@ const SpectatorLiveDisplay = () => {
                         </p>
 
                         <div className="flex items-center justify-center gap-4 mb-6">
-                            <div className="bg-red-600 text-white text-sm font-bold px-4 py-2 rounded-full animate-pulse">
+                            <div className="bg-red-600 text-white text-sm  px-4 py-2 rounded-full animate-pulse">
                                 🔴 LIVE STREAMING
                             </div>
                             <img src="/hammer.png" alt="Gavel" className="w-10 h-10 object-contain" />
@@ -1529,13 +1529,13 @@ const SpectatorLiveDisplay = () => {
                             </div>
 
                             {/* Team Name */}
-                            <p className="text-2xl font-bold text-center mt-2 text-white uppercase tracking-wide">
+                            <p className="text-2xl  text-center mt-2 text-white uppercase tracking-wide">
                                 {teamName}
                             </p>
 
                             {/* Sold Amount */}
                             <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                <p className="text-lg uppercase tracking-wider font-bold text-white-300 drop-shadow-sm">
+                                <p className="text-lg uppercase tracking-wider  text-white-300 drop-shadow-sm">
                                     🎉 Sold Amount: ₹{player.sold_price.toLocaleString()}
                                 </p>
                             </div>
@@ -1545,13 +1545,13 @@ const SpectatorLiveDisplay = () => {
                                 <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
                                     <div className="flex flex-col items-center py-3 bg-black/40">
                                         <p className="text-xs test-yellow-400 uppercase tracking-wider">Players Bought</p>
-                                        <p className="text-xl font-bold text-white">
+                                        <p className="text-xl  text-white">
                                             🧑‍🤝‍🧑 {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 14}
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-center py-3 bg-black/40">
                                         <p className="text-xs test-yellow-400 uppercase tracking-wider">Max Bid Allowed</p>
-                                        <p className="text-xl font-bold text-green-400">
+                                        <p className="text-xl  text-green-400">
                                             🚀 ₹{team.max_bid_allowed.toLocaleString()}
                                         </p>
                                     </div>
@@ -1570,7 +1570,7 @@ const SpectatorLiveDisplay = () => {
                                     alt="Waiting for a Bid"
                                     className="w-[20rem] h-[20rem] object-contain mx-auto mb-4"
                                 />
-                                <p className="text-2xl text-yellow-300 font-bold animate-pulse">
+                                <p className="text-2xl text-yellow-300  animate-pulse">
                                     Waiting for a Bid...
                                 </p>
                             </div>
@@ -1589,7 +1589,7 @@ const SpectatorLiveDisplay = () => {
 
                                     return (
                                         <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 text-center justify-center">
-                                            <p className="text-2xl uppercase tracking-wider font-bold drop-shadow-sm">Leading Team</p>
+                                            <p className="text-2xl uppercase tracking-wider  drop-shadow-sm">Leading Team</p>
 
                                             {leadingTeamLogo && (
                                                 <img
@@ -1618,7 +1618,7 @@ const SpectatorLiveDisplay = () => {
                                     {/* 👇 Secret Bidding Flag Message */}
                                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
                                         player?.secret_bidding_enabled && (
-                                            <p className="text-2xl mt-4 text-yellow-300 font-bold animate-pulse">
+                                            <p className="text-2xl mt-4 text-yellow-300  animate-pulse">
                                                 Secret Bidding In Progress...
                                             </p>
                                         )}
@@ -1649,7 +1649,7 @@ const SpectatorLiveDisplay = () => {
                             )}
 
                             <div className="bg-red-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                <p className="text-lg uppercase tracking-wider font-bold text-white-300 drop-shadow-sm">
+                                <p className="text-lg uppercase tracking-wider  text-white-300 drop-shadow-sm">
                                     UNSOLD
                                 </p>
                             </div>
@@ -1683,25 +1683,25 @@ const SpectatorLiveDisplay = () => {
                         {/* Content above overlay */}
                         <div className="relative grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl font-orbitron">
                             <div className="px-3 py-2 tracking-wider uppercase">Serial No</div>
-                            <div className="px-3 py-2 font-bold">{player.auction_serial}</div>
+                            <div className="px-3 py-2 ">{player.auction_serial}</div>
 
                             <div className="px-3 py-2 tracking-wider uppercase">Name</div>
-                            <div className="px-3 py-2 font-bold">{player.name}</div>
+                            <div className="px-3 py-2  uppercase">{player.name}</div>
 
                             <div className="px-3 py-2 tracking-wider uppercase">Nick Name</div>
-                            <div className="px-3 py-2 font-bold">{player.nickname || "-"}</div>
+                            <div className="px-3 py-2  uppercase">{player.nickname || "-"}</div>
 
                             <div className="px-3 py-2 tracking-wider uppercase">Role</div>
-                            <div className="px-3 py-2 font-bold">{player.role}</div>
+                            <div className="px-3 py-2  uppercase">{player.role}</div>
 
                             <div className="px-3 py-2 tracking-wider uppercase">Batting-hand</div>
-                            <div className="px-3 py-2 font-bold">{player.batting_hand || "-"}</div>
+                            <div className="px-3 py-2  uppercase">{player.batting_hand || "-"}</div>
 
                             <div className="px-3 py-2 tracking-wider uppercase">Bowling-hand</div>
-                            <div className="px-3 py-2 font-bold">{player.bowling_hand || "-"}</div>
+                            <div className="px-3 py-2  uppercase">{player.bowling_hand || "-"}</div>
 
                             <div className="px-3 py-2 tracking-wider uppercase">District</div>
-                            <div className="px-3 py-2 font-bold">{player.district || "-"}</div>
+                            <div className="px-3 py-2  uppercase">{player.district || "-"}</div>
                         </div>
                     </div>
 
@@ -1710,13 +1710,13 @@ const SpectatorLiveDisplay = () => {
                         <div className="bg-black/50 backdrop-blur-lg shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm mt-4">
                             <div className="grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl">
                                 <div className="px-3 py-2 test-yellow-400">Matches</div>
-                                <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.matches || "-"}</div>
+                                <div className="px-3 py-2  text-white">{cricheroesStats?.matches || "-"}</div>
 
                                 <div className="px-3 py-2 test-yellow-400">Runs</div>
-                                <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.runs || "-"}</div>
+                                <div className="px-3 py-2  text-white">{cricheroesStats?.runs || "-"}</div>
 
                                 <div className="px-3 py-2 test-yellow-400">Wickets</div>
-                                <div className="px-3 py-2 font-bold text-white">{cricheroesStats?.wickets || "-"}</div>
+                                <div className="px-3 py-2  text-white">{cricheroesStats?.wickets || "-"}</div>
                             </div>
                         </div>
                     )}
@@ -1726,7 +1726,7 @@ const SpectatorLiveDisplay = () => {
                     {/* Base Price Section */}
                     <div className="mt-2 bg-yellow-500/20 border border-yellow-400/30 rounded-xl px-6 py-2 text-center text-2xl">
                         <p className="text-yellow-300">Base Price</p>
-                        <p className="font-bold tracking-wider uppercase">₹{(player.base_price || 0).toLocaleString()}</p>
+                        <p className=" tracking-wider uppercase">₹{(player.base_price || 0).toLocaleString()}</p>
                     </div>
 
 

@@ -45,7 +45,7 @@ const AdminPanel = () => {
     const [isBidManual, setIsBidManual] = useState(false);
     const [showAuctionControls, setShowAuctionControls] = useState(true);
     const [showResetPanel, setShowResetPanel] = useState(false);
-    const themeOptions = ["fireflies","default", "neon", "grid", "aurora", "meteor", "stars"];
+    const themeOptions = ["default","fireflies", "neon", "grid", "aurora", "meteor", "stars"];
     const [kcplMode, setKcplMode] = useState(false);  // flip off if not KCPL
     const [activePool, setActivePool] = useState("A");
     const [teamPoolState, setTeamPoolState] = useState(null);
@@ -1229,7 +1229,7 @@ const AdminPanel = () => {
 
                         alert(`🎨 Theme changed to ${selectedTheme}`);
                     }}
-                    defaultValue={"Fireflies"}
+                    defaultValue={"fireflies"}
                 >
                     {themeOptions.map((theme) => (
                         <option key={theme} value={theme}>
