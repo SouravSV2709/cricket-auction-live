@@ -1478,7 +1478,7 @@ const SpectatorLiveDisplay = () => {
                 <img
                     src="/AuctionArena2.png"
                     alt="Auction Arena"
-                    className="w-14 h-14 object-contain animate-pulse"
+                    className="w-20 h-20 object-contain animate-pulse"
                 />
                 <h1 className="text-4xl font-extrabold tracking-wide text-center flex-1 animate-pulse">
                     {tournamentName?.toUpperCase() || "AUCTION ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
@@ -1487,7 +1487,7 @@ const SpectatorLiveDisplay = () => {
                     <img
                         src="/AuctionArena2.png"
                         alt="Auction Arena"
-                        className="w-14 h-14 object-contain ml-4 animate-pulse"
+                        className="w-20 h-20 object-contain ml-4 animate-pulse"
                     />
                 )}
             </div>
