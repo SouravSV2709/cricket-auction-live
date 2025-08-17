@@ -1403,7 +1403,7 @@ const SpectatorLiveDisplay = () => {
                             <img src="/AuctionArena2.png" alt="Auction Arena" className="w-20 h-20 object-contain" />
                         </div>
 
-                        <div className="text-white text-xl bg-black/60 border border-white/30 px-6 py-2 rounded-lg tracking-widest font-semibold">
+                        {/* <div className="text-white text-xl bg-black/60 border border-white/30 px-6 py-2 rounded-lg tracking-widest font-semibold">
                             📅{" "}
                             {auctionDatetime
                                 ? new Date(auctionDatetime).toLocaleDateString('en-IN', {
@@ -1413,7 +1413,7 @@ const SpectatorLiveDisplay = () => {
                                 }).toUpperCase()
                                 : 'TBD'}
 
-                        </div>
+                        </div> */}
                     </div>
 
                     {/* Right Logos: 2-3-3 (mirror layout) */}
