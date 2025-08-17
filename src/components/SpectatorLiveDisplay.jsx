@@ -1471,28 +1471,42 @@ const SpectatorLiveDisplay = () => {
                 )}
             </div>
 
-            <div
-                key={player.id}
-                className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
-            >
-                <div className="w-1/3 flex flex-col items-center justify-center relative">
-                    {["TRUE", "true", true].includes(player?.sold_status) && (
-                        <div className="sold-stamp">SOLD OUT</div>
-                    )}
+             <div
+  key={player.id}
+  className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 transition-opacity duration-700 ${
+    !isLoading ? "opacity-100 animate-fade-in" : "opacity-0"
+  }`}
+>
+  <div className="w-1/2 flex flex-col items-center justify-center relative">
+    {/* ✅ SOLD stamp image */}
+    {["TRUE", "true", true].includes(player?.sold_status) && (
+      <img
+        src="/SOLD.png" // put your SOLD image in public folder
+        alt="SOLD"
+        className="absolute top-1/2 left-1/2 w-40 opacity-90 backdrop-blur-sm shadow-lg border-4 border-green-400 rounded-lg animate-pulse"
+      />
+    )}
 
-                    {["FALSE", "false", false].includes(player?.sold_status) && (
-                        <div className="unsold-stamp">UNSOLD</div>
-                    )}
+    {/* ✅ UNSOLD stamp image */}
+    {["FALSE", "false", false].includes(player?.sold_status) && (
+      <img
+        src="/UNSOLD.png" // put your UNSOLD image in public folder
+        alt="UNSOLD"
+        className="absolute top-[60px] left-[50px] w-60 opacity-90 backdrop-blur-sm shadow-lg border-4 border-red-400 rounded-lg animate-pulse"
+      />
+    )}
 
-                    <img
-                        src={player.profile_image}
-                        alt={player.name}
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "/no-image-found.png"; // Make sure this image exists in /public
-                        }}
-                        className="w-[48rem] h-[48rem] object-cover rounded-2xl"
-                    />
+    <img
+      src={player.profile_image}
+      alt={player.name}
+      onError={(e) => {
+        e.target.onerror = null;
+        e.target.src = "/no-image-found.png"; // fallback
+      }}
+      className="w-[48rem] h-[56rem] object-cover rounded-2xl"
+    />
+
+           
                     <h1 className="text-2xl font-extrabold mt-6 uppercase">{player.name}</h1>
                     <p className="text-xl font-bold mt-2">({player.nickname || "-"})</p>
                 </div>
