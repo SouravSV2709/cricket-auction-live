@@ -110,7 +110,7 @@ const TournamentDashboard = () => {
             />
           )}
           <h1 className="text-2xl font-bold my-2 text-center text-yellow-300">{tournamentName}</h1>
-          <p className="text-xs font-bold text-yellow-600 mt-1 animate-pulse">🔴 LIVE || Last updated: {getTimeAgo()}</p>
+          {/* <p className="text-xs font-bold text-yellow-600 mt-1 animate-pulse">🔴 LIVE || Last updated: {getTimeAgo()}</p> */}
         </div>
 
         <div className="flex flex-wrap justify-center gap-4 mt-6 px-4">
