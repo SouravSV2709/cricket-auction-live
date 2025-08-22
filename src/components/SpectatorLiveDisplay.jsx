@@ -48,7 +48,6 @@ const SpectatorLiveDisplay = () => {
     const [playerList, setPlayerList] = useState([]);
     const [unsoldClip, setUnsoldClip] = useState(null);
     const [customView, setCustomView] = useState(null);
-    const [theme, setTheme] = useState("");
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +60,12 @@ const SpectatorLiveDisplay = () => {
     const [cricheroesStats, setCricheroesStats] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
     const [activePool, setActivePool] = useState("A"); // optional: keep in sync with Admin
+    const DEFAULT_THEME_KEY = "fireflies"; // pick any valid key that exists in THEMES
+ const [theme, setTheme] = useState(DEFAULT_THEME_KEY);
+ const activeTheme =
+  (THEMES && THEMES[theme]) ||
+ (THEMES && THEMES[DEFAULT_THEME_KEY]) ||
+  { bg: "from-black via-gray-900 to-black", text: "text-white" };
 
 
 
@@ -73,10 +78,15 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         fetch(`${API}/api/theme`)
             .then(res => res.json())
-            .then(data => setTheme(data.theme || ""));
+            .then(data => {
+    const key = data?.theme;
+    setTheme(key && THEMES[key] ? key : DEFAULT_THEME_KEY);
+  });
 
         const socket = io(API);
-        socket.on("themeUpdate", (newTheme) => setTheme(newTheme));
+        socket.on("themeUpdate", (newTheme) => {
+   setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
+});
         return () => socket.disconnect();
     }, []);
 
@@ -802,7 +812,7 @@ const SpectatorLiveDisplay = () => {
 
 
         return (
-             <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+             <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
 
             <div className="w-screen h-screen relative overflow-hidden">
                 {/* Background Layer – Particle Animation */}
@@ -872,7 +882,7 @@ const SpectatorLiveDisplay = () => {
 
 
         return (
-        <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+        <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
             <div className="w-screen h-screen flex flex-row">
                 
                 {/* <BackgroundEffect theme={theme} /> */}
@@ -1020,7 +1030,7 @@ const SpectatorLiveDisplay = () => {
         };
 
         return (
-             <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+             <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
 
             <div className="w-screen h-screen flex flex-row relative">
                 {/* <BackgroundEffect theme={theme} /> */}
@@ -1138,7 +1148,7 @@ const SpectatorLiveDisplay = () => {
   const formatCurrency = (amt) => `₹${Number(amt || 0).toLocaleString()}`;
 
   return (
-        <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+        <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
       {/* <BackgroundEffect theme={theme} /> */}
 
       <div className="flex flex-row items-center justify-center mt-2 mb-4">
@@ -1239,7 +1249,7 @@ const SpectatorLiveDisplay = () => {
 
     if (customMessage && customView !== "team-stats") {
         return (
-            <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} text-5xl font-extrabold text-center px-10`}>
+            <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} text-5xl font-extrabold text-center px-10`}>
             <div className="w-screen h-screen relative overflow-hidden">
                 {/* <BackgroundEffect theme={theme} /> */}
 
@@ -1348,7 +1358,7 @@ const SpectatorLiveDisplay = () => {
             <div className="w-screen h-screen relative overflow-hidden text-white p-4 border-8 border-yellow-400 rounded-[30px] box-border">
 
                 {/* Layout */}
-                            <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+                            <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
                             <div className="absolute inset-0 z-10 flex items-center justify-between px-2 py-4">
 
 
@@ -1512,7 +1522,7 @@ const SpectatorLiveDisplay = () => {
     // Live Auction view
 
     return (
-        <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+        <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
             {/* <div className="w-screen h-screen relative overflow-hidden bg-black text-white"> */}
             {/* Background Layer – Particle Animation */}
             {/* <BackgroundEffect theme={theme} /> */}
