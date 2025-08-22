@@ -48,7 +48,7 @@ const SpectatorLiveDisplay = () => {
     const [playerList, setPlayerList] = useState([]);
     const [unsoldClip, setUnsoldClip] = useState(null);
     const [customView, setCustomView] = useState(null);
-    const [theme, setTheme] = useState("Fireflies");
+    const [theme, setTheme] = useState("");
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +68,7 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         fetch(`${API}/api/theme`)
             .then(res => res.json())
-            .then(data => setTheme(data.theme || "fireflies"));
+            .then(data => setTheme(data.theme || ""));
 
         const socket = io(API);
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme));
@@ -281,7 +281,7 @@ const SpectatorLiveDisplay = () => {
                 setTournamentName(data.title || tournamentSlug);
                 setTournamentLogo(
                     data.logo
-                        ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-300,fo-face,z-0.4,q-95,e-sharpen`
+                        ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-600,q-95,e-sharpen`
                         : ""
                 );
                 setTotalPlayersToBuy(data.players_per_team || 14);
@@ -1468,10 +1468,10 @@ const SpectatorLiveDisplay = () => {
     // Live Auction view
 
     return (
-        // <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
-        <div className="w-screen h-screen relative overflow-hidden bg-black text-white">
+        <div className={`w-screen h-screen bg-gradient-to-br ${THEMES[theme].bg} ${THEMES[theme].text} overflow-hidden relative`}>
+        {/* <div className="w-screen h-screen relative overflow-hidden bg-black text-white"> */}
             {/* Background Layer – Particle Animation */}
-            <BackgroundEffect theme={theme} />
+            {/* <BackgroundEffect theme={theme} /> */}
 
             <div className="flex items-center justify-between px-6 py-4">
                 {/* Left: Auction Arena Logo */}
@@ -1589,19 +1589,19 @@ const SpectatorLiveDisplay = () => {
 
                                     return (
                                         <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 text-center justify-center">
-                                            <p className="text-2xl uppercase tracking-wider  drop-shadow-sm">Leading Team</p>
+                                            {/* <p className="text-2xl mb-4 uppercase tracking-wider  drop-shadow-sm">Leading Team</p> */}
 
                                             {leadingTeamLogo && (
                                                 <img
-                                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=w-400,h-400`}
+                                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
                                                     alt={leadingTeamName}
-                                                    className="mx-auto mb-2 rounded-full w-[20rem] h-[20rem] object-contain inline-block align-middle"
+                                                    className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
                                                 />
                                             )}
 
-                                            <div className="text-4xl uppercase text-green-bold">
+                                            {/* <div className="text-4xl uppercase text-green-bold">
                                                 {leadingTeamName || "—"}
-                                            </div>
+                                            </div> */}
 
                                         </div>
                                     );
@@ -1672,7 +1672,7 @@ const SpectatorLiveDisplay = () => {
                     <div
                         className="relative shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm"
                         style={{
-                            backgroundImage: `url('/backdrop11.jpg')`,
+                            backgroundImage: `url('/kcplstats.png')`,
                             backgroundSize: 'cover',
                             backgroundPosition: 'center',
                         }}
@@ -1746,8 +1746,8 @@ const SpectatorLiveDisplay = () => {
             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black animate-pulse z-50 py-2">
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
             </footer>
-
-        </div>
+</div>
+        
     );
 };
 

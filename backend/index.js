@@ -9,6 +9,8 @@ import { Server } from 'socket.io';
 import CONFIG from './config.js';
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { KCPL_RULES } from './kcplRules.js';
+
 
 dotenv.config();
 
@@ -42,405 +44,440 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// ===== KCPL RULES (no DB changes) =====
-const KCPL_ENABLED = false;              // flip to false if not running KCPL
-let KCPL_ACTIVE_POOL = "A";             // Admin can change: "A" | "B" | "C" | "D"
+// ===== KCPL helpers =====
+function sumBy(arr, f) { return arr.reduce((a, x) => a + f(x), 0); }
 
-const KCPL_RULES = {
-  totalPurse: 10000000,               // ₹1 Crore. :contentReference[oaicite:0]{index=0}
-  preselectionSpend: 2400000,         // ₹24L (2 Icons ₹10L each + Owner ₹4L). :contentReference[oaicite:1]{index=1}
-  squadSize: 17,                        // must form a 17-player squad. :contentReference[oaicite:2]{index=2}
-  pools: {
-    order: ["A", "B", "C", "D"],           // auction sequence. :contentReference[oaicite:3]{index=3}
-    A: {
-      base: 300000,                    // ₹3L. :contentReference[oaicite:4]{index=4}
-      teamCap: 4000000,               // Pool A spend cap per team. :contentReference[oaicite:5]{index=5}
-      maxPlayers: 3,                    // per-team cap in A. :contentReference[oaicite:6]{index=6}
-      twoPlayerCap: 3700000           // “≤ ₹37L for 2 players” in A. :contentReference[oaicite:7]{index=7}
-    },
-    B: {
-      base: 100000,                    // ₹1L. :contentReference[oaicite:8]{index=8}
-      teamCap: 3000000,            // B budget + A carry-forward. :contentReference[oaicite:9]{index=9}
-      maxPlayers: 5,                    // per-team cap in B. :contentReference[oaicite:10]{index=10}
-      unsoldTo: { pool: "C", base: 40_000 } // B unsold → C at ₹40k. :contentReference[oaicite:11]{index=11}
-    },
-    C: {
-      base: 50000,                     // ₹50k. :contentReference[oaicite:12]{index=12}
-      teamCap: 500000,              // C budget + A&B carry-forward. :contentReference[oaicite:13]{index=13}
-      minPlayers: 2                     // minimum C players. :contentReference[oaicite:14]{index=14}
-    },
-    D: {
-      base: 20000,                     // ₹20k. :contentReference[oaicite:15]{index=15}
-      teamCap: 100000,              // D budget + A,B,C carry-forward. :contentReference[oaicite:16]{index=16}
-      minPlayers: 1                     // minimum D players. :contentReference[oaicite:17]{index=17}
+async function getTeamPoolSnapshot(teamId, tournamentId) {
+  const result = await pool.query(
+    `
+    SELECT sold_pool AS pool,
+           COALESCE(SUM(sold_price), 0) AS spent,
+           COUNT(*) FILTER (WHERE sold_status IN ('TRUE', true)) AS bought
+    FROM players
+    WHERE tournament_id = $1
+      AND team_id = $2
+      AND sold_status IN ('TRUE', true)
+      AND sold_pool IN ('A','B','C','D','X')
+    GROUP BY sold_pool
+    `,
+    [tournamentId, teamId]
+  );
+
+  const byPool = {};
+  for (const key of Object.keys(KCPL_RULES.pools)) {
+    byPool[key] = {
+      spent: 0,
+      bought: 0,
+      limit: KCPL_RULES.pools[key].teamCap,
+      minReq: KCPL_RULES.pools[key].minReq,
+      maxCount: KCPL_RULES.pools[key].maxCount
+    };
+  }
+
+  for (const row of result.rows) {
+    const k = (row.pool || '').toUpperCase();
+    if (byPool[k]) {
+      byPool[k].spent = Number(row.spent) || 0;
+      byPool[k].bought = Number(row.bought) || 0;
     }
-  },
-  teamRules: {                          // global team composition requirements
-    A: { max: 3 },                      // :contentReference[oaicite:18]{index=18}
-    B: { max: 5 },                      // :contentReference[oaicite:19]{index=19}
-    C: { min: 3 },                      // :contentReference[oaicite:20]{index=20}
-    D: { min: 1 }                       // :contentReference[oaicite:21]{index=21}
-  },
-  increments: [                         // slab-wise increments. :contentReference[oaicite:22]{index=22}
-    { upto: 50000, step: 5000 },
-    { upto: 100000, step: 10000 },
-    { upto: 300000, step: 20000 },
-    { upto: Infinity, step: 25000 }
-  ],
-  carryForward: true,                   // carry forward unused to next pool. :contentReference[oaicite:23]{index=23}
-  assignLastAAtBase: true               // if a team didn’t reach 3 in A. :contentReference[oaicite:24]{index=24}
-};
+  }
 
-// per-team in-memory state for pool budgets & counts
-const kcplTeamState = new Map(); // teamId -> { spentByPool, boughtByPool, effectiveBudget }
+  return { byPool };
+}
 
-function ensureTeamState(teamId) {
-  if (!kcplTeamState.has(teamId)) {
-    kcplTeamState.set(teamId, {
-      spentByPool: { A: 0, B: 0, C: 0, D: 0 },
-      boughtByPool: { A: 0, B: 0, C: 0, D: 0 },
-      effectiveBudget: {
-        A: KCPL_RULES.pools.A.teamCap,
-        B: KCPL_RULES.pools.B.teamCap,
-        C: KCPL_RULES.pools.C.teamCap,
-        D: KCPL_RULES.pools.D.teamCap
+
+
+
+
+function computeEffectiveCaps(snapshot, rules) {
+  const eff = {};
+  let carry = 0; // carry flows A -> B -> C -> D
+
+  for (const p of rules.order) {
+    const rule = rules.pools[p];
+    const base = Number.isFinite(rule.teamCap) ? Number(rule.teamCap) : Number.POSITIVE_INFINITY;
+    const spent = Number(snapshot.byPool[p]?.spent || 0);
+    const bought = Number(snapshot.byPool[p]?.bought || 0);
+
+    // Effective cap in THIS pool = its own cap + carry from previous pool
+    const capHere = base + carry;
+    eff[p] = capHere;
+
+    // Reserve this pool's remaining minimums (do NOT reserve future pools here)
+    const minLeft = Math.max((rule.minReq || 0) - bought, 0);
+    const reserve = minLeft * (rule.base || 0);
+
+    // Carry to the NEXT pool = leftover after spending here and protecting THIS pool's mins
+    carry = Math.max(0, capHere - spent - reserve);
+  }
+
+  return eff;
+}
+
+
+
+function computeMaxBidFor(pool, snapshot, rules) {
+  const byPool = snapshot.byPool || {};
+  const poolRule = rules.pools[pool];
+
+  // ---- totals / rooms ----
+  const spentTotal = Object.values(byPool).reduce((s, v) => s + (v.spent || 0), 0);
+  const roomOverall = (rules.overallUsable ?? Infinity) - spentTotal;
+
+  const effCaps = computeEffectiveCaps(snapshot, rules);        // rolling carry (A→B→C→D)
+  const spentHere = byPool[pool]?.spent || 0;
+  const roomPool = (effCaps[pool] ?? Infinity) - spentHere;      // money left within THIS pool cap
+
+  // ---- headcount (slots) ----
+  const boughtTotal = Object.values(byPool).reduce((s, v) => s + (v.bought || 0), 0);
+  const remainingSlots = rules.totalSquadSize - boughtTotal;      // BEFORE buying the next player here
+  const alreadyInThis = byPool[pool]?.bought || 0;
+
+  const idx = rules.order.indexOf(pool);
+  const futurePools = rules.order.slice(idx + 1);
+
+  // Reserve ONLY future pools' minimums (slot-level)
+  const reserveFutureMinSlots = futurePools.reduce((sum, p) => {
+    const r = rules.pools[p];
+    const bought = byPool[p]?.bought || 0;
+    return sum + Math.max(0, (r.minReq || 0) - bought);
+  }, 0);
+
+  let slotsMax = Math.max(0, remainingSlots - reserveFutureMinSlots);
+
+  // Cap by THIS pool's maxCount if finite
+  const hardCap = rules.pools[pool]?.maxCount;
+  if (Number.isFinite(hardCap)) {
+    slotsMax = Math.min(slotsMax, Math.max(0, hardCap - alreadyInThis));
+  }
+
+  // ---- money-limited max players in THIS pool (so "maxPlayers" is realistic) ----
+  const baseHere = poolRule.base || 0;
+  let moneyMax = slotsMax;
+
+  if (baseHere > 0) {
+    if (futurePools.length === 1) {
+      // Second-last pool (e.g., C) → protect last pool's cap while buying k players here.
+      const q = futurePools[0];                     // the last pool (e.g., 'D')
+      const baseQ = rules.pools[q]?.base || 0;
+      const capQ = Number(rules.pools[q]?.teamCap || 0);
+
+      // Find the largest k (0..slotsMax) such that:
+      // carryAfterK (room left in THIS pool's cap) covers the part of last pool
+      // not afforded by its own cap: max(0, (remainingSlots - k)*baseQ - capQ)
+      let kFeasible = 0;
+      for (let k = 0; k <= slotsMax; k++) {
+        const carryAfterK = roomPool - k * baseHere;
+        const needLastPool = Math.max(0, (remainingSlots - k) * baseQ - capQ);
+        if (carryAfterK >= needLastPool) kFeasible = k; else break;
       }
-    });
-  }
-  return kcplTeamState.get(teamId);
-}
-
-function nextIncrementKCPL(amount) {
-  for (const slab of KCPL_RULES.increments) {
-    if (amount <= slab.upto) return slab.step;
-  }
-  return KCPL_RULES.increments.at(-1).step;
-}
-
-function recomputeCarryForward(state) {
-  // Pool A is fixed
-  state.effectiveBudget.A = KCPL_RULES.pools.A.teamCap;
-  const Arem = state.effectiveBudget.A - state.spentByPool.A;
-
-  // Pool B = base cap + carry from A
-  state.effectiveBudget.B = KCPL_RULES.pools.B.teamCap + Math.max(0, Arem);
-  const Brem = state.effectiveBudget.B - state.spentByPool.B;
-
-  // Pool C = base cap + carry from B
-  state.effectiveBudget.C = KCPL_RULES.pools.C.teamCap + Math.max(0, Brem);
-  const Crem = state.effectiveBudget.C - state.spentByPool.C;
-
-  // Pool D = base cap + carry from C
-  state.effectiveBudget.D = KCPL_RULES.pools.D.teamCap + Math.max(0, Crem);
-}
-
-
-async function canBidKCPL({ teamId, bidAmount, playerCategory, tournamentId, activePool }) {
-  const state = ensureTeamState(teamId);
-
-  // 🔹 If playerCategory ≠ activePool and this is a migrated unsold player,
-  // use the activePool for cap & limit checks
-  const effectiveCategory = (KCPL_ENABLED && activePool && activePool !== playerCategory)
-    ? activePool
-    : playerCategory;
-
-  const rules = KCPL_RULES.pools[effectiveCategory];
-  const capLimit = state.effectiveBudget[effectiveCategory];
-
-  // 1) Player count cap check
-  if (state.boughtByPool[effectiveCategory] >= rules.maxPlayers) {
-    return { ok: false, reason: `Player cap reached for Pool ${effectiveCategory}` };
-  }
-
-  // 2) Budget cap check
-  if (state.spentByPool[effectiveCategory] + bidAmount > capLimit) {
-    return { ok: false, reason: `Budget cap exceeded for Pool ${effectiveCategory}` };
-  }
-
-  // 3) Special rule: first 2 players cap for Pool A
-  if (
-    effectiveCategory === "A" &&
-    state.boughtByPool.A < 2 &&
-    state.spentByPool.A + bidAmount > KCPL_RULES.pools.A.twoPlayerCap
-  ) {
-    return { ok: false, reason: `Cap for first two Pool A players exceeded` };
-  }
-
-  // 4) Must leave budget for remaining players in the pool — applies only to Pool A
-  if (effectiveCategory === "A") {
-    const playersLeft = rules.maxPlayers - state.boughtByPool[effectiveCategory];
-    if (playersLeft > 1) {
-      const spendIfBuy = state.spentByPool[effectiveCategory] + bidAmount;
-      const minNeededForRest = (playersLeft - 1) * rules.base;
-      if (spendIfBuy > rules.teamCap - minNeededForRest) {
-        return {
-          ok: false,
-          reason: `Must retain at least ₹${minNeededForRest.toLocaleString()} for remaining ${playersLeft - 1} player(s) in Pool ${effectiveCategory}`
-        };
-      }
+      moneyMax = Math.min(moneyMax, kFeasible);
+    } else if (futurePools.length === 0) {
+      // Last pool (e.g., D): limited by its own cap
+      moneyMax = Math.min(moneyMax, Math.floor(roomPool / baseHere));
+    } else {
+      // Earlier pools
+      moneyMax = Math.min(moneyMax, Math.floor(roomPool / baseHere));
     }
   }
-  // 5) Step validation (fetch from DB for this tournament)
-  try {
-    const incRes = await pool.query(
-      `SELECT increment FROM bid_increments 
-       WHERE tournament_id = $1 
-         AND $2 BETWEEN min_value AND max_value
-       LIMIT 1`,
-      [tournamentId, bidAmount]
-    );
 
-    if (incRes.rowCount > 0) {
-      const step = incRes.rows[0].increment;
-      if (bidAmount % step !== 0) {
-        return { ok: false, reason: `Invalid bid increment. Step should be ₹${step}` };
-      }
-    }
-  } catch (err) {
-    console.error("❌ Error fetching bid increment:", err);
-    return { ok: false, reason: "Error validating bid increment" };
+  const maxPlayers = Math.max(0, Math.min(slotsMax, moneyMax));
+
+  // unmet future pools (for messaging)
+  const unmetPools = futurePools.filter(p => {
+    const r = rules.pools[p];
+    const bought = byPool[p]?.bought || 0;
+    return bought < (r.minReq || 0);
+  });
+
+  // If we cannot buy any more in this pool or no money left, maxBid is 0
+  if (maxPlayers <= 0 || roomPool <= 0 || roomOverall <= 0) {
+    return { maxBid: 0, maxPlayers: 0, unmetPools };
   }
 
-  // ✅ Passed all checks
-  return { ok: true };
+  // ---- Max Bid for the NEXT player here ----
+  // Money we must keep AFTER buying one more here:
+  // - this pool's remaining minimum (after this buy)
+  // - future pools' minimum money
+  // - **when this is the last pool**: reserve (remainingSlots - 1) * baseHere
+  //   so we can finish the squad at base price within this pool's cap.
+
+  const remAfterThis = Math.max(0, remainingSlots - 1);
+
+  // This pool's remaining minimum after this buy
+  const minLeftThisPoolAfter = Math.max((poolRule.minReq || 0) - (alreadyInThis + 1), 0);
+  const poolNeedAfter = minLeftThisPoolAfter * baseHere;
+
+  // Future pools' minimum money (only future)
+  const futureNeedsMoney = futurePools.reduce((sum, p) => {
+    const r = rules.pools[p];
+    const bought = byPool[p]?.bought || 0;
+    const minLeftQ = Math.max((r.minReq || 0) - bought, 0);
+    return sum + minLeftQ * (r.base || 0);
+  }, 0);
+
+  // D-cap safeguard when we're in the second-last pool (e.g., C)
+  let capGuardFuture = 0;
+  if (futurePools.length === 1) {
+    const q = futurePools[0];
+    const baseQ = rules.pools[q]?.base || 0;
+    const capQ = Number(rules.pools[q]?.teamCap || 0);
+    // After buying ONE here, last pool must be able to fill remAfterThis slots at base under its cap.
+    const needQTotal = remAfterThis * baseQ;
+    capGuardFuture = Math.max(0, needQTotal - capQ);
+  }
+
+  // **Last-pool reserve**: if we're in the last pool (e.g., D), we must still
+  // afford (remAfterThis) players at base within THIS pool's cap.
+  const lastPoolReserve = (futurePools.length === 0 && baseHere > 0)
+    ? remAfterThis * baseHere
+    : 0;
+
+  // Tight constraints
+  const maxByPool = roomPool - poolNeedAfter - capGuardFuture - lastPoolReserve;
+  const maxByOverall = roomOverall - (poolNeedAfter + futureNeedsMoney + lastPoolReserve);
+
+  const maxBid = Math.max(0, Math.min(maxByPool, maxByOverall));
+  return { maxBid, maxPlayers, unmetPools };
 }
 
 
 
-// ✅ Always update KCPL state with the effective category from PATCH/PUT
-async function recordWinKCPL({ teamId, price, playerId }) {
-  const state = ensureTeamState(teamId);
 
-  // ✅ Always use current KCPL active pool from server-side state
-  const poolName = KCPL_ACTIVE_POOL;
 
-  // 1️⃣ Update in-memory state
-  state.boughtByPool[poolName] = (state.boughtByPool[poolName] || 0) + 1;
-  state.spentByPool[poolName] = (state.spentByPool[poolName] || 0) + Number(price || 0);
 
-  recomputeCarryForward(state);
+function computeMaxPlayersFor(poolKey, snap, rules) {
+  const poolRule = rules.pools[poolKey];
+  const bought = snap.byPool[poolKey]?.bought || 0;
 
-  // 2️⃣ Persist sold_pool in DB
-  try {
-    await db.query(
-      `UPDATE players
-       SET sold_pool = $1
-       WHERE id = $2`,
-      [poolName, playerId]
-    );
-  } catch (err) {
-    console.error(`❌ Failed to update sold_pool for player ${playerId}`, err);
-  }
+  if (!poolRule || poolRule.maxCount === undefined) return 0;
+
+  // Max players left = maxCount - already bought
+  return Math.max(0, poolRule.maxCount - bought);
 }
 
 
-// ✅ KCPL Initialize — Load pool caps & budget usage from DB
-app.post('/api/kcpl/initialize', async (req, res) => {
-  try {
-    const { tournament_id } = req.body;
-    if (!tournament_id) {
-      return res.status(400).json({ error: "tournament_id is required" });
-    }
 
-    // 1. Get all teams in this tournament
-    const teamsRes = await pool.query(
-      `SELECT id FROM teams WHERE tournament_id = $1`,
-      [tournament_id]
-    );
 
-    // 2. Reset in-memory state
-    kcplTeamState.clear();
 
-    // 3. Loop through each team and load stats
-    for (const team of teamsRes.rows) {
-      const state = ensureTeamState(team.id);
+async function canBuyAnotherInPool(teamId, tournamentId, poolName) {
+  const snap = await getTeamPoolSnapshot(teamId, tournamentId);
+  const poolRule = KCPL_RULES.pools[poolName];
+  const alreadyBought = snap.byPool[poolName]?.bought || 0;
+  const alreadySpent = snap.byPool[poolName]?.spent || 0;
 
-      const poolStats = await pool.query(
-        `SELECT base_category, COUNT(*) AS count, COALESCE(SUM(sold_price),0) AS spent
-         FROM players
-         WHERE team_id = $1 
-           AND tournament_id = $2
-           AND (sold_status = TRUE OR sold_status = 'TRUE')
-         GROUP BY base_category`,
-        [team.id, tournament_id]
-      );
-
-      for (const ps of poolStats.rows) {
-        const pool = ps.base_category;
-        state.boughtByPool[pool] = Number(ps.count);
-        state.spentByPool[pool] = Number(ps.spent);
-      }
-
-      recomputeCarryForward(state);
-    }
-
-    res.json({ message: "KCPL state initialized from DB" });
-  } catch (err) {
-    console.error("❌ KCPL initialize error:", err);
-    res.status(500).json({ error: err.message });
+  // 1️⃣ Max players per pool cap
+  if (poolRule?.maxReq && alreadyBought >= poolRule.maxReq) {
+    return { allowed: false, reason: "Max players cap reached", unmetPools: [] };
   }
+
+  // 2️⃣ TeamCap per pool (budget cap)
+  const effCaps = computeEffectiveCaps(snap, KCPL_RULES);
+  const poolCap = effCaps[poolName] ?? Infinity;
+  if (alreadySpent >= poolCap) {
+    return { allowed: false, reason: "Team budget cap for this pool exhausted", unmetPools: [] };
+  }
+
+  // 3️⃣ Normal max bid check
+  const { maxBid, unmetPools } = computeMaxBidFor(poolName, snap, KCPL_RULES);
+  if (maxBid <= 0) {
+    return { allowed: false, reason: "No max bid room (slots or money constraint)", unmetPools };
+  }
+
+  return { allowed: true, reason: "Allowed", unmetPools };
+}
+
+
+// Track active KCPL pool (server-side optional, you already send it from client)
+let ACTIVE_KCPL_POOL = "A";
+
+app.post("/api/kcpl/initialize", async (req, res) => {
+  // no-op placeholder (you may pre-warm anything or verify schema here)
+  return res.json({ ok: true });
 });
 
-
-// KCPL: get/set active pool
-app.get("/api/kcpl/active-pool", (req, res) => res.json({ pool: KCPL_ACTIVE_POOL }));
-app.post("/api/kcpl/active-pool", (req, res) => {
-  const { pool } = req.body || {};
-  if (!["A", "B", "C", "D"].includes(pool)) return res.status(400).json({ error: "Invalid pool" });
-  KCPL_ACTIVE_POOL = pool;
-  res.json({ pool });
-});
-
-// KCPL: validate a proposed live bid
 app.post("/api/kcpl/validate-bid", async (req, res) => {
   try {
-    const { team_id, bid_amount, player_id } = req.body || {};
-    if (!team_id || !Number.isFinite(bid_amount)) {
-      return res.status(400).json({ error: "Missing team_id/bid_amount" });
-    }
+    const { team_id, bid_amount, player_id, active_pool } = req.body;
 
-    let playerCategory;
-    let tournamentId;
-
-    if (player_id) {
-      // ✅ Get base_category and tournament_id for provided player ID
-      const playerRes = await pool.query(
-        "SELECT base_category, tournament_id FROM players WHERE id = $1",
-        [player_id]
-      );
-      if (playerRes.rowCount) {
-        playerCategory = playerRes.rows[0].base_category;
-        tournamentId = playerRes.rows[0].tournament_id;
-      }
-    }
-
-    // fallback to current player if player_id not given
-    if (!playerCategory || !tournamentId) {
-      const currentRes = await pool.query(
-        "SELECT base_category, tournament_id FROM players WHERE id = (SELECT id FROM current_player LIMIT 1)"
-      );
-      if (currentRes.rowCount) {
-        playerCategory = currentRes.rows[0].base_category;
-        tournamentId = currentRes.rows[0].tournament_id;
-      }
-    }
-
-    // ✅ Now tournamentId is always defined
-    const verdict = await canBidKCPL({
-      teamId: team_id,
-      bidAmount: Number(bid_amount),
-      playerCategory,
-      tournamentId,
-      activePool: KCPL_ACTIVE_POOL // 👈 added
-    });
-
-    // ✅ Enforce minimum base price for KCPL or normal
-    if (player_id) {
-      const playerData = await pool.query(
-        'SELECT base_category FROM players WHERE id = $1',
-        [player_id]
-      );
-      if (playerData.rowCount) {
-        let minAllowed;
-        if (KCPL_ENABLED && KCPL_ACTIVE_POOL) {
-          // ✅ Use active pool’s base for migrated unsold scenarios
-          minAllowed = KCPL_RULES.pools[KCPL_ACTIVE_POOL]?.base ??
-            KCPL_RULES.pools[playerData.rows[0].base_category]?.base ?? 0;
-        } else {
-          const tRes = await pool.query('SELECT base_price FROM tournaments WHERE id = $1', [tournamentId]);
-          minAllowed = tRes.rows[0]?.base_price ?? { A: 1700, B: 3000, C: 5000 }[playerData.rows[0].component] ?? 0;
-        }
-        if (bid_amount < minAllowed) {
-          return res.status(400).json({ ok: false, reason: `Bid must be at least ₹${minAllowed}` });
-        }
-      }
-    }
-
-
-    res.json(verdict);
-  } catch (err) {
-    console.error("🔥 KCPL validate-bid error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/kcpl/team-states/:tournamentId', async (req, res) => {
-  const { tournamentId } = req.params;
-
-  try {
-    const teamsRes = await pool.query(
-      'SELECT * FROM teams WHERE tournament_id = $1 ORDER BY id',
-      [tournamentId]
+    // fetch player
+    const player = await pool.query(
+      "SELECT id, tournament_id FROM players WHERE id=$1",
+      [player_id]
     );
-    const teams = teamsRes.rows;
+    if (player.rows.length === 0) {
+      return res.status(404).json({ ok: false, reason: "player not found" });
+    }
+    const tournamentId = player.rows[0].tournament_id;
 
-    const stateList = [];
+    const poolName = active_pool || ACTIVE_KCPL_POOL;
+    const rules = KCPL_RULES;
 
-    for (const team of teams) {
-      const boughtByPool = {};
-      const spentByPool = {};
-      const limitByPool = {};
-      const remainingByPool = {};
+    // snapshot of current team
+    const snap = await getTeamPoolSnapshot(team_id, tournamentId);
 
-      // Initialize
-      for (const poolKey of Object.keys(KCPL_RULES.pools)) {
-        boughtByPool[poolKey] = 0;
-        spentByPool[poolKey] = 0;
-        limitByPool[poolKey] = KCPL_RULES.pools[poolKey].teamCap; // will adjust below
-        remainingByPool[poolKey] = KCPL_RULES.pools[poolKey].teamCap;
-      }
-
-      // DB query
-      const poolStatsRes = await pool.query(
-        `SELECT COALESCE(sold_pool, base_category) AS pool,
-                COUNT(*) AS players_bought,
-                COALESCE(SUM(sold_price),0) AS total_spent
-         FROM players
-         WHERE team_id = $1
-           AND tournament_id = $2
-           AND (sold_status = TRUE OR sold_status = 'TRUE')
-         GROUP BY COALESCE(sold_pool, base_category)`,
-        [team.id, tournamentId]
-      );
-
-      // Update stats
-      for (const row of poolStatsRes.rows) {
-        const poolName = row.pool;
-        boughtByPool[poolName] = Number(row.players_bought);
-        spentByPool[poolName] = Number(row.total_spent);
-      }
-
-      // Carry-forward limit calculation
-      let prevRemaining = 0;
-      for (const poolKey of Object.keys(KCPL_RULES.pools)) {
-        limitByPool[poolKey] = KCPL_RULES.pools[poolKey].teamCap + prevRemaining;
-        remainingByPool[poolKey] = limitByPool[poolKey] - spentByPool[poolKey];
-        prevRemaining = remainingByPool[poolKey]; // carry forward
-      }
-
-      stateList.push({
-        teamId: team.id,
-        teamName: team.name,
-        boughtByPool,
-        spentByPool,
-        limitByPool,
-        remainingByPool,
+    // 🔹 enforce squad size
+    const totalBought = Object.values(snap.byPool)
+      .reduce((sum, v) => sum + v.bought, 0);
+    if (totalBought >= rules.totalSquadSize) {
+      return res.json({
+        ok: false,
+        reason: `Max squad size ${rules.totalSquadSize} already reached`
       });
     }
 
-    res.json(stateList);
-  } catch (err) {
-    console.error('❌ Error fetching KCPL team states:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    // 🔹 enforce per-pool maxCount
+    const maxCount = rules.pools[poolName].maxCount ?? Infinity;
+    if (snap.byPool[poolName].bought + 1 > maxCount) {
+      return res.json({
+        ok: false,
+        reason: `Pool ${poolName} max ${maxCount} players reached`
+      });
+    }
+
+    // 🔹 compute max bid using updated function
+    const { maxBid, unmetPools } = computeMaxBidFor(poolName, snap, rules);
+
+    if (maxBid === 0) {
+      return res.json({
+        ok: false,
+        reason: `Cannot buy more from Pool ${poolName} — must leave slots for: ${unmetPools.join(", ")}`,
+        unmetPools
+      });
+    }
+
+    if (bid_amount > maxBid) {
+      return res.json({
+        ok: false,
+        reason: `Exceeds max allowed ₹${maxBid}`,
+        maxBid,
+        unmetPools
+      });
+    }
+
+    return res.json({ ok: true, maxBid, unmetPools });
+
+  } catch (e) {
+    console.error("Error validating bid:", e);
+    return res.status(500).json({ ok: false, reason: "server error" });
   }
 });
 
-// KCPL: inspect a team’s pool budgets/counters
 
-app.get("/api/kcpl/team-state/:teamId", (req, res) => {
-  const state = ensureTeamState(Number(req.params.teamId));
-  res.json(state);
+
+// Per-team pooled snapshot
+app.get("/api/kcpl/team-state/:teamId", async (req, res) => {
+  try {
+    const teamId = Number(req.params.teamId);
+
+    // 1️⃣ Get tournament_id and team name
+    const t = await pool.query(
+      "SELECT tournament_id, name FROM teams WHERE id=$1",
+      [teamId]
+    );
+    if (!t.rows.length) return res.status(404).json({ error: "team not found" });
+    const tournamentId = t.rows[0].tournament_id;
+
+    // 2️⃣ Snapshot of team pools
+    const snap = await getTeamPoolSnapshot(teamId, tournamentId);
+
+    // 3️⃣ Effective caps (carryover logic A→B→C→D)
+    const effCaps = computeEffectiveCaps(snap, KCPL_RULES);
+
+    // 4️⃣ Pool stats (maxBid, maxPlayers, unmetPools for each pool)
+    const poolStats = {};
+    for (const p of KCPL_RULES.order) {
+      const bought = snap.byPool[p]?.bought || 0;
+      const cap = KCPL_RULES.pools[p].maxCount ?? Infinity;
+      if (Number.isFinite(cap) && bought >= cap) {
+        poolStats[p] = { maxBid: 0, maxPlayers: 0, unmetPools: [p] };
+      } else {
+        poolStats[p] = computeMaxBidFor(p, snap, KCPL_RULES);
+      }
+    }
+
+    // 5️⃣ Respond with compact snapshot
+    res.json({
+      teamId,
+      teamName: t.rows[0].name,
+      spentByPool: Object.fromEntries(
+        Object.entries(snap.byPool).map(([k, v]) => [k, v.spent])
+      ),
+      boughtByPool: Object.fromEntries(
+        Object.entries(snap.byPool).map(([k, v]) => [k, v.bought])
+      ),
+      limitByPool: effCaps,
+      poolStats,
+    });
+  } catch (err) {
+    console.error("❌ Error in /api/kcpl/team-state:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
+
+
+// All teams snapshot
+app.get("/api/kcpl/team-states/:tournamentId", async (req, res) => {
+  const tournamentId = Number(req.params.tournamentId);
+  const activePool = req.query.activePool || ACTIVE_KCPL_POOL;
+
+  const teams = await pool.query(
+    "select id, name from teams where tournament_id=$1 order by id",
+    [tournamentId]
+  );
+
+  const out = [];
+  for (const team of teams.rows) {
+    const snap = await getTeamPoolSnapshot(team.id, tournamentId);
+    const effCaps = computeEffectiveCaps(snap, KCPL_RULES);
+
+    const poolStats = {};
+
+    for (const p of KCPL_RULES.order) {
+      const bought = snap.byPool[p]?.bought || 0;
+      const cap = KCPL_RULES.pools[p].maxCount ?? Infinity; // <-- correct field
+      if (Number.isFinite(cap) && bought >= cap) {
+        poolStats[p] = { maxBid: 0, maxPlayers: 0, unmetPools: [p] };
+      } else {
+        poolStats[p] = computeMaxBidFor(p, snap, KCPL_RULES);
+      }
+    }
+
+
+
+    out.push({
+      teamId: team.id,
+      teamName: team.name,
+      spentByPool: Object.fromEntries(Object.entries(snap.byPool).map(([k, v]) => [k, v.spent])),
+      boughtByPool: Object.fromEntries(Object.entries(snap.byPool).map(([k, v]) => [k, v.bought])),
+      limitByPool: effCaps,
+      poolStats
+    });
+
+  }
+
+  res.json(out);
+});
+
+// --- Active pool get/set + broadcast ---
+app.get("/api/kcpl/active-pool", (req, res) => {
+  res.json({ pool: ACTIVE_KCPL_POOL });
+});
+
+app.post("/api/kcpl/active-pool", (req, res) => {
+  const { pool } = req.body || {};
+  if (!["A", "B", "C", "D"].includes((pool || "").toUpperCase())) {
+    return res.status(400).json({ ok: false, error: "Invalid pool" });
+  }
+  ACTIVE_KCPL_POOL = pool.toUpperCase();
+  io.emit("kcplPoolChanged", ACTIVE_KCPL_POOL);    // 🔊 notify all spectators
+  return res.json({ ok: true, pool: ACTIVE_KCPL_POOL });
+});
+
+
+
+
+
 
 
 
@@ -470,7 +507,7 @@ io.on("connection", (socket) => {
 
 // Adding themes to the layout
 
-let currentTheme = 'fireflies';
+let currentTheme = 'kcpl';
 
 app.get('/api/theme', (req, res) => {
   res.json({ theme: currentTheme });
@@ -763,75 +800,26 @@ app.get('/api/players', async (req, res) => {
   }
 
   try {
-    let players = [];
+    const params = [tournament_id];
+    let where = `tournament_id = $1`;
 
-    if (KCPL_ENABLED && poolParam) {
-      if (poolParam === "C") {
-        // Pool C + unsold from Pool B with C base price
-        const result = await pool.query(
-          `SELECT * FROM players 
-           WHERE tournament_id = $1 
-             AND base_category = 'C'
-           ORDER BY id`,
-          [tournament_id]
-        );
-        const unsoldB = await pool.query(
-          `SELECT * FROM players 
-           WHERE tournament_id = $1 
-             AND base_category = 'B'
-             AND (sold_status IS NULL OR sold_status = 'FALSE' OR sold_status = false)
-           ORDER BY id`,
-          [tournament_id]
-        );
-        players = [...result.rows, ...unsoldB.rows.map(p => ({
-          ...p,
-          base_price: KCPL_RULES.pools.C.base
-        }))];
-      } else if (poolParam === "D") {
-        // Pool D + unsold from Pool B & C with D base price
-        const result = await pool.query(
-          `SELECT * FROM players 
-           WHERE tournament_id = $1 
-             AND base_category = 'D'
-           ORDER BY id`,
-          [tournament_id]
-        );
-        const unsoldBC = await pool.query(
-          `SELECT * FROM players 
-           WHERE tournament_id = $1 
-             AND base_category IN ('B','C')
-             AND (sold_status IS NULL OR sold_status = 'FALSE' OR sold_status = false)
-           ORDER BY id`,
-          [tournament_id]
-        );
-        players = [...result.rows, ...unsoldBC.rows.map(p => ({
-          ...p,
-          base_price: KCPL_RULES.pools.D.base
-        }))];
-      } else {
-        // Default pool query
-        const result = await pool.query(
-          `SELECT * FROM players 
-           WHERE tournament_id = $1 AND base_category = $2
-           ORDER BY id`,
-          [tournament_id, poolParam]
-        );
-        players = result.rows;
-      }
-    } else {
-      const result = await pool.query(
-        'SELECT * FROM players WHERE tournament_id = $1 ORDER BY id',
-        [tournament_id]
-      );
-      players = result.rows;
+    if (poolParam) {
+      params.push(String(poolParam).toUpperCase());
+      where += ` AND UPPER(base_category) = $${params.length}`;
     }
 
-    res.json(players);
+    const result = await pool.query(
+      `SELECT * FROM players WHERE ${where} ORDER BY auction_serial NULLS LAST, id`,
+      params
+    );
+
+    res.json(result.rows);   // ✅ this is the only response
   } catch (err) {
     console.error("🔥 Error fetching players:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 // ✅ Unified GET player by ID with correct base price rules
@@ -853,8 +841,7 @@ app.get('/api/players/:id', async (req, res) => {
 
   try {
     const result = await pool.query(`
-      SELECT p.*, 
-             t.name AS team_name
+      SELECT p.*, t.name AS team_name
       FROM players p
       LEFT JOIN teams t ON p.team_id = t.id
       WHERE p.id = $1
@@ -867,30 +854,30 @@ app.get('/api/players/:id', async (req, res) => {
     const player = result.rows[0];
 
     // --- Base price calculation ---
-    if (KCPL_ENABLED && player.base_category) {
-      if (activePool && activePool !== player.base_category) {
-        // Migrated player from earlier pool
-        player.base_price = KCPL_RULES.pools[activePool]?.base ?? KCPL_RULES.pools[player.base_category]?.base;
-      } else {
-        // Normal KCPL pool player
-        player.base_price = KCPL_RULES.pools[player.base_category]?.base ?? player.base_price;
-      }
-    } else {
-  // Non-KCPL logic
-  const tRes = await pool.query(
-    'SELECT base_price FROM tournaments WHERE id = $1',
-    [player.tournament_id]
-  );
-  if (tRes.rows[0]?.base_price) {
-    player.base_price = tRes.rows[0].base_price;
-  } else {
-    // ✅ Use base_category since component column doesn't exist
-    const componentMap = { A: 1700, B: 3000, C: 5000 };
-    player.base_price = componentMap[player.base_category] ?? 0;
-  }
-}
+    if (player.base_category) {
+      const fromRules =
+        (activePool && activePool !== player.base_category)
+          ? (KCPL_RULES.pools[activePool]?.base ?? KCPL_RULES.pools[player.base_category]?.base)
+          : (KCPL_RULES.pools[player.base_category]?.base);
 
-    // ✅ Ensure profile image is always ImageKit format
+      if (fromRules != null) {
+        player.base_price = fromRules;
+      } else {
+        const tRes = await pool.query(
+          'SELECT base_price FROM tournaments WHERE id = $1',
+          [player.tournament_id]
+        );
+        if (tRes.rows[0]?.base_price) {
+          player.base_price = tRes.rows[0].base_price;
+        } else {
+          // fallback to component map
+          const componentMap = { A: 1700, B: 3000, C: 5000 };
+          player.base_price = componentMap[player.base_category] ?? 0;
+        }
+      }
+    }
+
+    // ✅ Normalize profile image
     player.profile_image = formatProfileImage(player.profile_image);
 
     res.json(player);
@@ -899,6 +886,256 @@ app.get('/api/players/:id', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+app.put('/api/players/:id', async (req, res) => {
+  const playerId = req.params.id;
+  const { sold_status, team_id, sold_price, active_pool, sold_pool } = req.body;
+
+  try {
+    // 1️⃣ Get existing player details
+    const playerRes = await pool.query(
+      `SELECT id, tournament_id, base_category, sold_status, team_id AS old_team_id
+       FROM players
+       WHERE id = $1`,
+      [playerId]
+    );
+
+    if (playerRes.rowCount === 0) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    const player = playerRes.rows[0];
+    const tournamentId = player.tournament_id;
+    const playerCategory = player.base_category;
+    const currentSoldStatus = player.sold_status;
+    const oldTeamId = player.old_team_id;
+
+    // 🔒 Block updates if already SOLD (unless explicitly UNSOLD)
+    if (["TRUE", true].includes(currentSoldStatus) && sold_status !== false && sold_status !== "FALSE") {
+      return res.status(400).json({ error: "Cannot update a SOLD player. Use /reopen first." });
+    }
+
+    // 2️⃣ Determine effective category
+    const effectiveCategory =
+      active_pool &&
+        (currentSoldStatus === null || currentSoldStatus === false || currentSoldStatus === "FALSE")
+        ? active_pool
+        : playerCategory;
+
+    // 3️⃣ Base price enforcement
+    let minAllowed = 0;
+    if (effectiveCategory) {
+      minAllowed = KCPL_RULES.pools[effectiveCategory]?.base ?? 0;
+    } else {
+      const tRes = await pool.query("SELECT base_price FROM tournaments WHERE id = $1", [tournamentId]);
+      if (tRes.rows[0]?.base_price != null) {
+        minAllowed = Number(tRes.rows[0].base_price) || 0;
+      } else {
+        const componentMap = { A: 1700, B: 3000, C: 5000 };
+        minAllowed = componentMap[playerCategory] ?? 0;
+      }
+    }
+
+    if (sold_price && sold_price < minAllowed) {
+      return res.status(400).json({ error: `Sold price must be at least ₹${minAllowed}` });
+    }
+
+    // 4️⃣ KCPL slot + budget guard
+    if (["TRUE", true, "true"].includes(sold_status)) {
+      if (!team_id) {
+        return res.status(400).json({ error: "team_id required to mark SOLD" });
+      }
+
+      const snapshot = await getTeamPoolSnapshot(team_id, tournamentId);
+
+      // --- SLOT GUARD ---
+      const boughtTotal = Object.values(snapshot.byPool).reduce((sum, v) => sum + v.bought, 0);
+      const remainingSlots = KCPL_RULES.totalSquadSize - boughtTotal;
+
+      const futurePools = KCPL_RULES.order.slice(KCPL_RULES.order.indexOf(effectiveCategory) + 1);
+      const reserveSlots = futurePools.reduce((sum, p) => {
+        const min = KCPL_RULES.pools[p].minReq || 0;
+        const already = snapshot.byPool[p]?.bought || 0;
+        return sum + Math.max(min - already, 0);
+      }, 0);
+
+      if (remainingSlots - 1 < reserveSlots) {
+        return res.status(400).json({
+          error: `Cannot buy from Pool ${effectiveCategory}. Must leave ${reserveSlots} slots for later pools: ${futurePools.join(", ")}`
+        });
+      }
+
+      // --- BUDGET GUARD (existing) ---
+      const { maxBid, unmetPools } = computeMaxBidFor(effectiveCategory || sold_pool, snapshot, KCPL_RULES);
+      if (maxBid <= 0) {
+        return res.status(400).json({
+          error: `Cannot buy more from Pool ${effectiveCategory} — must leave slots for: ${unmetPools.join(", ") || "later pools"}`
+        });
+      }
+    }
+
+    // 5️⃣ Update player record
+    await pool.query(
+      `UPDATE players
+       SET sold_status = $1,
+           sold_price = $2,
+           team_id = $3,
+           sold_pool = $4
+       WHERE id = $5`,
+      [sold_status, sold_price, team_id, sold_pool || effectiveCategory, playerId]
+    );
+
+    // 6️⃣ Update current_player table
+    await pool.query(
+      `UPDATE current_player
+       SET sold_status = $1,
+           sold_price = $2,
+           team_id = $3
+       WHERE id = $4`,
+      [sold_status, sold_price, team_id, playerId]
+    );
+
+    // 7️⃣ Update stats
+    if (tournamentId) {
+      if (oldTeamId && oldTeamId !== team_id) {
+        await updateTeamStats(oldTeamId, tournamentId);
+      }
+      if (team_id) {
+        await updateTeamStats(team_id, tournamentId);
+      }
+    }
+
+    res.json({ message: "Player updated and all relevant team stats refreshed" });
+  } catch (err) {
+    console.error("❌ PUT error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+app.patch('/api/players/:id', async (req, res) => {
+  const playerId = req.params.id;
+  const { sold_status, team_id, sold_price, active_pool, sold_pool } = req.body;
+
+  try {
+    // 1️⃣ Fetch player info
+    const playerRes = await pool.query(
+      `SELECT id, tournament_id, base_category, sold_status
+       FROM players
+       WHERE id = $1`,
+      [playerId]
+    );
+
+    if (playerRes.rowCount === 0) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    const player = playerRes.rows[0];
+    const tournamentId = player.tournament_id;
+    const playerCategory = player.base_category;
+    const currentSoldStatus = player.sold_status;
+
+    // 🔒 Block updates if already SOLD
+    if (["TRUE", true].includes(currentSoldStatus) && sold_status !== false && sold_status !== "FALSE") {
+      return res.status(400).json({ error: "Cannot update a SOLD player. Use /reopen first." });
+    }
+
+    // 2️⃣ Determine effective category
+    const effectiveCategory =
+      active_pool &&
+        (currentSoldStatus === null || currentSoldStatus === false || currentSoldStatus === "FALSE")
+        ? active_pool
+        : playerCategory;
+
+    // 3️⃣ Enforce base price
+    let minAllowed = 0;
+    if (effectiveCategory) {
+      minAllowed = KCPL_RULES.pools[effectiveCategory]?.base ?? 0;
+    } else {
+      const tRes = await pool.query("SELECT base_price FROM tournaments WHERE id = $1", [tournamentId]);
+      if (tRes.rows[0]?.base_price != null) {
+        minAllowed = Number(tRes.rows[0].base_price) || 0;
+      } else {
+        const componentMap = { A: 1700, B: 3000, C: 5000 };
+        minAllowed = componentMap[playerCategory] ?? 0;
+      }
+    }
+
+    if (sold_price && sold_price < minAllowed) {
+      return res.status(400).json({ error: `Sold price must be at least ₹${minAllowed}` });
+    }
+
+    // 4️⃣ KCPL slot + budget guard
+    if (["TRUE", true, "true"].includes(sold_status)) {
+      if (!team_id) {
+        return res.status(400).json({ error: "team_id required to mark SOLD" });
+      }
+
+      const snapshot = await getTeamPoolSnapshot(team_id, tournamentId);
+
+      // --- SLOT GUARD ---
+      const boughtTotal = Object.values(snapshot.byPool).reduce((sum, v) => sum + v.bought, 0);
+      const remainingSlots = KCPL_RULES.totalSquadSize - boughtTotal;
+
+      const futurePools = KCPL_RULES.order.slice(KCPL_RULES.order.indexOf(effectiveCategory) + 1);
+      const reserveSlots = futurePools.reduce((sum, p) => {
+        const min = KCPL_RULES.pools[p].minReq || 0;
+        const already = snapshot.byPool[p]?.bought || 0;
+        return sum + Math.max(min - already, 0);
+      }, 0);
+
+      if (remainingSlots - 1 < reserveSlots) {
+        return res.status(400).json({
+          error: `Cannot buy from Pool ${effectiveCategory}. Must leave ${reserveSlots} slots for later pools: ${futurePools.join(", ")}`
+        });
+      }
+
+      // --- BUDGET GUARD ---
+      const { maxBid, unmetPools } = computeMaxBidFor(effectiveCategory || sold_pool, snapshot, KCPL_RULES);
+      if (maxBid <= 0) {
+        return res.status(400).json({
+          error: `Cannot buy more from Pool ${effectiveCategory} — must leave slots for: ${unmetPools.join(", ") || "later pools"}`
+        });
+      }
+    }
+
+    // 5️⃣ Update players
+    await pool.query(
+      `UPDATE players
+       SET sold_status = $1,
+           sold_price = $2,
+           team_id = $3,
+           sold_pool = $4
+       WHERE id = $5`,
+      [sold_status, sold_price, team_id, sold_pool || effectiveCategory, playerId]
+    );
+
+    // 6️⃣ Update current_player table
+    await pool.query(
+      `UPDATE current_player
+       SET sold_status = $1,
+           sold_price = $2,
+           team_id = $3
+       WHERE id = $4`,
+      [sold_status, sold_price, team_id, playerId]
+    );
+
+    // 7️⃣ Update team stats
+    if (team_id && tournamentId) {
+      await updateTeamStats(team_id, tournamentId);
+    }
+
+    res.json({ message: "Player updated and team stats refreshed" });
+  } catch (err) {
+    console.error("❌ PATCH error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 
 
 // ✅ GET player by auction_serial with full details + KCPL base price handling
@@ -917,60 +1154,62 @@ app.get('/api/players/by-serial/:serial', async (req, res) => {
     return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,h-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
-      try {
-        let result;
-        if (slug) {
-            result = await pool.query(`
-                SELECT p.*, t.name AS team_name
-                FROM players p
-                LEFT JOIN teams t ON p.team_id = t.id
-                WHERE p.auction_serial = $1
-                  AND p.tournament_id = (
-                      SELECT id FROM tournaments WHERE slug = $2
-                  )
-            `, [serial, slug]);
-        } else if (tournament_id) {
-            result = await pool.query(`
-                SELECT p.*, t.name AS team_name
-                FROM players p
-                LEFT JOIN teams t ON p.team_id = t.id
-                WHERE p.auction_serial = $1
-                  AND p.tournament_id = $2
-            `, [serial, tournament_id]);
-        } else {
-            return res.status(400).json({ error: "Tournament identifier missing" });
-        }
+  try {
+    let result;
+    if (slug) {
+      result = await pool.query(`
+        SELECT p.*, t.name AS team_name
+        FROM players p
+        LEFT JOIN teams t ON p.team_id = t.id
+        WHERE p.auction_serial = $1
+          AND p.tournament_id = (
+              SELECT id FROM tournaments WHERE slug = $2
+          )
+      `, [serial, slug]);
+    } else if (tournament_id) {
+      result = await pool.query(`
+        SELECT p.*, t.name AS team_name
+        FROM players p
+        LEFT JOIN teams t ON p.team_id = t.id
+        WHERE p.auction_serial = $1
+          AND p.tournament_id = $2
+      `, [serial, tournament_id]);
+    } else {
+      return res.status(400).json({ error: "Tournament identifier missing" });
+    }
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "Player not found" });
-        }
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
     const player = result.rows[0];
 
     // --- Base price calculation ---
-    if (KCPL_ENABLED && player.base_category) {
-      if (activePool && activePool !== player.base_category) {
-        // Migrated player from earlier pool
-        player.base_price = KCPL_RULES.pools[activePool]?.base ?? KCPL_RULES.pools[player.base_category]?.base;
+    if (player.base_category) {
+      // If activePool is provided and different, treat as migrated
+      const fromRules =
+        (activePool && activePool !== player.base_category)
+          ? (KCPL_RULES.pools[activePool]?.base ?? KCPL_RULES.pools[player.base_category]?.base)
+          : (KCPL_RULES.pools[player.base_category]?.base);
+
+      if (fromRules != null) {
+        player.base_price = fromRules;
       } else {
-        // Normal KCPL pool player
-        player.base_price = KCPL_RULES.pools[player.base_category]?.base ?? player.base_price;
-      }
-    } else {
-      // Non-KCPL logic
-      const tRes = await pool.query(
-        'SELECT base_price FROM tournaments WHERE id = $1',
-        [player.tournament_id]
-      );
-      if (tRes.rows[0]?.base_price) {
-        player.base_price = tRes.rows[0].base_price;
-      } else {
-        // ✅ Use base_category since component column doesn't exist
-        const componentMap = { A: 1700, B: 3000, C: 5000 };
-        player.base_price = componentMap[player.base_category] ?? 0;
+        const tRes = await pool.query(
+          'SELECT base_price FROM tournaments WHERE id = $1',
+          [player.tournament_id]
+        );
+        if (tRes.rows[0]?.base_price) {
+          player.base_price = tRes.rows[0].base_price;
+        } else {
+          // fallback to component map
+          const componentMap = { A: 1700, B: 3000, C: 5000 };
+          player.base_price = componentMap[player.base_category] ?? 0;
+        }
       }
     }
 
-    // ✅ Ensure profile image is always ImageKit format
+    // ✅ Always normalize profile image
     player.profile_image = formatProfileImage(player.profile_image);
 
     res.json(player);
@@ -979,6 +1218,7 @@ app.get('/api/players/by-serial/:serial', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 // ✅ GET all teams
@@ -1081,120 +1321,6 @@ app.put('/api/current-bid', async (req, res) => {
   }
 });
 
-app.patch('/api/players/:id', async (req, res) => {
-  const playerId = req.params.id;
-  const { sold_status, team_id, sold_price, active_pool, sold_pool } = req.body;
-
-  try {
-    // 1️⃣ Fetch player info
-    const playerRes = await pool.query(
-      `SELECT id, tournament_id, base_category, sold_status
-       FROM players
-       WHERE id = $1`,
-      [playerId]
-    );
-
-    if (playerRes.rowCount === 0) {
-      return res.status(404).json({ error: "Player not found" });
-    }
-
-    const player = playerRes.rows[0];
-    const tournamentId = player.tournament_id;
-    const playerCategory = player.base_category;
-    const currentSoldStatus = player.sold_status;
-
-    // 2️⃣ Determine effective category
-    const effectiveCategory =
-      KCPL_ENABLED &&
-      active_pool &&
-      (currentSoldStatus === null ||
-        currentSoldStatus === false ||
-        currentSoldStatus === "FALSE")
-        ? active_pool
-        : playerCategory;
-
-    // 3️⃣ KCPL validation
-    if (KCPL_ENABLED && team_id && sold_price) {
-      const verdict = await canBidKCPL({
-        teamId: team_id,
-        bidAmount: Number(sold_price),
-        playerCategory: effectiveCategory,
-        tournamentId,
-        activePool: active_pool || KCPL_ACTIVE_POOL
-      });
-      if (!verdict.ok) {
-        return res.status(400).json({ error: verdict.reason });
-      }
-    }
-
-    // 4️⃣ Enforce base price
-    let minAllowed = 0;
-    if (KCPL_ENABLED && effectiveCategory) {
-      minAllowed = KCPL_RULES.pools[effectiveCategory]?.base ?? 0;
-    } else {
-      const tRes = await pool.query(
-        'SELECT base_price FROM tournaments WHERE id = $1',
-        [tournamentId]
-      );
-
-      if (tRes.rows[0]?.base_price != null) {
-        minAllowed = Number(tRes.rows[0].base_price) || 0;
-      } else {
-        // ✅ Use base_category directly for static mapping
-        minAllowed = { A: 1700, B: 3000, C: 5000 }[playerCategory] ?? 0;
-      }
-    }
-
-    if (sold_price && sold_price < minAllowed) {
-      return res
-        .status(400)
-        .json({ error: `Sold price must be at least ₹${minAllowed}` });
-    }
-
-    // 5️⃣ Update players
-    await pool.query(
-      `UPDATE players
-       SET sold_status = $1,
-           sold_price = $2,
-           team_id = $3,
-           sold_pool = $4
-       WHERE id = $5`,
-      [sold_status, sold_price, team_id, sold_pool || effectiveCategory, playerId]
-    );
-
-    // 6️⃣ Update current_player
-    await pool.query(
-      `UPDATE current_player
-       SET sold_status = $1,
-           sold_price = $2,
-           team_id = $3
-       WHERE id = $4`,
-      [sold_status, sold_price, team_id, playerId]
-    );
-
-    // 7️⃣ KCPL state update
-    if (KCPL_ENABLED && team_id && sold_price) {
-      recordWinKCPL({
-        teamId: team_id,
-        price: Number(sold_price),
-        playerCategory: KCPL_ACTIVE_POOL,
-        playerId
-      });
-    }
-
-    // 8️⃣ Update team stats
-    if (team_id && tournamentId) {
-      await updateTeamStats(team_id, tournamentId);
-    }
-
-    res.json({ message: "Player updated and team stats refreshed" });
-
-  } catch (err) {
-    console.error("❌ PATCH error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 
 
 
@@ -1212,131 +1338,6 @@ app.get('/api/tournaments/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
-app.put('/api/players/:id', async (req, res) => {
-  const playerId = req.params.id;
-  const { sold_status, team_id, sold_price, active_pool, sold_pool } = req.body;
-
-  try {
-    // 1️⃣ Get existing player details
-    const playerRes = await pool.query(
-      `SELECT id, tournament_id, base_category, sold_status, team_id AS old_team_id
-       FROM players
-       WHERE id = $1`,
-      [playerId]
-    );
-
-    if (playerRes.rowCount === 0) {
-      return res.status(404).json({ error: "Player not found" });
-    }
-
-    const player = playerRes.rows[0];
-    const tournamentId = player.tournament_id;
-    const playerCategory = player.base_category; // e.g. 'A', 'B', 'C'
-    const currentSoldStatus = player.sold_status;
-    const oldTeamId = player.old_team_id;
-
-    // 2️⃣ Determine effective category
-    const effectiveCategory =
-      KCPL_ENABLED &&
-      active_pool &&
-      (currentSoldStatus === null ||
-        currentSoldStatus === false ||
-        currentSoldStatus === "FALSE")
-        ? active_pool
-        : playerCategory;
-
-    // 3️⃣ KCPL-specific bidding validation
-    if (KCPL_ENABLED && team_id && sold_price) {
-      const verdict = await canBidKCPL({
-        teamId: team_id,
-        bidAmount: Number(sold_price),
-        playerCategory: effectiveCategory,
-        tournamentId,
-        activePool: active_pool || KCPL_ACTIVE_POOL
-      });
-      if (!verdict.ok) {
-        return res.status(400).json({ error: verdict.reason });
-      }
-    }
-
-    // 4️⃣ Base price enforcement
-    let minAllowed = 0;
-    if (KCPL_ENABLED && effectiveCategory) {
-      // KCPL pool base price
-      minAllowed = KCPL_RULES.pools[effectiveCategory]?.base ?? 0;
-    } else {
-      // Non-KCPL tournament
-      const tRes = await pool.query(
-        'SELECT base_price FROM tournaments WHERE id = $1',
-        [tournamentId]
-      );
-      if (tRes.rows[0]?.base_price != null) {
-        minAllowed = Number(tRes.rows[0].base_price) || 0;
-      } else {
-        // Fallback to static mapping using base_category
-        minAllowed = { A: 1700, B: 3000, C: 5000 }[playerCategory] ?? 0;
-      }
-    }
-
-    if (sold_price && sold_price < minAllowed) {
-      return res
-        .status(400)
-        .json({ error: `Sold price must be at least ₹${minAllowed}` });
-    }
-
-    // 5️⃣ Update player record
-    await pool.query(
-      `UPDATE players
-       SET sold_status = $1,
-           sold_price = $2,
-           team_id = $3,
-           sold_pool = $4
-       WHERE id = $5`,
-      [sold_status, sold_price, team_id, sold_pool || effectiveCategory, playerId]
-    );
-
-    // 6️⃣ Update current_player table
-    await pool.query(
-      `UPDATE current_player
-       SET sold_status = $1,
-           sold_price = $2,
-           team_id = $3
-       WHERE id = $4`,
-      [sold_status, sold_price, team_id, playerId]
-    );
-
-    // 7️⃣ KCPL state update (only for KCPL mode)
-    if (KCPL_ENABLED && team_id && sold_price) {
-      recordWinKCPL({
-        teamId: team_id,
-        price: Number(sold_price),
-        playerCategory: KCPL_ACTIVE_POOL,
-        playerId
-      });
-    }
-
-    // 8️⃣ Update stats for both old and new teams
-    if (tournamentId) {
-      if (oldTeamId && oldTeamId !== team_id) {
-        await updateTeamStats(oldTeamId, tournamentId);
-      }
-      if (team_id) {
-        await updateTeamStats(team_id, tournamentId);
-      }
-    }
-
-    res.json({ message: "Player updated and all relevant team stats refreshed" });
-
-  } catch (err) {
-    console.error("❌ PUT error:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-
 
 
 // ✅ PATCH team
@@ -1726,41 +1727,41 @@ app.post('/api/teams/generate-secret-codes', async (req, res) => {
 
 
 app.get("/api/cricheroes-stats/:playerId", async (req, res) => {
-    const { playerId } = req.params;
+  const { playerId } = req.params;
 
-    try {
-        const url = `https://cricheroes.com/player-profile/${playerId}/stats`;
+  try {
+    const url = `https://cricheroes.com/player-profile/${playerId}/stats`;
 
-        const { data: html } = await axios.get(url, {
-            headers: {
-                "User-Agent": "Mozilla/5.0",
-            }
-        });
+    const { data: html } = await axios.get(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+      }
+    });
 
-        const $ = cheerio.load(html);
+    const $ = cheerio.load(html);
 
-        const getStatValue = (label) => {
-            const el = $("span")
-                .filter((i, e) => $(e).text().trim().toUpperCase() === label.toUpperCase())
-                .first();
+    const getStatValue = (label) => {
+      const el = $("span")
+        .filter((i, e) => $(e).text().trim().toUpperCase() === label.toUpperCase())
+        .first();
 
-            if (!el.length) return 0;
+      if (!el.length) return 0;
 
-            const val = el.closest("li").find(".stat").text().trim();
-            return val && !isNaN(val) ? parseInt(val) : 0;
-        };
+      const val = el.closest("li").find(".stat").text().trim();
+      return val && !isNaN(val) ? parseInt(val) : 0;
+    };
 
-        const stats = {
-            matches: getStatValue("MATCHES"),
-            runs: getStatValue("RUNS"),
-            wickets: getStatValue("WICKETS")
-        };
+    const stats = {
+      matches: getStatValue("MATCHES"),
+      runs: getStatValue("RUNS"),
+      wickets: getStatValue("WICKETS")
+    };
 
-        res.json(stats);
-    } catch (err) {
-        console.error("Error scraping Cricheroes:", err.message);
-        res.status(500).json({ error: "Failed to fetch Cricheroes stats" });
-    }
+    res.json(stats);
+  } catch (err) {
+    console.error("Error scraping Cricheroes:", err.message);
+    res.status(500).json({ error: "Failed to fetch Cricheroes stats" });
+  }
 });
 
 

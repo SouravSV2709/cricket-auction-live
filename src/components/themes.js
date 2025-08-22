@@ -10,6 +10,8 @@ const THEMES = {
   steel: { bg: 'from-gray-700 to-gray-900', text: 'text-white' },
   sunrise: { bg: 'from-yellow-300 to-orange-500', text: 'text-black' },
   velvet: { bg: 'from-purple-800 to-pink-700', text: 'text-white' },
+  kcpl: { bg: 'from-blue-900 to-red-700', text: 'text-white' }
+
 };
 
 export default THEMES;

@@ -45,8 +45,8 @@ const AdminPanel = () => {
     const [isBidManual, setIsBidManual] = useState(false);
     const [showAuctionControls, setShowAuctionControls] = useState(true);
     const [showResetPanel, setShowResetPanel] = useState(false);
-    const themeOptions = ["default","fireflies", "neon", "grid", "aurora", "meteor", "stars"];
-    const [kcplMode, setKcplMode] = useState(false);  // flip off if not KCPL
+    const themeOptions = ["default", "fireflies", "neon", "grid", "aurora", "meteor", "stars"];
+    const [kcplMode, setKcplMode] = useState(true);  // flip off if not KCPL
     const [activePool, setActivePool] = useState("A");
     const [teamPoolState, setTeamPoolState] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
@@ -84,37 +84,25 @@ const AdminPanel = () => {
             fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${activePool}`)
                 .then(res => res.json())
                 .then(data => {
-                    const poolOrder = Object.keys(KCPL_RULES.pools);
-
-                    const transformedData = data.map(team => {
-                        let carryForward = 0;
-                        const limitByPool = {};
-                        const remainingByPool = {};
-
-                        poolOrder.forEach(pool => {
-                            const baseCap = KCPL_RULES.pools[pool]?.teamCap || 0;
-                            const limit = baseCap + carryForward;
-                            const spent = team.spentByPool?.[pool] || 0;
-                            const remaining = limit - spent;
-
-                            limitByPool[pool] = limit;
-                            remainingByPool[pool] = remaining;
-
-                            carryForward = remaining > 0 ? remaining : 0;
-                        });
-
-                        return {
-                            ...team,
-                            limitByPool,
-                            remainingByPool
-                        };
-                    });
-
-                    setKcplTeamStates(transformedData);
+                    const transformed = data.map(team => ({
+                        ...team,
+                        remainingByPool: KCPL_RULES.order.reduce((acc, p) => {
+                            const limit = Number(team.limitByPool?.[p] ?? 0);
+                            const spent = Number(team.spentByPool?.[p] ?? 0);
+                            acc[p] = Math.max(0, limit - spent);
+                            return acc;
+                        }, {}),
+                        // DO NOT override maxBidByPool, just take from backend
+                    }));
+                    setKcplTeamStates(transformed);
                 })
+
+
                 .catch(err => console.error("Failed to fetch KCPL team states:", err));
         }
     }, [kcplMode, tournamentId, activePool]);
+
+
 
 
     useEffect(() => {
@@ -188,15 +176,15 @@ const AdminPanel = () => {
     }, [tournamentId]);
 
     useEffect(() => {
-    if (currentPlayer?.cricheroes_id) {
-        fetch(`${API}/api/cricheroes-stats/${currentPlayer.cricheroes_id}`)
-            .then(res => res.json())
-            .then(data => setPlayerStats(data))
-            .catch(err => console.error("Error fetching Cricheroes stats:", err));
-    } else {
-        setPlayerStats(null);
-    }
-}, [currentPlayer]);
+        if (currentPlayer?.cricheroes_id) {
+            fetch(`${API}/api/cricheroes-stats/${currentPlayer.cricheroes_id}`)
+                .then(res => res.json())
+                .then(data => setPlayerStats(data))
+                .catch(err => console.error("Error fetching Cricheroes stats:", err));
+        } else {
+            setPlayerStats(null);
+        }
+    }, [currentPlayer]);
 
 
 
@@ -256,6 +244,31 @@ const AdminPanel = () => {
 
         fetchBidIncrements();
     }, []);
+
+    useEffect(() => {
+        if (!socketRef.current) return;
+
+        // When server announces a sale, refresh the summary panel
+        const onPlayerSold = (payload) => {
+            // Option A: refresh whole panel
+            refreshKcplTeamStates();
+
+            // Option B (faster): also refresh just the affected team row if you enabled /team-state/:id
+            // if (payload?.team_id) {
+            //   fetch(`${API}/api/kcpl/team-state/${payload.team_id}`)
+            //     .then(r => r.json())
+            //     .then(snap => setTeamPoolState(snap))
+            //     .catch(() => {});
+            // }
+        };
+
+        socketRef.current.on("playerSold", onPlayerSold);
+
+        return () => {
+            socketRef.current.off("playerSold", onPlayerSold);
+        };
+    }, [tournamentId, activePool, kcplMode]);
+
 
 
     // Function to update theme
@@ -340,7 +353,7 @@ const AdminPanel = () => {
     const fetchPlayers = async () => {
         if (!tournamentId) return;
 
-        let url = `${API}/api/players?tournament_id=${tournamentId}?slug=${tournamentSlug}`;
+        let url = `${API}/api/players?tournament_id=${tournamentId}&slug=${tournamentSlug}`;
 
         // KCPL-specific: append pool filter only if KCPL mode is active
         if (kcplMode && activePool) {
@@ -444,6 +457,27 @@ const AdminPanel = () => {
         alert("Bid updated.");
     };
 
+    const refreshKcplTeamStates = async () => {
+        if (!kcplMode || !tournamentId) return;
+        try {
+            const res = await fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${activePool}`);
+            const data = await res.json();
+            const transformed = data.map(team => ({
+                ...team,
+                remainingByPool: KCPL_RULES.order.reduce((acc, p) => {
+                    const limit = Number(team.limitByPool?.[p] ?? 0);
+                    const spent = Number(team.spentByPool?.[p] ?? 0);
+                    acc[p] = Math.max(0, limit - spent);
+                    return acc;
+                }, {}),
+            }));
+            setKcplTeamStates(transformed);
+        } catch (e) {
+            console.error("Failed to refresh KCPL team states", e);
+        }
+    };
+
+
     const markAsSold = async () => {
         if (!selectedTeam || bidAmount === 0) {
             alert("Cannot mark as sold without a valid bid and team.");
@@ -509,8 +543,8 @@ const AdminPanel = () => {
                 body: JSON.stringify({
                     sold_status: "TRUE",
                     team_id: teamId,
-                    sold_price: bidAmount
-                    // sold_pool: activePool
+                    sold_price: bidAmount,
+                    sold_pool: activePool
                 })
             }),
             fetch(`${API}/api/teams/${team.id}`, {
@@ -547,70 +581,121 @@ const AdminPanel = () => {
             colors: ['#ff0', '#f00', '#fff', '#0f0', '#00f']
         });
 
-        alert("🎉 Player SOLD and team updated!");
+        // ✅ Non-blocking toast (optional). Replace with your toast lib or remove.
+        if (window?.toast) {
+            window.toast.success("🎉 Player SOLD and team updated!");
+        }
 
-        // 🔄 Update local state
+        // ✅ Optimistic UI update (no heavy refetches)
+        setCurrentPlayer(prev =>
+            prev
+                ? {
+                    ...prev,
+                    sold_status: "TRUE",
+                    team_id: teamId,
+                    sold_price: bidAmount,
+                    sold_pool: activePool,
+                }
+                : prev
+        );
         setBidAmount(0);
-        setSelectedTeam('');
-        fetchPlayers();
-        fetchTeams(tournamentId);
-        fetchCurrentPlayer();
+        setSelectedTeam("");
 
-        // ⏱️ Delay bid reset to avoid "Waiting for a Bid" flicker
-        setTimeout(() => {
-            fetch(`${API}/api/current-bid`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bid_amount: 0, team_name: "" })
-            });
+        // ✅ Immediately reset the bid on server & broadcast (no 3s delay)
+        fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+        });
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: 0,
+            team_name: "",
+            active_pool: activePool,
+        });
 
-            socketRef.current?.emit("bidUpdated", {
-                bid_amount: 0,
-                team_name: ""
-            });
-        }, 3000);
+        // 🔎 (Optional) Refresh only the affected team's lightweight KCPL snapshot,
+        // not the entire teams/players lists. Enable the endpoint if you haven't.
+        try {
+            const snap = await fetch(`${API}/api/kcpl/team-state/${teamId}`).then(r => r.json());
+            setTeamPoolState(snap);
+        } catch (e) {
+            console.warn("❌ Failed to fetch team snapshot:", e);
+        }
+
+        try {
+            const [snap] = await Promise.all([
+                fetch(`${API}/api/kcpl/team-state/${teamId}`).then(r => r.json()),
+                refreshKcplTeamStates(), // ✅ ← add it here
+            ]);
+            setTeamPoolState(snap);
+        } catch (e) {
+            console.warn("❌ Snapshot refresh error:", e);
+        }
+
     };
 
 
     const markAsUnsold = async () => {
+        // Save undo
+        setUndoStack(prev => [...prev, { type: "unsold", player: currentPlayer }]);
 
-        setUndoStack(prev => [...prev, {
-            type: "unsold",
-            player: currentPlayer,
-        }]);
-
+        // Prepare updated player (auction-ready UNSOLD)
         const updatedPlayer = {
             ...currentPlayer,
             sold_status: "FALSE",
             team_id: null,
-            sold_price: 0,
-            sold_pool: activePool
+            sold_price: 0,           // (ok to keep 0; you can use null if you prefer)
+            sold_pool: activePool,
         };
 
-        await fetch(`${API}/api/current-player`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer)
-        });
+        // Persist to DB (current-player + players)
+        await Promise.all([
+            fetch(`${API}/api/current-player`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedPlayer),
+            }),
+            fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedPlayer),
+            }),
+        ]);
 
-
-        await fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer)
-        });
-
-        // ✅ Notify spectators to refresh
-        await fetch(`${API}/api/notify-player-change`, {
+        // Notify spectators (non-blocking) — you already use this endpoint:contentReference[oaicite:1]{index=1}
+        fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedPlayer),
         });
 
-        alert("Player marked as UNSOLD.");
-        fetchPlayers();
-        fetchCurrentPlayer();
+        // ✅ Optimistic UI (no heavy fetchPlayers/fetchCurrentPlayer):contentReference[oaicite:2]{index=2}
+        if (window?.toast) window.toast.info("Player marked as UNSOLD.");
+        setCurrentPlayer(updatedPlayer);
+        setBidAmount(0);
+        setSelectedTeam("");
+
+        // Reset current bid on server immediately + broadcast (no delay):contentReference[oaicite:3]{index=3}
+        fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+        });
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: 0,
+            team_name: "",
+            active_pool: activePool,
+        });
+
+        // 🔄 Refresh KCPL summary UI only (fast)
+        try {
+            // If a team was previously shown in the side snapshot, refresh the table too
+            await refreshKcplTeamStates(); // the helper we added earlier
+        } catch (e) {
+            console.warn("KCPL table refresh failed:", e);
+        }
     };
+
 
     const handleNextPlayer = async () => {
         try {
@@ -719,63 +804,59 @@ const AdminPanel = () => {
 
     const handleSearchById = async () => {
         try {
+            // 1) Find the player by serial
             const res = await fetch(`${API}/api/players/by-serial/${searchId}?slug=${tournamentSlug}`);
-            const player = await res.json();
+            const basic = await res.json();
 
             // ✅ Validate tournament_id
-            if (player.tournament_id !== tournamentId) {
+            if (basic.tournament_id !== tournamentId) {
                 alert("❌ Player not found in this tournament.");
                 return;
             }
 
-            const playerWithStatus = {
-                id: player.id,
-                serial: player.auction_serial,
-                name: player.name || "Unknown",
-                role: player.role || "Unknown",
-                base_price: computeBasePrice(player),
-                profile_image: player.profile_image || `https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg`,
-                sold_status: player.sold_status ?? null,
-                team_id: player.team_id ?? null,
-                sold_price: player.sold_price ?? 0
-            };
+            // 2) Get full player with KCPL-correct base price for the active pool
+            const detailedRes = await fetch(
+                `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
+            );
+            if (!detailedRes.ok) {
+                alert("❌ Failed to load player details.");
+                return;
+            }
+            const detailed = await detailedRes.json(); // includes base_price from active pool
 
-            console.log("📦 About to update current player:", playerWithStatus);
+            console.log("📦 About to update current player:", detailed);
 
-            // ✅ Perform updates in parallel
+            // 3) Update current player + reset bid (in parallel)
             await Promise.all([
                 fetch(`${API}/api/current-player`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(playerWithStatus),
+                    body: JSON.stringify(detailed),
                 }),
                 fetch(`${API}/api/current-bid`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        bid_amount: 0,
-                        team_name: ""
-                    })
+                    body: JSON.stringify({ bid_amount: 0, team_name: "" }),
                 }),
             ]);
 
-            // 🔔 Notify spectators (non-blocking)
+            // 4) Notify spectators (non-blocking)
             fetch(`${API}/api/notify-player-change`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(playerWithStatus),
+                body: JSON.stringify(detailed),
             });
 
-            // ✅ Update Admin UI
+            // 5) Update Admin UI
             await fetchCurrentPlayer();
             setBidAmount(0);
             setSelectedTeam('');
-
         } catch (err) {
             console.error("❌ Error in handleSearchById:", err);
             alert("❌ Failed to find player. Please try again.");
         }
     };
+
 
     const socketRef = useRef(null);
 
@@ -837,12 +918,27 @@ const AdminPanel = () => {
                 const verdict = await fetch(`${API}/api/kcpl/validate-bid`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ team_id: team.id, bid_amount: newBid, player_id: currentPlayer.id, active_pool: activePool })
+                    body: JSON.stringify({
+                        team_id: team.id,
+                        bid_amount: newBid,
+                        player_id: currentPlayer.id,
+                        active_pool: activePool
+                    })
                 }).then(r => r.json());
 
                 if (!verdict.ok) {
-                    alert(`❌ Bid blocked: ${verdict.reason}`);
+                    // ✅ format reason string safely
+                    let reason = verdict.reason || "Bid not allowed";
+                    if (verdict.unmetPools && verdict.unmetPools.length > 0) {
+                        reason += ` (must reserve for: ${verdict.unmetPools.join(", ")})`;
+                    }
+                    alert(`❌ Bid blocked: ${reason}`);
                     return; // stop here, don't broadcast/commit bid
+                }
+
+                // ✅ optional: show maxBid info in console (or UI if needed)
+                if (verdict.maxBid != null) {
+                    console.log("✅ Max allowed bid is", verdict.maxBid);
                 }
             } catch (e) {
                 console.error("KCPL validate-bid failed", e);
@@ -1167,8 +1263,7 @@ const AdminPanel = () => {
             )}
 
             {/* UI to select theme */}
-
-            {/* <div className="my-6 border border-gray-700 rounded bg-gray-800">
+            <div className="my-6 border border-gray-700 rounded bg-gray-800">
                 <div
                     className="p-4 cursor-pointer bg-gray-700 hover:bg-gray-600 rounded-t flex justify-between items-center"
                     onClick={() => setShowThemeSelector(prev => !prev)}
@@ -1211,7 +1306,7 @@ const AdminPanel = () => {
                         </button>
                     </div>
                 )}
-            </div> */}
+            </div>
 
             <div className="my-4">
                 <label htmlFor="themeSelect" className="text-sm font-bold mr-2 text-white">🎨 Theme:</label>
@@ -1627,10 +1722,12 @@ const AdminPanel = () => {
                                 <thead>
                                     <tr>
                                         <th className="px-2 py-1 text-left">Team</th>
-                                        <th className="px-2 py-1">Limit</th>
-                                        <th className="px-2 py-1">Spent</th>
-                                        <th className="px-2 py-1">Bought</th>
-                                        <th className="px-2 py-1">Remaining</th>
+                                        <th className="px-2 py-1 text-left">Limit</th>
+                                        <th className="px-2 py-1 text-left">Spent</th>
+                                        <th className="px-2 py-1 text-left">Bought</th>
+                                        <th className="px-2 py-1 text-left">Remaining</th>
+                                        <th className="px-2 py-1 text-left">Max Bid</th>
+                                        <th className="px-2 py-1 text-left">Max Players</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1640,12 +1737,22 @@ const AdminPanel = () => {
                                             <td>{team?.limitByPool?.[activePool] ?? 0}</td>
                                             <td>{team?.spentByPool?.[activePool] ?? 0}</td>
                                             <td>{team?.boughtByPool?.[activePool] ?? 0}</td>
-                                            <td>{team?.remainingByPool?.[activePool] ?? 0}</td>
+                                            <td>
+                                                {(team?.limitByPool?.[activePool] ?? 0) -
+                                                    (team?.spentByPool?.[activePool] ?? 0)}
+                                            </td>
+                                            <td>{team?.poolStats?.[activePool]?.maxBid ?? 0}</td>
+                                            <td>{team?.poolStats?.[activePool]?.maxPlayers ?? 0}</td>
+
+
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+
                         )}
+
+
                     </div>
                 )}
             </div>
