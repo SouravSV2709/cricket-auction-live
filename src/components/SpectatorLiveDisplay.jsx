@@ -10,7 +10,7 @@ import BackgroundEffect from "../components/BackgroundEffect";
 import { DateTime } from "luxon";
 
 const PUB = process.env.PUBLIC_URL || '';
-const FLAG = (file) => `${PUB}/flags/${file}`;
+const FLAG = (file) => `${PUB}/${file}`;
 const TEAM_FLAG_MAP = {
   Badgers: FLAG('badgers-flag.png'),
   Blasters: FLAG('blasters-flag.png'),
