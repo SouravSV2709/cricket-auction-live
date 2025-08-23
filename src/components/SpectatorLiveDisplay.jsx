@@ -1721,7 +1721,23 @@ const SpectatorLiveDisplay = () => {
 
 
 
-                <div className="w-1/3 flex flex-col justify-center items-center space-y-8">
+                <div className="w-1/3 flex flex-col justify-items-center-safe space-y-8 mt-10">
+
+                    {/* Player header — always visible */}
+                    <div className="w-full max-w-md mx-auto text-center -mt-1">
+                        <div className="inline-block rounded-2xl px-5 py-2 bg-black/55 backdrop-blur-sm shadow-lg">
+                            <h2
+                                className="text-5xl font-black tracking-wide uppercase text-white drop-shadow"
+                                style={{ WebkitTextStroke: "1px rgba(0,0,0,0.35)" }}
+                            >
+                                {player?.name || "Player"}
+                            </h2>
+                        </div>
+                        <p className="mt-2 text-xl text-yellow-300 uppercase tracking-wide">
+                            {player?.role || "Role"}
+                        </p>
+                    </div>
+
                     {["TRUE", "true", true].includes(player?.sold_status) && (
                         <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
                             {/* Team Logo */}
@@ -1768,11 +1784,11 @@ const SpectatorLiveDisplay = () => {
 
                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
                         isWaitingForBid ? (
-                            <div className="text-center">
+                            <div className="text-center items-center justify-center">
                                 <img
                                     src="/waitingbid.gif"
                                     alt="Waiting for a Bid"
-                                    className="w-[20rem] h-[20rem] object-contain mx-auto mb-4"
+                                    className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
                                 />
                                 <p className="text-2xl text-yellow-300  animate-pulse">
                                     Waiting for a Bid...
@@ -1792,7 +1808,7 @@ const SpectatorLiveDisplay = () => {
 
 
                                     return (
-                                        <div className="bg-white-600/60 backdrop-blur-md shadow-lg rounded-xl px-6 py-4 text-center justify-center">
+                                        <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
                                             {/* <p className="text-2xl mb-4 uppercase tracking-wider  drop-shadow-sm">Leading Team</p> */}
 
                                             {leadingTeamLogo && (
@@ -1811,7 +1827,7 @@ const SpectatorLiveDisplay = () => {
                                     );
                                 })()}
 
-                                <div className="backdrop-blur-md shadow-lg rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
+                                <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
                                     <div className="items-center py-3 px-3 bg-black/40">
                                         <p className="text-lg uppercase text-green-bold">Base Price</p>
 
@@ -1871,18 +1887,9 @@ const SpectatorLiveDisplay = () => {
 
                 </div>
 
-                <div className="w-1/3 flex flex-col justify-center items-center space-y-10">
-                    {/* <div>
-                        {tournamentLogo && (
-                            <img
-                                src={tournamentLogo}
-                                alt="Tournament Logo"
-                                className="w-[20rem] h-[20rem] object-contain animate-shake"
-                            />
-                        )}
-                    </div> */}
+                <div className="w-1/3 flex flex-col justify-items-stretch space-y-8 mt-10">
                     <div
-                        className="relative shadow-lg rounded-xl overflow-hidden border border-white/20 text-sm"
+                        className="relative w-[48rem] h-auto rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl"
                         style={{
                             backgroundImage: `url('/kcplstats.png')`,
                             backgroundSize: 'cover',
@@ -1890,71 +1897,77 @@ const SpectatorLiveDisplay = () => {
                         }}
                     >
                         {/* Dark overlay */}
-                        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+                        <div className="absolute inset-0 bg-black/55 backdrop-blur-sm"></div>
 
-                        {/* Content above overlay */}
-                        <div className="relative grid grid-cols-2 divide-x divide-y divide-white/20 text-2xl font-orbitron">
-                            <div className="px-3 py-2 tracking-wider uppercase">Serial No</div>
-                            <div className="px-3 py-2 ">{player.auction_serial}</div>
+                        {/* Content */}
+                        <div className="relative p-4 font-orbitron">
 
-                            <div className="px-3 py-2 tracking-wider uppercase">Name</div>
-                            <div className="px-3 py-2  uppercase">{player.name}</div>
+                            {/* Batting Stat */}
+                            <div className="mb-6">
+                                <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full
+                        bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
+                        text-xl tracking-widest uppercase">
+                                    Batting Stat
+                                </div>
 
-                            <div className="px-3 py-2 tracking-wider uppercase">Pool Category</div>
-                            <div className="px-3 py-2  uppercase">{player.base_category || "-"}</div>
+                                <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
+                                    <div className="px-3 py-2 tracking-wider uppercase">Type</div>
+                                    <div className="px-3 py-2 uppercase">{player?.batsman_type || "-"}</div>
 
-                            <div className="px-3 py-2 tracking-wider uppercase">Role</div>
-                            <div className="px-3 py-2  uppercase">{player.role}</div>
+                                    <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
+                                    <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
 
-                            <div className="px-3 py-2 tracking-wider uppercase">Batting-type</div>
-                            <div className="px-3 py-2  uppercase">{player.batsman_type || "-"}</div>
+                                    <div className="px-3 py-2 tracking-wider uppercase">Runs</div>
+                                    <div className="px-3 py-2">{player?.runs != null ? Number(player.runs).toLocaleString() : "-"}</div>
 
-                            <div className="px-3 py-2 tracking-wider uppercase">Bowling-type</div>
-                            <div className="px-3 py-2  uppercase">{player.bowling_type || "-"}</div>
+                                    <div className="px-3 py-2 tracking-wider uppercase">Average</div>
+                                    <div className="px-3 py-2">
+                                        {player?.batting_avg == null ? "-" : Number(player.batting_avg).toFixed(2).replace(/\.00$/, "")}
+                                    </div>
 
-                            {/* <div className="px-3 py-2 tracking-wider uppercase">District</div>
-                            <div className="px-3 py-2  uppercase">{player.district || "-"}</div> */}
-                        </div>
-                    </div>
-
-
-                    {cricheroesStats && (
-                        <div className="mt-6 w-full max-w-[60rem] grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            {[
-                                { label: "Matches", value: cricheroesStats?.matches },
-                                { label: "Runs", value: cricheroesStats?.runs },
-                                { label: "Wickets", value: cricheroesStats?.wickets },
-                            ].map(({ label, value }) => (
-                                <div
-                                    key={label}
-                                    className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10
-                   min-h-[110px] flex items-center justify-center text-white text-center"
-                                >
-                                    {/* bg image + blur */}
-                                    <img
-                                        src="/kcplstats.png"
-                                        alt=""
-                                        className="absolute inset-0 w-full h-full object-cover blur-xl scale-110 opacity-90"
-                                    />
-                                    {/* soft dark overlay for readability */}
-                                    <div className="absolute inset-0 bg-black/35"></div>
-
-                                    {/* content */}
-                                    <div className="relative leading-tight">
-                                        <div className="text-sm opacity-90">{label}</div>
-                                        <div className="mt-1 font-extrabold text-3xl md:text-4xl">
-                                            {value != null ? Number(value).toLocaleString() : "-"}
-                                        </div>
+                                    <div className="px-3 py-2 tracking-wider uppercase">Strike Rate</div>
+                                    <div className="px-3 py-2">
+                                        {player?.batting_sr == null ? "-" : Number(player.batting_sr).toFixed(2).replace(/\.00$/, "")}
                                     </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Bowling Stat */}
+                            <div>
+                                <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full
+                        bg-gradient-to-r from-sky-400/30 to-violet-500/30 text-white/90
+                        text-xl tracking-widest uppercase">
+                                    Bowling Stat
+                                </div>
+
+                                <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
+                                    <div className="px-3 py-2 tracking-wider uppercase">Type</div>
+                                    <div className="px-3 py-2 uppercase">{player?.bowling_type || "-"}</div>
+
+                                    <div className="px-3 py-2 tracking-wider uppercase">Wickets</div>
+                                    <div className="px-3 py-2">{player?.wickets != null ? Number(player.wickets).toLocaleString() : "-"}</div>
+
+                                    <div className="px-3 py-2 tracking-wider uppercase">Economy</div>
+                                    <div className="px-3 py-2">
+                                        {player?.bowling_eco == null ? "-" : Number(player.bowling_eco).toFixed(2).replace(/\.00$/, "")}
+                                    </div>
+
+                                    <div className="px-3 py-2 tracking-wider uppercase">Strike Rate</div>
+                                    <div className="px-3 py-2">
+                                        {player?.bowling_sr == null ? "-" : Number(player.bowling_sr).toFixed(2).replace(/\.00$/, "")}
+                                    </div>
+
+                                    <div className="px-3 py-2 tracking-wider uppercase">Average</div>
+                                    <div className="px-3 py-2">
+                                        {player?.bowling_avg == null ? "-" : Number(player.bowling_avg).toFixed(2).replace(/\.00$/, "")}
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
-                    )}
-
-
-
-
+                    </div>
                 </div>
+
 
 
             </div>
