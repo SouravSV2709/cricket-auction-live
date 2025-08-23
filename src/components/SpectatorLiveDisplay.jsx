@@ -9,6 +9,32 @@ import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
 import { DateTime } from "luxon";
 
+// Team → flag image
+const TEAM_FLAG_MAP = {
+    "Badgers": "/flags/BADGERS FLAG.png",
+    "Blasters": "/flags/BLASTERS FLAG.png",
+    "Fighters": "/flags/FIGHTERS FLAG.png",
+    "Kings": "/flags/KINGS FLAG.png",
+    "Knights United": "/flags/KNIGHTS FLAG.png",
+    "Lions": "/flags/LIONS FLAG.png",
+    "Royals": "/flags/ROYALS FLAG.png",
+    "Titans": "/flags/TITANS FLAG.png",
+};
+
+// Light tints to blend with each flag
+const TEAM_BG_MAP = {
+    "Badgers": "#F2E2C7", // warm tan
+    "Blasters": "#D9ECFF",      // light royal blue
+    "Fighters": "#EAD9FF",      // light purple
+    "Kings": "#FFEEB3",         // light gold
+    "Knights United": "#EFE4C8",// soft parchment
+    "Lions": "#FFE1BF",         // light orange
+    "Royals": "#FFD6EA",        // pink/magenta tint
+    "Titans": "#D8F0FF",        // ice blue
+};
+
+
+
 
 
 const API = CONFIG.API_BASE_URL;
@@ -183,6 +209,23 @@ const SpectatorLiveDisplay = () => {
             console.error("Error fetching teams:", err);
         }
     };
+
+    // Derive pool and team flag for the current player (safe when player is null)
+    const poolCode = String((player?.sold_pool ?? player?.base_category ?? "") || "").toUpperCase();
+
+    const hasTeamId = player?.team_id != null && player?.team_id !== "";
+    const isLinkedToTeam =
+        hasTeamId && (["TRUE", "true", true].includes(player?.sold_status) || poolCode === "X");
+
+    const playerTeam =
+        hasTeamId && Array.isArray(teamSummaries)
+            ? teamSummaries.find(t => Number(t?.id) === Number(player?.team_id))
+            : null;
+
+    const teamFlagSrc = playerTeam?.name ? TEAM_FLAG_MAP[playerTeam.name.trim()] ?? null : null;
+    const cardBgColor =
+        (playerTeam?.name && TEAM_BG_MAP[playerTeam.name.trim()]) || "#FFFFFF"; // fallback white
+
 
     const fetchPlayer = async () => {
         if (!tournamentId) {
@@ -1520,6 +1563,13 @@ const SpectatorLiveDisplay = () => {
 
     // Live Auction view
 
+    <style>{`
+  @keyframes flagfloat {
+    0%,100% { transform: translateY(0) scale(1.1); }
+    50%     { transform: translateY(-6px) scale(1.12); }
+  }
+`}</style>
+
     return (
         <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
             {/* <div className="w-screen h-screen relative overflow-hidden bg-black text-white"> */}
@@ -1550,21 +1600,58 @@ const SpectatorLiveDisplay = () => {
                 key={player.id}
                 className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
             >
+                {/* one-time tiny keyframes for fade-in */}
+                <style>{`
+  @keyframes aa-fade-in {
+    from { opacity: 0; transform: translateY(-6px) scale(.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+`}</style>
+
                 {/* Glow wrapper */}
                 <div className="relative">
-                    {/* Animated glow halo */}
-                    <div className="pointer-events-none absolute -inset-2 rounded-[36px] blur-xl opacity-70
-                  bg-[conic-gradient(at_50%_50%,#ff7ec3_0deg,#7dd3fc_120deg,#facc15_240deg,#ff7ec3_360deg)]
-                  animate-[spin_60s_linear_infinite]"></div>
+
 
                     {/* Card */}
-                    <div className="relative w-[48rem] h-[56rem] rounded-[32px] overflow-hidden shadow-2xl border border-gray-300 bg-white mt-4">
+                    <div
+                        className="relative w-[48rem] h-[56rem] rounded-[32px] overflow-hidden shadow-2xl border border-gray-300 mt-4"
+                        style={{ backgroundColor: cardBgColor }}
+                    >
+                        {/* FLAG WATERMARK — boosted visibility */}
+                        {isLinkedToTeam && teamFlagSrc && (
+                            <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
+                                {/* Dark parts pop */}
+                                <img
+                                    src={teamFlagSrc}
+                                    alt={`${playerTeam?.name || "Team"} flag`}
+                                    className="absolute inset-0 w-full h-full object-cover
+                 opacity-45 mix-blend-multiply
+                 [filter:contrast(1.25)_saturate(1.2)_brightness(1.05)]
+                 scale-[1.15]"
+                                    style={{ transformOrigin: "50% 55%" }}
+                                />
+                                {/* Light parts pop */}
+                                <img
+                                    src={teamFlagSrc}
+                                    alt=""
+                                    className="absolute inset-0 w-full h-full object-cover
+                 opacity-20 mix-blend-screen scale-[1.15]"
+                                    style={{ transformOrigin: "50% 55%" }}
+                                />
+                            </div>
+                        )}
+
+
                         {/* Moving sheen across the white background */}
-                        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                        <div className="pointer-events-none absolute inset-0 overflow-hidden z-[6]">
                             <div className="absolute -left-1/2 top-0 h-full w-[200%]
-                      bg-[linear-gradient(100deg,transparent,rgba(255,255,255,0.7),transparent)]
-                      translate-x-[-100%] animate-[sheen_6s_ease-in-out_infinite]"></div>
+                  bg-[linear-gradient(100deg,transparent,rgba(255,255,255,0.25),transparent)]
+                  translate-x-[-100%] animate-[sheen_6s_ease-in-out_infinite]"></div>
+                            {/* Soften the global white veil */}
+                            <div className="absolute inset-0"
+                                style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(255,255,255,0.18) 60%, rgba(255,255,255,0.06))" }} />
                         </div>
+
 
                         {/* Player Image with gentle Ken Burns */}
                         <img
@@ -1572,23 +1659,64 @@ const SpectatorLiveDisplay = () => {
                             alt={player.name}
                             onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
                             className="relative z-10 w-full h-full object-contain
-                 drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]
-                 animate-[kenburns_6s_ease-in-out_infinite]"
+        drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]
+        animate-[kenburns_6s_ease-in-out_infinite]"
                         />
 
-                        {/* SOLD / UNSOLD Badge */}
-                        {["TRUE", "true", true].includes(player?.sold_status) && (
-                            <span className="absolute top-6 left-6 bg-green-600/90 text-white text-3xl font-extrabold px-8 py-2 rounded-2xl shadow-lg rotate-[-10deg] z-20">
-                                SOLD OUT
-                            </span>
-                        )}
-                        {["FALSE", "false", false].includes(player?.sold_status) && (
-                            <span className="absolute top-6 left-6 bg-red-600/90 text-white text-3xl font-extrabold px-8 py-2 rounded-2xl shadow-lg rotate-[-10deg] z-20">
-                                UNSOLD
-                            </span>
-                        )}
+                        {/* Serial No – Top Left (with SOLD/UNSOLD image below) */}
+                        <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2">
+                            <div className="relative inline-flex items-center px-5 py-1.5 rounded-full">
+                                {/* Inner Chip */}
+                                <span className="relative bg-black/80 text-white text-3xl font-extrabold rounded-full px-4 py-1">
+                                    #{player.auction_serial}
+                                </span>
+                            </div>
+
+                            {/* SOLD image (only if NOT Pool X) */}
+                            {["TRUE", "true", true].includes(player?.sold_status) && poolCode !== "X" && (
+                                <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
+                                    <img src="/SOLD.png" alt="SOLD" className="w-28 h-auto drop-shadow-xl animate-pulse" />
+                                </div>
+                            )}
+
+                            {/* UNSOLD image (only if NOT Pool X) */}
+                            {["FALSE", "false", false].includes(player?.sold_status) && poolCode !== "X" && (
+                                <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
+                                    <img src="/UNSOLD.png" alt="UNSOLD" className="w-32 h-auto drop-shadow-xl animate-pulse" />
+                                </div>
+                            )}
+
+                        </div>
+
+                        {/* Pool Category – Top Right (with Owner/Icon override for Pool X) */}
+                        {(() => {
+                            const poolCode = String(player?.sold_pool || player?.base_category || "")
+                                .toUpperCase();
+                            const soldAmt = Number(player?.sold_price) || 0;
+
+                            let poolLabel = poolCode ? `Pool ${poolCode}` : "Pool -";
+
+                            if (poolCode === "X") {
+                                if (soldAmt === 400000) poolLabel = "Owner";
+                                else if (soldAmt === 1000000) poolLabel = "ICON";
+                            }
+
+                            return (
+                                <div className="absolute top-4 right-4 z-30">
+                                    <div className="relative inline-flex items-center px-5 py-1.5 rounded-full">
+                                        {/* Inner Chip */}
+                                        <span className="relative bg-black/80 text-white text-3xl font-bold rounded-full px-4 py-1">
+                                            {poolLabel}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                     </div>
                 </div>
+
+
 
 
 
