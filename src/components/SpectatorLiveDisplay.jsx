@@ -49,7 +49,6 @@ const formatLakhs = (amount) => {
     return `${str} ${unit}`;
 };
 
-
 const API = CONFIG.API_BASE_URL;
 
 let currentSoldAudio = null;
