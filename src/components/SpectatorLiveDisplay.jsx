@@ -9,16 +9,17 @@ import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
 import { DateTime } from "luxon";
 
-// Team → flag image
+const PUB = process.env.PUBLIC_URL || '';
+const FLAG = (file) => `${PUB}/flags/${file}`;
 const TEAM_FLAG_MAP = {
-    "Badgers": "/flags/BADGERS-FLAG.png",
-    "Blasters": "/flags/BLASTERS-FLAG.png",
-    "Fighters": "/flags/FIGHTERS-FLAG.png",
-    "Kings": "/flags/KINGS-FLAG.png",
-    "Knights United": "/flags/KNIGHTS-FLAG.png",
-    "Lions": "/flags/LIONS-FLAG.png",
-    "Royals": "/flags/ROYALS-FLAG.png",
-    "Titans": "/flags/TITANS-FLAG.png",
+  Badgers: FLAG('badgers-flag.png'),
+  Blasters: FLAG('blasters-flag.png'),
+  Fighters: FLAG('fighters-flag.png'),
+  Kings: FLAG('kings-flag.png'),
+  'Knights United': FLAG('knights-flag.png'),
+  Lions: FLAG('lions-flag.png'),
+  Royals: FLAG('royals-flag.png'),
+  Titans: FLAG('titans-flag.png'),
 };
 
 // Light tints to blend with each flag
