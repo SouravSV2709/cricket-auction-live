@@ -11,14 +11,14 @@ import { DateTime } from "luxon";
 
 // Team → flag image
 const TEAM_FLAG_MAP = {
-    "Badgers": "/flags/BADGERS FLAG.png",
-    "Blasters": "/flags/BLASTERS FLAG.png",
-    "Fighters": "/flags/FIGHTERS FLAG.png",
-    "Kings": "/flags/KINGS FLAG.png",
-    "Knights United": "/flags/KNIGHTS FLAG.png",
-    "Lions": "/flags/LIONS FLAG.png",
-    "Royals": "/flags/ROYALS FLAG.png",
-    "Titans": "/flags/TITANS FLAG.png",
+    "Badgers": "/flags/BADGERS-FLAG.png",
+    "Blasters": "/flags/BLASTERS-FLAG.png",
+    "Fighters": "/flags/FIGHTERS-FLAG.png",
+    "Kings": "/flags/KINGS-FLAG.png",
+    "Knights United": "/flags/KNIGHTS-FLAG.png",
+    "Lions": "/flags/LIONS-FLAG.png",
+    "Royals": "/flags/ROYALS-FLAG.png",
+    "Titans": "/flags/TITANS-FLAG.png",
 };
 
 // Light tints to blend with each flag
