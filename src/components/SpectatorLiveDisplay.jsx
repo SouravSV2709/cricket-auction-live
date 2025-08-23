@@ -1982,17 +1982,15 @@ const SpectatorLiveDisplay = () => {
                                     <div className="px-3 py-2 tracking-wider uppercase">Type</div>
                                     <div className="px-3 py-2 uppercase">{player?.bowling_type || "PART TIME BOWLER"}</div>
 
+                                    <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
+                                    <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
+
                                     <div className="px-3 py-2 tracking-wider uppercase">Wickets</div>
                                     <div className="px-3 py-2">{player?.wickets != null ? Number(player.wickets).toLocaleString() : "-"}</div>
 
                                     <div className="px-3 py-2 tracking-wider uppercase">Economy</div>
                                     <div className="px-3 py-2">
                                         {player?.bowling_eco == null ? "-" : Number(player.bowling_eco).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Strike Rate</div>
-                                    <div className="px-3 py-2">
-                                        {player?.bowling_sr == null ? "-" : Number(player.bowling_sr).toFixed(2).replace(/\.00$/, "")}
                                     </div>
 
                                     <div className="px-3 py-2 tracking-wider uppercase">Average</div>
