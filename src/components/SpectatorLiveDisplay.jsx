@@ -33,8 +33,21 @@ const TEAM_BG_MAP = {
     "Titans": "#D8F0FF",        // ice blue
 };
 
+// Helper: format rupees to lakhs (e.g., 2000000 -> "20 lakhs", 2050000 -> "20.5 lakhs")
+const formatLakhs = (amount) => {
+    const n = Number(amount) || 0;
+    const lakhs = n / 100000;
 
+    // Decide decimal places: 0 if whole, 1 if tenths fits, else 2
+    let decimals = 0;
+    if (lakhs % 1 !== 0) {
+        decimals = (Math.round(lakhs * 10) / 10 === lakhs) ? 1 : 2;
+    }
 
+    const str = lakhs.toFixed(decimals).replace(/\.0$/, ''); // trim trailing .0
+    const unit = parseFloat(str) === 1 ? 'lakh' : 'lakhs';
+    return `${str} ${unit}`;
+};
 
 
 const API = CONFIG.API_BASE_URL;
@@ -646,7 +659,7 @@ const SpectatorLiveDisplay = () => {
                         </p>
                         <p className="text-sm uppercase">BASE PRICE</p>
                         <p className="text-xl font-extrabold text-green-400">
-                            ₹{(player.base_price || 0).toLocaleString()}
+                            {formatLakhs(player.base_price || 0)}
                         </p>
                     </div>
                 </div>
@@ -702,7 +715,7 @@ const SpectatorLiveDisplay = () => {
                                                 </td>
                                                 <td className="px-4 py-2">{bid.team_name}</td>
                                                 <td className="px-4 py-2 text-right text-green-300">
-                                                    ₹{Number(bid.bid_amount).toLocaleString()}
+                                                    {formatLakhs(bid.bid_amount)}
                                                 </td>
                                                 <td className="text-center text-sm">
                                                     {(() => {
@@ -778,7 +791,7 @@ const SpectatorLiveDisplay = () => {
                                                     </td>
                                                     <td className="px-3 py-2">{bid.team_name}</td>
                                                     <td className="px-3 py-2 text-right text-green-300">
-                                                        ₹{Number(bid.bid_amount).toLocaleString()}
+                                                        {formatLakhs(bid.bid_amount)}
                                                     </td>
                                                     <td className="text-center text-sm">
                                                         {(() => {
@@ -948,7 +961,7 @@ const SpectatorLiveDisplay = () => {
                             <h1 className="text-3xl font-extrabold">{topPlayer?.name || "No Player"}</h1>
                             <p className="text-yellow-200 text-sm">{topPlayer?.role || "Not Assigned"}</p>
                             <p className="text-2xl text-green-400  mt-2">
-                                ₹{topPlayer?.sold_price?.toLocaleString() || "0"}
+                                {formatLakhs(topPlayer.sold_price)}
                             </p>
                         </div>
                         <img
@@ -1017,7 +1030,7 @@ const SpectatorLiveDisplay = () => {
                                                     </div>
                                                 </div>
                                                 <div className="text-xl  text-green-400">
-                                                    ₹{player?.sold_price?.toLocaleString() || "0"}
+                                                    {formatLakhs(player?.sold_price || 0)}
                                                 </div>
                                             </div>
                                         ))}
@@ -1129,7 +1142,7 @@ const SpectatorLiveDisplay = () => {
                                                     </div>
                                                 </div>
                                                 <div className="text-xl  text-green-400">
-                                                    ₹{player.sold_price?.toLocaleString()}
+                                                    {formatLakhs(player.sold_price)}
                                                 </div>
                                             </div>
                                         );
@@ -1145,7 +1158,7 @@ const SpectatorLiveDisplay = () => {
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-extrabold">{topPlayer.name}</h1>
                             <p className="text-yellow-200 text-sm">{topTeam?.name}</p>
-                            <p className="text-2xl text-green-400  mt-2">₹{topPlayer.sold_price?.toLocaleString()}</p>
+                            <p className="text-2xl text-green-400  mt-2">{formatLakhs(topPlayer.sold_price)}</p>
                         </div>
                         <img
                             src={
@@ -1188,7 +1201,7 @@ const SpectatorLiveDisplay = () => {
                     (p.sold_status === true || p.sold_status === "TRUE")
             );
 
-        const formatCurrency = (amt) => `₹${Number(amt || 0).toLocaleString()}`;
+        const formatCurrency = (amt) => formatLakhs(amt);
 
         return (
             <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
@@ -1738,48 +1751,72 @@ const SpectatorLiveDisplay = () => {
                         </p>
                     </div>
 
-                    {["TRUE", "true", true].includes(player?.sold_status) && (
-                        <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
-                            {/* Team Logo */}
-                            <div className="flex justify-center">
-                                <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogoId}?`}
-                                    alt={teamName}
-                                    className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
-                                />
-                            </div>
+                    {["TRUE", "true", true].includes(player?.sold_status) && (() => {
+                        const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
+                        const isPoolX = poolCode === "X";
+                        const soldAmt = Number(player?.sold_price) || 0;
+                        const xLabel = isPoolX
+                            ? (soldAmt === 400000 ? "Owner" : soldAmt === 1000000 ? "ICON" : "Pool X")
+                            : null;
 
-                            {/* Team Name */}
-                            <p className="text-2xl  text-center mt-2 text-white uppercase tracking-wide">
-                                {teamName}
-                            </p>
+                        return (
+                            <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
+                                {/* Team Logo */}
+                                <div className="flex justify-center">
+                                    <img
+                                        src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogoId}?`}
+                                        alt={teamName}
+                                        className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
+                                    />
+                                </div>
 
-                            {/* Sold Amount */}
-                            <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                <p className="text-lg uppercase tracking-wider  text-white-300 drop-shadow-sm">
-                                    🎉 Sold Amount: ₹{player.sold_price.toLocaleString()}
+                                {/* Team Name */}
+                                <p className="text-2xl text-center mt-2 text-white uppercase tracking-wide">
+                                    {teamName}
                                 </p>
-                            </div>
 
-                            {/* Players Bought & Max Bid Allowed */}
-                            {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
-                                <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
-                                    <div className="flex flex-col items-center py-3 bg-black/40">
-                                        <p className="text-xs test-yellow-400 uppercase tracking-wider">Players Bought</p>
-                                        <p className="text-xl  text-white">
-                                            🧑‍🤝‍🧑 {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 14}
+                                {/* Sold Amount — HIDE when Pool X */}
+                                {!isPoolX && (
+                                    <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
+                                        <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
+                                            🎉 Sold Amount: {formatLakhs(player?.sold_price || 0)}
                                         </p>
                                     </div>
-                                    <div className="flex flex-col items-center py-3 bg-black/40">
-                                        <p className="text-xs test-yellow-400 uppercase tracking-wider">Base Price</p>
+                                )}
 
-                                        <p className=" tracking-wider uppercase">₹{(player.base_price || 0).toLocaleString()}</p>
+                                {/* Players Bought & Base Price / Owner / ICON */}
+                                {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
+                                    <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
+                                        <div className="flex flex-col items-center py-3 bg-black/40">
+                                            <p className="text-xs text-yellow-400 uppercase tracking-wider">Players Bought</p>
+                                            <p className="text-xl text-white">
+                                                🧑‍🤝‍🧑 {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 17}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-col items-center py-3 bg-black/40">
+                                            {isPoolX ? (
+                                                <>
+                                                    <p className="text-xs text-yellow-400 uppercase tracking-wider">Category</p>
+                                                    <p className="text-xl text-white tracking-wider uppercase">
+                                                        {xLabel}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="text-xs text-yellow-400 uppercase tracking-wider">Base Price</p>
+                                                    <p className="tracking-wider uppercase">
+                                                        {formatLakhs(player.base_price || 0)}
+                                                    </p>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
-                    )}
 
 
                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
@@ -1831,12 +1868,11 @@ const SpectatorLiveDisplay = () => {
                                     <div className="items-center py-3 px-3 bg-black/40">
                                         <p className="text-lg uppercase text-green-bold">Base Price</p>
 
-                                        <p className="text-4xl tracking-wider uppercase">₹{(player.base_price || 0).toLocaleString()}</p>
-                                    </div>
+                                        <p className="text-4xl tracking-wider uppercase">{formatLakhs(player.base_price || 0)}</p>                                    </div>
                                     <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
                                         <p className="text-lg uppercase text-green-bold">Current Bid</p>
                                         <p className="text-4xl uppercase text-green-bold">
-                                            ₹{(highestBid || 0).toLocaleString()}
+                                            {formatLakhs(highestBid)}
                                         </p>
                                     </div>
                                 </div>
@@ -1858,26 +1894,31 @@ const SpectatorLiveDisplay = () => {
 
 
                     {["FALSE", "false", false].includes(player?.sold_status) && unsoldClip && (
-                        <div className="relative w-[20rem] h-[20rem] px-4">
-                            {unsoldClip.endsWith('.mp4') ? (
-                                <video
-                                    src={unsoldClip}
-                                    autoPlay
-                                    muted
-                                    playsInline
-                                    loop
-                                    className="w-[30rem] h-[30rem] rounded-xl border-4 shadow-xl"
-                                />
-                            ) : (
-                                <img
-                                    src={unsoldClip}
-                                    alt="UNSOLD Reaction"
-                                    className="w-full rounded-xl shadow-xl object-cover"
-                                />
-                            )}
+                        <div className="relative w-full max-w-[24rem] mx-auto">
+                            {/* Media wrapper: same size for video/img */}
+                            <div className="relative rounded-xl overflow-hidden border-4 shadow-xl bg-black/30 aspect-video">
+                                {String(unsoldClip).toLowerCase().endsWith(".mp4") ? (
+                                    <video
+                                        src={unsoldClip}
+                                        autoPlay
+                                        muted
+                                        playsInline
+                                        loop
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <img
+                                        src={unsoldClip}
+                                        alt="UNSOLD Reaction"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.currentTarget.style.objectFit = 'contain'; }}
+                                    />
+                                )}
+                            </div>
 
-                            <div className="bg-red-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                <p className="text-lg uppercase tracking-wider  text-white-300 drop-shadow-sm">
+                            {/* Label */}
+                            <div className="bg-red-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-3 animate-pulse">
+                                <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
                                     UNSOLD
                                 </p>
                             </div>
@@ -1885,26 +1926,20 @@ const SpectatorLiveDisplay = () => {
                     )}
 
 
+
                 </div>
 
                 <div className="w-1/3 flex flex-col justify-items-stretch space-y-8 mt-10">
                     <div
-                        className="relative w-[48rem] h-auto rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl"
-                        style={{
-                            backgroundImage: `url('/kcplstats.png')`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                        }}
+                        className="relative w-[48rem] h-auto rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl
+               bg-white/5 backdrop-blur-md"
                     >
-                        {/* Dark overlay */}
-                        <div className="absolute inset-0 bg-black/55 backdrop-blur-sm"></div>
-
-                        {/* Content */}
-                        <div className="relative p-4 font-orbitron">
+                        {/* Content (more padding) */}
+                        <div className="relative p-6 md:p-8 font-orbitron">
 
                             {/* Batting Stat */}
-                            <div className="mb-6">
-                                <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full
+                            <div>
+                                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
                         bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
                         text-xl tracking-widest uppercase">
                                     Batting Stat
@@ -1912,7 +1947,7 @@ const SpectatorLiveDisplay = () => {
 
                                 <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
                                     <div className="px-3 py-2 tracking-wider uppercase">Type</div>
-                                    <div className="px-3 py-2 uppercase">{player?.batsman_type || "-"}</div>
+                                    <div className="px-3 py-2 uppercase">{player?.batsman_type || "LOWER ORDER BATSMAN"}</div>
 
                                     <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
                                     <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
@@ -1932,9 +1967,12 @@ const SpectatorLiveDisplay = () => {
                                 </div>
                             </div>
 
+                            {/* DISTINCT SEPARATOR */}
+                            <div className="my-6 h-[2px] bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full" />
+
                             {/* Bowling Stat */}
                             <div>
-                                <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full
+                                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
                         bg-gradient-to-r from-sky-400/30 to-violet-500/30 text-white/90
                         text-xl tracking-widest uppercase">
                                     Bowling Stat
@@ -1942,7 +1980,7 @@ const SpectatorLiveDisplay = () => {
 
                                 <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
                                     <div className="px-3 py-2 tracking-wider uppercase">Type</div>
-                                    <div className="px-3 py-2 uppercase">{player?.bowling_type || "-"}</div>
+                                    <div className="px-3 py-2 uppercase">{player?.bowling_type || "PART TIME BOWLER"}</div>
 
                                     <div className="px-3 py-2 tracking-wider uppercase">Wickets</div>
                                     <div className="px-3 py-2">{player?.wickets != null ? Number(player.wickets).toLocaleString() : "-"}</div>
@@ -1970,6 +2008,8 @@ const SpectatorLiveDisplay = () => {
 
 
 
+
+
             </div>
 
             {tournamentLogo && (
@@ -1992,13 +2032,12 @@ const SpectatorLiveDisplay = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3 px-4 pb-3">
                         {kcplTeamStates.map(t => {
                             const stats = t.poolStats?.[activePool] || {};
-                            const poolLimit = t.limitByPool?.[activePool] || 0;
+                            const effCap = Number(t.limitByPool?.[activePool] ?? 0);       // effective cap for this pool
+                            const spentHere = Number(t.spentByPool?.[activePool] ?? 0);    // spent so far in this pool
+                            const purseLeft = Math.max(0, effCap - spentHere);             // ✅ Purse Left
 
                             return (
-                                <div
-                                    key={t.teamId}
-                                    className="rounded-xl bg-white/10 border border-white/20 p-3 text-center"
-                                >
+                                <div key={t.teamId} className="rounded-xl bg-white/10 border border-white/20 p-3 text-center">
                                     {/* Team name */}
                                     <div className="font-semibold text-white text-sm mb-2">
                                         {t.teamName}
@@ -2007,14 +2046,17 @@ const SpectatorLiveDisplay = () => {
                                     {/* One row with three chips */}
                                     <div className="flex items-center justify-center gap-2 flex-wrap text-xl">
                                         <span className="bg-green-600/80 rounded px-2 py-1 text-white">
-                                            Max Bid ₹{Math.max(0, Math.floor(stats.maxBid || 0)).toLocaleString()}
+                                            Max Bid - {formatLakhs(stats.maxBid || 0)}
                                         </span>
+
                                         <span className="bg-blue-600/80 rounded px-2 py-1 text-white">
-                                            Players {stats.maxPlayers ?? 0}
+                                            Players - {stats.maxPlayers ?? 0}
                                         </span>
+
                                         <span className="bg-purple-600/80 rounded px-2 py-1 text-white">
-                                            Purse ₹{Math.floor(poolLimit).toLocaleString()}
+                                            Purse Left - {formatLakhs(purseLeft)}
                                         </span>
+
                                     </div>
                                 </div>
                             );
@@ -2022,6 +2064,7 @@ const SpectatorLiveDisplay = () => {
                     </div>
                 </div>
             )}
+
 
 
 
