@@ -16,7 +16,7 @@ const TEAM_FLAG_MAP = {
   Blasters: FLAG('blasters-flag.png'),
   Fighters: FLAG('fighters-flag.png'),
   Kings: FLAG('kings-flag.png'),
-  'Knights United': FLAG('knights-flag.png'),
+  Knights: FLAG('knights-flag.png'),
   Lions: FLAG('lions-flag.png'),
   Royals: FLAG('royals-flag.png'),
   Titans: FLAG('titans-flag.png'),
