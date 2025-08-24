@@ -502,6 +502,40 @@ const SpectatorLiveDisplay = () => {
   fetchTeams();
   fetchKcplTeamStates();
 });
+
+// optimistic UNSOLD — do not refetch the player
+const onPlayerUnsold = ({ player_id, sold_pool }) => {
+  setPlayer(prev =>
+    prev && Number(prev.id) === Number(player_id)
+      ? {
+          ...prev,
+          sold_status: "FALSE",
+          team_id: null,
+          sold_price: 0,
+          sold_pool: sold_pool ?? prev.sold_pool,
+        }
+      : prev
+  );
+
+  // reset banner immediately
+  setHighestBid(0);
+  setLeadingTeam("");
+
+  // play UNSOLD media right away
+  try {
+    unsoldAudio.currentTime = 0;
+    unsoldAudio.play();
+  } catch {}
+  setUnsoldClip(
+    unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]
+  );
+
+  // lightweight sync only (no fetchPlayer to avoid flicker)
+  fetchAllPlayers();
+};
+
+socket.on("playerUnsold", onPlayerUnsold);
+
  
   socket.on("playerChanged", fastRefresh);
   socket.on("secretBiddingToggled", fastRefresh);
@@ -581,7 +615,7 @@ const SpectatorLiveDisplay = () => {
   return () => {
     socket.off("bidUpdated", onBidUpdated);
     socket.off("saleCommitted");
-    socket.off("playerUnsold", fastRefresh);
+    socket.off("playerUnsold", onPlayerUnsold);
     socket.off("playerChanged", fastRefresh);
     socket.off("secretBiddingToggled", fastRefresh);
     socket.off("themeUpdate");
