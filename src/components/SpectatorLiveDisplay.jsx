@@ -483,32 +483,12 @@ const SpectatorLiveDisplay = () => {
   };
   socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
 
-  // Other realtime events → lightweight refresh
-// Show SOLD instantly; refresh in the background
-const onPlayerSold = (payload) => {
-  // Update banner fields right away
-  setHighestBid(Number(payload?.sold_price) || 0);
+  socket.on("saleCommitted", () => {
+  // One authoritative refresh after DB commit
+  fastRefresh();
+});
 
-  // If you have teams in state, you can resolve team name here
-  // setLeadingTeam(teams.find(t => t.id === payload?.team_id)?.name || leadingTeam);
-
-  setPlayer(prev =>
-    prev
-      ? {
-          ...prev,
-          sold_status: "TRUE",
-          sold_price: payload?.sold_price ?? prev.sold_price,
-          team_id: payload?.team_id ?? prev.team_id,
-          sold_pool: payload?.sold_pool ?? prev.sold_pool,
-        }
-      : prev
-  );
-
-  // Background refresh to sync everything else
-  setTimeout(fastRefresh, 150);
-};
-
-socket.on("playerSold", onPlayerSold);
+socket.on("playerSold", fastRefresh);
   socket.on("playerUnsold", fastRefresh);
   socket.on("playerChanged", fastRefresh);
   socket.on("secretBiddingToggled", fastRefresh);
@@ -587,7 +567,8 @@ socket.on("playerSold", onPlayerSold);
   // Cleanup: unregister listeners and close the one socket
   return () => {
     socket.off("bidUpdated", onBidUpdated);
-    socket.off("playerSold", onPlayerSold);
+    socket.off("playerSold", fastRefresh);
+    socket.off("saleCommitted", fastRefresh);
     socket.off("playerUnsold", fastRefresh);
     socket.off("playerChanged", fastRefresh);
     socket.off("secretBiddingToggled", fastRefresh);

@@ -1026,6 +1026,12 @@ app.put('/api/players/:id', async (req, res) => {
       }
     }
 
+    io.emit("saleCommitted", {
+      player_id: Number(playerId),
+      team_id,
+      sold_price: Number(sold_price) || 0,
+      sold_pool: sold_pool || effectiveCategory || null,
+    });
     res.json({ message: "Player updated and all relevant team stats refreshed" });
   } catch (err) {
     console.error("❌ PUT error:", err);
@@ -1148,6 +1154,12 @@ app.patch('/api/players/:id', async (req, res) => {
       await updateTeamStats(team_id, tournamentId);
     }
 
+    io.emit("saleCommitted", {
+      player_id: Number(playerId),
+      team_id,
+      sold_price: Number(sold_price) || 0,
+      sold_pool: sold_pool || effectiveCategory || null,
+    });
     res.json({ message: "Player updated and team stats refreshed" });
   } catch (err) {
     console.error("❌ PATCH error:", err);

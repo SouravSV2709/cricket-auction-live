@@ -668,6 +668,11 @@ socketRef.current?.emit("playerSold", {
             sold_pool: activePool,
         };
 
+        socketRef.current?.emit("playerUnsold", {
+            player_id: currentPlayer.id,
+            sold_pool: activePool
+        });
+
         // Persist to DB (current-player + players)
         await Promise.all([
             fetch(`${API}/api/current-player`, {
@@ -681,11 +686,6 @@ socketRef.current?.emit("playerSold", {
                 body: JSON.stringify(updatedPlayer),
             }),
         ]);
-
-        socketRef.current?.emit("playerUnsold", {
-            player_id: currentPlayer.id,
-            sold_pool: activePool
-        });
 
         // Notify spectators (non-blocking) — you already use this endpoint:contentReference[oaicite:1]{index=1}
         fetch(`${API}/api/notify-player-change`, {
