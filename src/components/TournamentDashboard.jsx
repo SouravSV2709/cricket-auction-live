@@ -186,7 +186,7 @@ const TournamentDashboard = () => {
     // >
 
     <div className="min-h-screen text-black relative overflow-x-hidden mt-5 flex flex-col" style={EA_BG_STYLE}>
-   <div className="relative flex-1">
+      <div className="relative flex-1">
         <Navbar tournamentSlug={tournamentSlug} />
 
         <div className="flex flex-col items-center justify-center mt-10">
@@ -301,7 +301,7 @@ const TournamentDashboard = () => {
 
             {/* Full-page grid, scaled up for laptops */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-              {kcplTeamStates.map((t) => {
+              {kcplTeamStates.map((t, idx) => {
                 // Overall (all pools)
                 const teamMeta = teams.find(x => Number(x.id) === Number(t.teamId));
                 const teamPlayersSold = players.filter(p => Number(p.team_id) === Number(t.teamId));
@@ -318,99 +318,104 @@ const TournamentDashboard = () => {
                 const poolRemaining = Math.max(0, poolLimit - poolSpent);
 
                 return (
-                  <article key={t.teamId} className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg">
-                    {/* Watermark flag */}
-                    {/* Watermark flag — muted, full-cover, with vignette for readability */}
-                    {(() => {
-                      const flagSrc = getTeamFlagSrc(t.teamName, teamMeta?.logo);
-                      return (
-                        <div className="absolute inset-0 pointer-events-none select-none z-0">
-                          {/* Flag image: desaturated, darker, slightly blurred, scaled to always cover */}
-                          <div
-                            className="absolute inset-0 bg-center bg-cover"
-                            style={{
-                              backgroundImage: `url(${flagSrc})`,
-                              filter: "grayscale(50%) brightness(0.55) contrast(1.1) blur(1.2px)",
-                              transform: "scale(1.12)",           // avoids edges at any ratio
-                              transformOrigin: "center",
-                            }}
-                          />
-                          {/* Soft diagonal scrim (keeps text legible on bright areas) */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
-                          {/* Vignette to fade edges (no stripes) */}
-                          <div
-                            className="absolute inset-0"
-                            style={{
-                              background:
-                                "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
-                            }}
-                          />
-                        </div>
-                      );
-                    })()}
+                  <React.Fragment key={t.teamId}>
+                    <article className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/20 sm:border-white/10 p-4 shadow-lg">                    {/* Watermark flag */}
+                      {/* Watermark flag — muted, full-cover, with vignette for readability */}
+                      {(() => {
+                        const flagSrc = getTeamFlagSrc(t.teamName, teamMeta?.logo);
+                        return (
+                          <div className="absolute inset-0 pointer-events-none select-none z-0">
+                            {/* Flag image: desaturated, darker, slightly blurred, scaled to always cover */}
+                            <div
+                              className="absolute inset-0 bg-center bg-cover"
+                              style={{
+                                backgroundImage: `url(${flagSrc})`,
+                                filter: "grayscale(50%) brightness(0.55) contrast(1.1) blur(1.2px)",
+                                transform: "scale(1.12)",           // avoids edges at any ratio
+                                transformOrigin: "center",
+                              }}
+                            />
+                            {/* Soft diagonal scrim (keeps text legible on bright areas) */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
+                            {/* Vignette to fade edges (no stripes) */}
+                            <div
+                              className="absolute inset-0"
+                              style={{
+                                background:
+                                  "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
+                              }}
+                            />
+                          </div>
+                        );
+                      })()}
 
-                    {/* Header: logo + name + overall purse + team count */}
-                    <div className="relative z-10">
                       {/* Header: logo + name + overall purse + team count */}
-                      <header className="flex items-center justify-between mb-3 gap-3">                      <div className="flex items-center gap-2 min-w-0">
-                        <img
-                          src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamMeta?.logo || ''}`}
-                          alt={t.teamName}
-                          className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/60"
-                        />
-                        <span className="font-bold text-white text-base md:text-lg truncate">
-                          {t.teamName}
-                        </span>
-                      </div>
-                        <div className="flex items-center gap-2 text-xs md:text-sm">
-                          <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
-                            Purse: <span className="font-bold text-white">{formatLakhs(remainingOverall)}</span>
-                          </span>
-                          <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
-                            Team: <span className="font-bold text-white">{boughtOverall}/{totalSlots}</span>
-                          </span>
-                        </div>
-                      </header>
-
-                      {/* Pool stats (bigger on laptop) */}
-                      <div className="grid grid-cols-3 gap-3 text-[12px] md:text-sm text-yellow-300">
-                        <div className="bg-black/40 rounded-md p-3 text-center">
-                          <div className="opacity-70">MAX BID</div>
-                          <div className="font-extrabold text-white text-sm md:text-base">
-                            {formatLakhs(stats.maxBid || 0)}
-                          </div>
-                        </div>
-                        <div className="bg-black/40 rounded-md p-3 text-center">
-                          <div className="opacity-70">MAX PLY</div>
-                          <div className="font-extrabold text-white text-sm md:text-base">
-                            {stats.maxPlayers ?? 0}
-                          </div>
-                        </div>
-                        <div className="bg-black/40 rounded-md p-3 text-center">
-                          <div className="opacity-70">PURSE</div>
-                          <div className="font-extrabold text-white text-sm md:text-base">
-                            {formatLakhs(poolRemaining)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        <div className="h-2 w-full bg-white/10 rounded">
-                          <div
-                            className="h-2 rounded bg-yellow-400"
-                            style={{ width: poolLimit > 0 ? `${Math.min(100, (poolSpent / poolLimit) * 100)}%` : "0%" }}
+                      <div className="relative z-10">
+                        {/* Header: logo + name + overall purse + team count */}
+                        <header className="flex items-center justify-between mb-3 gap-3">                      <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamMeta?.logo || ''}`}
+                            alt={t.teamName}
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/60"
                           />
+                          <span className="font-bold text-white text-base md:text-lg truncate">
+                            {t.teamName}
+                          </span>
+                        </div>
+                          <div className="flex items-center gap-2 text-xs md:text-sm">
+                            <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
+                              Purse: <span className="font-bold text-white">{formatLakhs(remainingOverall)}</span>
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
+                              Team: <span className="font-bold text-white">{boughtOverall}/{totalSlots}</span>
+                            </span>
+                          </div>
+                        </header>
+
+                        {/* Pool stats (bigger on laptop) */}
+                        <div className="grid grid-cols-3 gap-3 text-[12px] md:text-sm text-yellow-300">
+                          <div className="bg-black/40 rounded-md p-3 text-center">
+                            <div className="opacity-70">MAX BID</div>
+                            <div className="font-extrabold text-white text-sm md:text-base">
+                              {formatLakhs(stats.maxBid || 0)}
+                            </div>
+                          </div>
+                          <div className="bg-black/40 rounded-md p-3 text-center">
+                            <div className="opacity-70">MAX PLY</div>
+                            <div className="font-extrabold text-white text-sm md:text-base">
+                              {stats.maxPlayers ?? 0}
+                            </div>
+                          </div>
+                          <div className="bg-black/40 rounded-md p-3 text-center">
+                            <div className="opacity-70">PURSE</div>
+                            <div className="font-extrabold text-white text-sm md:text-base">
+                              {formatLakhs(poolRemaining)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <div className="h-2 w-full bg-white/10 rounded">
+                            <div
+                              className="h-2 rounded bg-yellow-400"
+                              style={{ width: poolLimit > 0 ? `${Math.min(100, (poolSpent / poolLimit) * 100)}%` : "0%" }}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-1 flex justify-between text-[11px] md:text-xs text-yellow-200">
+                          <span>Spent: {formatLakhs(poolSpent)}</span>
+                          <span>Cap: {formatLakhs(poolLimit)}</span>
+                        </div>
+                        <div className="mt-1 text-[11px] md:text-xs text-yellow-200">
+                          Bought in {activePool}: <span className="font-semibold text-white">{poolBought}</span>
                         </div>
                       </div>
-                      <div className="mt-1 flex justify-between text-[11px] md:text-xs text-yellow-200">
-                        <span>Spent: {formatLakhs(poolSpent)}</span>
-                        <span>Cap: {formatLakhs(poolLimit)}</span>
-                      </div>
-                      <div className="mt-1 text-[11px] md:text-xs text-yellow-200">
-                        Bought in {activePool}: <span className="font-semibold text-white">{poolBought}</span>
-                      </div>
-                    </div>
-                  </article>
+                    </article>
+                    {/* MOBILE-ONLY separator (hidden at >=640px where grid is 2+ columns) */}
+                    {idx !== kcplTeamStates.length - 1 && (
+                      <div className="sm:hidden h-px mx-1 -mt-2 mb-3 bg-white/40" />
+                    )}
+                  </React.Fragment>
                 );
               })}
             </div>
