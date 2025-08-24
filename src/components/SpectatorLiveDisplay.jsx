@@ -12,14 +12,14 @@ import { DateTime } from "luxon";
 const PUB = process.env.PUBLIC_URL || '';
 const FLAG = (file) => `${PUB}/${file}`;
 const TEAM_FLAG_MAP = {
-  Badgers: FLAG('badgers-flag.png'),
-  Blasters: FLAG('blasters-flag.png'),
-  Fighters: FLAG('fighters-flag.png'),
-  Kings: FLAG('kings-flag.png'),
-  Knights: FLAG('knights-flag.png'),
-  Lions: FLAG('lions-flag.png'),
-  Royals: FLAG('royals-flag.png'),
-  Titans: FLAG('titans-flag.png'),
+    Badgers: FLAG('badgers-flag.png'),
+    Blasters: FLAG('blasters-flag.png'),
+    Fighters: FLAG('fighters-flag.png'),
+    Kings: FLAG('kings-flag.png'),
+    Knights: FLAG('knights-flag.png'),
+    Lions: FLAG('lions-flag.png'),
+    Royals: FLAG('royals-flag.png'),
+    Titans: FLAG('titans-flag.png'),
 };
 
 // Light tints to blend with each flag
@@ -435,37 +435,64 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         if (!tournamentId) return;
 
-        fetchPlayer(); // ✅ only runs after tournamentId is set
+        // Initial data load
+        fetchPlayer();
         fetchTeams();
         fetchAllPlayers();
+        fetchKcplTeamStates();
 
-        const socket = io(API);
-        socket.on("playerSold", () => {
+        // Ensure a single socket instance
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+        }
+
+        // Force true WebSocket to cut long-poll delay
+        const socket = io(API, {
+            transports: ["websocket"],
+            upgrade: false,
+            reconnection: true,
+        });
+        socketRef.current = socket;
+
+        // Helper: refresh everything fast
+        const fastRefresh = () => {
             fetchPlayer();
             fetchAllPlayers();
             fetchTeams();
+            fetchKcplTeamStates();
+        };
+
+        // Instant update hooks
+        socket.on("playerSold", fastRefresh);
+        socket.on("playerUnsold", fastRefresh);
+        socket.on("playerChanged", fastRefresh);
+        socket.on("secretBiddingToggled", fastRefresh);
+
+        // When bids reset after a sale (or team cleared), refresh too
+        socket.on("bidUpdated", ({ bid_amount, team_name }) => {
+            // keep your existing local state updates if any
+            if (Number(bid_amount) === 0 && (!team_name || team_name === "")) {
+                fastRefresh();
+            }
         });
 
-        socket.on("playerChanged", fetchPlayer);
-        socket.on("secretBiddingToggled", fetchPlayer);
-
-        return () => socket.disconnect();
+        return () => {
+            socket.off("playerSold", fastRefresh);
+            socket.off("playerUnsold", fastRefresh);
+            socket.off("playerChanged", fastRefresh);
+            socket.off("secretBiddingToggled", fastRefresh);
+            socket.off("bidUpdated");
+            socket.disconnect();
+            socketRef.current = null;
+        };
     }, [tournamentId]);
 
+    // 2) If pool changes, only refetch pool-specific aggregates
     useEffect(() => {
         if (!tournamentId) return;
         fetchKcplTeamStates();
     }, [tournamentId, activePool]);
-
-    // Refresh alongside your existing listeners
-    useEffect(() => {
-        const socket = io(API);
-        socket.on("playerSold", () => { fetchKcplTeamStates(); });
-        socket.on("playerChanged", () => { fetchKcplTeamStates(); });
-        socket.on("bidUpdated", () => { fetchKcplTeamStates(); });
-        socket.on("secretBiddingToggled", () => { fetchKcplTeamStates(); });
-        return () => socket.disconnect();
-    }, [tournamentId]);
 
 
 

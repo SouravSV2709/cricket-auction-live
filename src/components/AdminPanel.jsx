@@ -560,6 +560,13 @@ const AdminPanel = () => {
             team_name: selectedTeam
         });
 
+        socketRef.current?.emit("playerSold", {
+            player_id: currentPlayer.id,
+            team_id: teamId,
+            sold_price: bidAmount,
+            sold_pool: activePool
+        });
+
         // Fire notifications (non-blocking)
         fetch(`${API}/api/notify-sold`, {
             method: "POST",
@@ -661,6 +668,11 @@ const AdminPanel = () => {
                 body: JSON.stringify(updatedPlayer),
             }),
         ]);
+
+        socketRef.current?.emit("playerUnsold", {
+            player_id: currentPlayer.id,
+            sold_pool: activePool
+        });
 
         // Notify spectators (non-blocking) — you already use this endpoint:contentReference[oaicite:1]{index=1}
         fetch(`${API}/api/notify-player-change`, {

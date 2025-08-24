@@ -490,6 +490,17 @@ io.on("connection", (socket) => {
     io.emit("bidUpdated", data); // <--- THIS is what was missing
   });
 
+  // NEW: rebroadcast sale status instantly
+  socket.on("playerSold", (payload) => {
+    console.log("📢 Broadcasting playerSold:", payload);
+    io.emit("playerSold", payload); // spectators will fetch/update immediately
+  });
+
+  socket.on("playerUnsold", (payload) => {
+    console.log("📢 Broadcasting playerUnsold:", payload);
+    io.emit("playerUnsold", payload);
+  });
+
   // Start secret bid process
 
   socket.on("secretBiddingToggled", () => {
