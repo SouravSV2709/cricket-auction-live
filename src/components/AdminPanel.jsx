@@ -530,6 +530,19 @@ const AdminPanel = () => {
             budget: team.budget - bidAmount
         };
 
+        // 🔊 Broadcast immediately (optimistic), then persist in DB.
+socketRef.current?.emit("bidUpdated", {
+  bid_amount: bidAmount,
+  team_name: selectedTeam,
+  active_pool: activePool,
+});
+socketRef.current?.emit("playerSold", {
+  player_id: currentPlayer.id,
+  team_id: teamId,
+  sold_price: bidAmount,
+  sold_pool: activePool,
+});
+
         // ✅ Perform critical updates in parallel (skip bid reset here)
         await Promise.all([
             fetch(`${API}/api/current-player`, {
@@ -555,17 +568,17 @@ const AdminPanel = () => {
         ]);
 
         // Notify immediately with correct bid and team
-        socketRef.current?.emit("bidUpdated", {
-            bid_amount: bidAmount,
-            team_name: selectedTeam
-        });
+        // socketRef.current?.emit("bidUpdated", {
+        //     bid_amount: bidAmount,
+        //     team_name: selectedTeam
+        // });
 
-        socketRef.current?.emit("playerSold", {
-            player_id: currentPlayer.id,
-            team_id: teamId,
-            sold_price: bidAmount,
-            sold_pool: activePool
-        });
+        // socketRef.current?.emit("playerSold", {
+        //     player_id: currentPlayer.id,
+        //     team_id: teamId,
+        //     sold_price: bidAmount,
+        //     sold_pool: activePool
+        // });
 
         // Fire notifications (non-blocking)
         fetch(`${API}/api/notify-sold`, {
