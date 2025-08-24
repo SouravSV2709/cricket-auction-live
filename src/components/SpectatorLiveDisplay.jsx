@@ -1745,7 +1745,7 @@ const SpectatorLiveDisplay = () => {
                             {["FALSE", "false", false].includes(player?.sold_status) && poolCode !== "X" && (
                                 <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
                                     <img
-                                        src={unsoldClip || "/UNSOLD.png"}
+                                        src={"/UNSOLD.png"}
                                         alt="UNSOLD"
                                         className="w-32 h-auto drop-shadow-xl"
                                         loading="eager"
