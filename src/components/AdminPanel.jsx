@@ -874,7 +874,14 @@ const AdminPanel = () => {
 
     // Inside useEffect, connect only once
     useEffect(() => {
-        socketRef.current = io(API);
+        socketRef.current = io(API, {
+    transports: ["websocket"],   // only WebSocket
+    upgrade: false,              // skip HTTP long-polling fallback
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 500,
+});
+
         window.socket = socketRef.current;
 
         return () => {

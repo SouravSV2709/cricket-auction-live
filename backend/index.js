@@ -23,12 +23,22 @@ const port = CONFIG.PORT;
 
 const server = http.createServer(app);
 const io = new Server(server, {
+  transports: ["websocket"],    // 🚀 Only WebSocket transport
+  allowUpgrades: false,         // 🚫 Don’t try long-poll upgrade
+  pingInterval: 10000,
+  pingTimeout: 5000,
   cors: {
-    origin: ["https://arena.auctionarena.live", "http://localhost:3000", "https://cricket-auction-live.pages.dev", "https://live.eaarena.in"],
+    origin: [
+      "https://arena.auctionarena.live",
+      "http://localhost:3000",
+      "https://cricket-auction-live.pages.dev",
+      "https://live.eaarena.in"
+    ],
     methods: ["GET", "POST"],
     credentials: true
   },
 });
+
 
 
 // Middleware

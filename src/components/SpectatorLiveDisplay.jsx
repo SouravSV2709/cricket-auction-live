@@ -122,7 +122,14 @@ const SpectatorLiveDisplay = () => {
                 setTheme(key && THEMES[key] ? key : DEFAULT_THEME_KEY);
             });
 
-        const socket = io(API);
+        const socket = io(API, {
+  transports: ["websocket"],
+  upgrade: false,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 500,
+});
+
         socket.on("themeUpdate", (newTheme) => {
             setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
         });
@@ -500,7 +507,14 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-        const socket = io(API);
+        const socket = io(API, {
+  transports: ["websocket"],
+  upgrade: false,
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 500,
+});
+
         socketRef.current = socket;
 
         // 🔌 Custom message logic
