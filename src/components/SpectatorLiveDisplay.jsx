@@ -260,14 +260,12 @@ const SpectatorLiveDisplay = () => {
             const text = await res.text();
             if (!text || text.trim().length === 0) {
                 console.warn("⚠️ Empty response from /api/current-player — skipping update");
-                setPlayer(null);
                 return;
             }
 
             const basic = JSON.parse(text);
             if (!basic?.id) {
                 console.warn("⚠️ No player ID found in current-player response — skipping update");
-                setPlayer(null); // ✅ Reset player 
                 setCricheroesStats(null);
 
                 return;
@@ -483,13 +481,29 @@ const SpectatorLiveDisplay = () => {
   };
   socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
 
-  socket.on("saleCommitted", () => {
-  // One authoritative refresh after DB commit
-  fastRefresh();
+  socket.on("saleCommitted", (payload) => {
+  // ① update the visible player instantly (no network)
+  setPlayer(prev =>
+    prev && Number(prev.id) === Number(payload?.player_id)
+      ? {
+          ...prev,
+          sold_status: "TRUE",
+          sold_price: payload?.sold_price ?? prev.sold_price,
+          team_id: payload?.team_id ?? prev.team_id,
+          sold_pool: payload?.sold_pool ?? prev.sold_pool,
+        }
+      : prev
+  );
+  // keep the banner in sync so "Waiting for Bid" never shows
+  setHighestBid(Number(payload?.sold_price) || 0);
+
+  // ② refresh only aggregates; don't refetch the player yet
+  fetchAllPlayers();
+  fetchTeams();
+  fetchKcplTeamStates();
 });
 
-socket.on("playerSold", fastRefresh);
-  socket.on("playerUnsold", fastRefresh);
+
   socket.on("playerChanged", fastRefresh);
   socket.on("secretBiddingToggled", fastRefresh);
 
@@ -567,7 +581,6 @@ socket.on("playerSold", fastRefresh);
   // Cleanup: unregister listeners and close the one socket
   return () => {
     socket.off("bidUpdated", onBidUpdated);
-    socket.off("playerSold", fastRefresh);
     socket.off("saleCommitted", fastRefresh);
     socket.off("playerUnsold", fastRefresh);
     socket.off("playerChanged", fastRefresh);
