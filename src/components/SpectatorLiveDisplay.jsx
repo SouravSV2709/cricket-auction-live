@@ -123,12 +123,12 @@ const SpectatorLiveDisplay = () => {
             });
 
         const socket = io(API, {
-  transports: ["websocket"],
-  upgrade: false,
-  reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 500,
-});
+            transports: ["websocket"],
+            upgrade: false,
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 500,
+        });
 
         socket.on("themeUpdate", (newTheme) => {
             setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
@@ -440,195 +440,144 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-        if (!tournamentId) return;
+  if (!tournamentId) return;
 
-        // Initial data load
-        fetchPlayer();
-        fetchTeams();
-        fetchAllPlayers();
-        fetchKcplTeamStates();
+  // Initial fetches
+  fetchPlayer();
+  fetchTeams();
+  fetchAllPlayers();
+  fetchKcplTeamStates();
 
-        // Ensure a single socket instance
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
-        }
+  // Ensure a single socket instance
+  if (socketRef.current) {
+    socketRef.current.disconnect();
+    socketRef.current = null;
+  }
 
-        // Force true WebSocket to cut long-poll delay
-        const socket = io(API, {
-            transports: ["websocket"],
-            upgrade: false,
-            reconnection: true,
-        });
-        socketRef.current = socket;
+  // Create one WebSocket-only connection
+  const socket = io(API, {
+    transports: ["websocket"],
+    upgrade: false,
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 500,
+  });
+  socketRef.current = socket;
 
-        // Helper: refresh everything fast
-        const fastRefresh = () => {
-            fetchPlayer();
-            fetchAllPlayers();
-            fetchTeams();
-            fetchKcplTeamStates();
-        };
+  // Small helper
+  const fastRefresh = () => {
+    fetchPlayer();
+    fetchAllPlayers();
+    fetchTeams();
+    fetchKcplTeamStates();
+  };
 
-        // Instant update hooks
-        socket.on("playerSold", fastRefresh);
-        socket.on("playerUnsold", fastRefresh);
-        socket.on("playerChanged", fastRefresh);
-        socket.on("secretBiddingToggled", fastRefresh);
+  // 🔴 LIVE: update bid instantly on every increment
+  const onBidUpdated = ({ bid_amount, team_name }) => {
+    setHighestBid(Number(bid_amount) || 0);
+    setLeadingTeam(team_name || "");
+    // If a reset happens (sold/cleared), also refresh lists
+    if (Number(bid_amount) === 0 && (!team_name || team_name === "")) {
+      fastRefresh();
+    }
+  };
+  socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
 
-        // When bids reset after a sale (or team cleared), refresh too
-        socket.on("bidUpdated", ({ bid_amount, team_name }) => {
-            // keep your existing local state updates if any
-            if (Number(bid_amount) === 0 && (!team_name || team_name === "")) {
-                fastRefresh();
-            }
-        });
+  // Other realtime events → lightweight refresh
+  socket.on("playerSold", fastRefresh);
+  socket.on("playerUnsold", fastRefresh);
+  socket.on("playerChanged", fastRefresh);
+  socket.on("secretBiddingToggled", fastRefresh);
 
-        return () => {
-            socket.off("playerSold", fastRefresh);
-            socket.off("playerUnsold", fastRefresh);
-            socket.off("playerChanged", fastRefresh);
-            socket.off("secretBiddingToggled", fastRefresh);
-            socket.off("bidUpdated");
-            socket.disconnect();
-            socketRef.current = null;
-        };
-    }, [tournamentId]);
+  // Theme + custom message + reveal flow — move onto THIS socket
+  socket.on("themeUpdate", (newTheme) => {
+    setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
+  });
 
-    // 2) If pool changes, only refetch pool-specific aggregates
-    useEffect(() => {
-        if (!tournamentId) return;
-        fetchKcplTeamStates();
-    }, [tournamentId, activePool]);
+  socket.on("customMessageUpdate", (msg) => {
+    if (!msg || typeof msg !== "string") return;
 
+    if (msg === "__SHOW_TEAM_STATS__") {
+      setCustomView("team-stats"); setCustomMessage(null);
+    } else if (msg === "__SHOW_NO_PLAYERS__") {
+      setCustomView("no-players"); setCustomMessage(null);
+    } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
+      setIsLoading(false); setCustomView(null); setCustomMessage(null);
+      setCountdownTime(null);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      fetchPlayer();
+    } else if (msg === "__RESET_AUCTION__") {
+      fetchAllPlayers(); fetchTeams();
+      setCustomView("no-players"); setCustomMessage(null);
+      setCountdownTime(null);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    } else if (msg.startsWith("__START_COUNTDOWN__")) {
+      const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
+      setCustomMessage(null);
+      setCountdownTime(seconds);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdownTime(prev => (prev <= 1 ? (clearInterval(countdownIntervalRef.current), 0) : prev - 1));
+      }, 1000);
+    } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
+      setCustomView("top-10-expensive"); setCustomMessage(null);
+    } else {
+      setCustomMessage(msg); setCustomView(null);
+    }
+  });
 
+  socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
+    try {
+      const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
+      const data = await res.json();
+      setRevealedBids(data || []);
+      setCustomView("reveal-bids");
+    } catch (err) {
+      console.error("❌ Failed to fetch secret bids:", err);
+    }
+  });
 
+  socket.on("secretBidWinnerAssigned", () => {
+    setCustomView(null);
+    setRevealedBids([]);
+    setCustomMessage(null);
+    setTimeout(() => fetchPlayer(), 100);
+  });
 
+  socket.on("showTeam", (payload) => {
+    if (!payload || payload.team_id === null) {
+      setTeamIdToShow(null); setCustomMessage(null); setCustomView("live");
+    } else {
+      setTeamIdToShow(payload.team_id);
+      if (payload.empty) {
+        setCustomMessage("No players yet for this team.");
+        setCustomView("noPlayers");
+      } else {
+        setCustomMessage(null); setCustomView("team"); fetchAllPlayers();
+      }
+    }
+  });
 
+  socket.on("kcplPoolChanged", (pool) => setActivePool(pool));
 
-    useEffect(() => {
-        const socket = io(API, {
-  transports: ["websocket"],
-  upgrade: false,
-  reconnection: true,
-  reconnectionAttempts: 10,
-  reconnectionDelay: 500,
-});
+  // Cleanup: unregister listeners and close the one socket
+  return () => {
+    socket.off("bidUpdated", onBidUpdated);
+    socket.off("playerSold", fastRefresh);
+    socket.off("playerUnsold", fastRefresh);
+    socket.off("playerChanged", fastRefresh);
+    socket.off("secretBiddingToggled", fastRefresh);
+    socket.off("themeUpdate");
+    socket.off("customMessageUpdate");
+    socket.off("revealSecretBids");
+    socket.off("secretBidWinnerAssigned");
+    socket.off("showTeam");
+    socket.off("kcplPoolChanged");
+    socket.disconnect();
+    socketRef.current = null;
+  };
+}, [tournamentId]);
 
-        socketRef.current = socket;
-
-        // 🔌 Custom message logic
-        socket.on("customMessageUpdate", (msg) => {
-            console.log("📩 Spectator received custom message:", msg);
-
-            if (!msg || typeof msg !== "string") return;
-
-            if (msg === "__SHOW_TEAM_STATS__") {
-                setCustomView("team-stats");
-                setCustomMessage(null);
-            } else if (msg === "__SHOW_NO_PLAYERS__") {
-                setCustomView("no-players");
-                setCustomMessage(null);
-            } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
-                setIsLoading(false);
-                setCustomView(null);
-                setCustomMessage(null);
-                setCountdownTime(null);
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-                fetchPlayer();
-            } else if (msg === "__RESET_AUCTION__") {
-                fetchAllPlayers();
-                fetchTeams();
-                setCustomView("no-players");
-                setCustomMessage(null);
-                setCountdownTime(null);
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-            } else if (msg.startsWith("__START_COUNTDOWN__")) {
-                const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
-                setCustomMessage(null);
-                setCountdownTime(seconds);
-
-                if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-
-                countdownIntervalRef.current = setInterval(() => {
-                    setCountdownTime(prev => {
-                        if (prev <= 1) {
-                            clearInterval(countdownIntervalRef.current);
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-            } else if (!msg.startsWith("__")) {
-                setCustomMessage(msg);
-                setCustomView(null);
-            } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
-                setCustomView("top-10-expensive");
-                setCustomMessage(null);
-            }
-        });
-
-        // 🔁 Other event bindings (move your socket.on(...) here)
-        socket.on("playerSold", () => {
-            fetchPlayer();
-            fetchAllPlayers();
-            fetchTeams();
-        });
-
-        socket.on("playerChanged", fetchPlayer);
-        socket.on("secretBiddingToggled", fetchPlayer);
-
-        socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
-            try {
-                const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
-                const data = await res.json();
-                setRevealedBids(data || []);
-                setCustomView("reveal-bids");
-            } catch (err) {
-                console.error("❌ Failed to fetch secret bids:", err);
-            }
-        });
-
-        socket.on("secretBidWinnerAssigned", () => {
-            setCustomView(null);
-            setRevealedBids([]);
-            setCustomMessage(null);
-            setTimeout(() => fetchPlayer(), 100);
-        });
-
-        socket.on("showTeam", (payload) => {
-            if (!payload || payload.team_id === null) {
-                setTeamIdToShow(null);
-                setCustomMessage(null);
-                setCustomView("live");
-            } else {
-                setTeamIdToShow(payload.team_id);
-                if (payload.empty) {
-                    setCustomMessage("No players yet for this team.");
-                    setCustomView("noPlayers");
-                } else {
-                    setCustomMessage(null);
-                    setCustomView("team");
-                    fetchAllPlayers();
-                }
-            }
-        });
-
-        socket.on("bidUpdated", ({ bid_amount, team_name }) => {
-            setHighestBid(bid_amount);
-            setLeadingTeam(team_name);
-        });
-
-        socket.on("kcplPoolChanged", (pool) => {
-            setActivePool(pool);          // 🔄 updates the ribbon highlight instantly
-            // if your ribbon or lists depend on active pool, refresh as needed:
-            // fetchAllPlayers(); // only if you filter by pool in spectator
-        });
-
-        return () => {
-            socket.disconnect();
-        };
-    }, [tournamentId]); // Use tournamentId to rebind only when necessary
 
 
     useEffect(() => {

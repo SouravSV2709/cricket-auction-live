@@ -999,7 +999,7 @@ const AdminPanel = () => {
                 active_pool: activePool
             })
         });
-
+// 🔊 tell spectators right away
         socketRef.current?.emit("bidUpdated", {
             bid_amount: newBid,
             team_name: team.name,
