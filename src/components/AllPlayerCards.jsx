@@ -5,7 +5,7 @@ import CONFIG from "../components/config";
 import Navbar from "../components/Navbar";
 import { FixedSizeGrid as Grid } from "react-window";
 import { Listbox } from "@headlessui/react";
-import BackgroundEffect from "../components/BackgroundEffect";
+// import BackgroundEffect from "../components/BackgroundEffect";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 
 import html2canvas from "html2canvas";
@@ -35,6 +35,14 @@ const AllPlayerCards = () => {
     const [showToast, setShowToast] = useState(false);
     const hoverTimeoutRef = useRef(null);
 
+    // Brand gradient background (EAARENA)
+    const EA_BG_STYLE = {
+        backgroundImage: `
+    radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .15), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(168, 85, 247, .16), transparent 60%),
+    linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+  `
+    };
 
 
     const pdfRef = useRef();
@@ -323,99 +331,109 @@ const AllPlayerCards = () => {
     const rowCount = Math.ceil(filteredPlayers.length / columnCount);
     const columnWidth = windowWidth / columnCount;
 
-    const PlayerCard = ({ player, style, serial }) => (
-        <div
-            key={player.id}
-            style={{
-                ...style,
-                // padding: "0.25rem",
-                backgroundImage: 'url("/goldenbg.png")',
-                backgroundSize: "contain",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
-                height: "320px",
-                WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
-                maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
-                WebkitMaskSize: "100% 100%",
-                maskSize: "100% 100%",
-                WebkitMaskRepeat: "no-repeat",
-                maskRepeat: "no-repeat"
-            }}
-            onMouseEnter={() => {
-                if (window.innerWidth > 768) {
-                    setSelectedPlayerId(player.id);
+    const PlayerCard = ({ player, style, serial }) => {
+        const isActive = !disableHover && selectedPlayerId === player.id;
 
-                    // Auto clear after 2.5s
-                    clearTimeout(hoverTimeoutRef.current);
-                    hoverTimeoutRef.current = setTimeout(() => {
-                        setSelectedPlayerId(null);
-                    }, 2500);
-                }
-            }}
-            onClick={() => {
-                if (window.innerWidth <= 768) {
-                    const isSame = selectedPlayerId === player.id;
-                    setSelectedPlayerId(isSame ? null : player.id);
-
-                    if (!isSame) {
+        return (
+            <div
+                key={player.id}
+                style={{ ...style }}                     // keep react-window positioning
+                onMouseEnter={() => {
+                    if (window.innerWidth > 768) {
+                        setSelectedPlayerId(player.id);
                         clearTimeout(hoverTimeoutRef.current);
-                        hoverTimeoutRef.current = setTimeout(() => {
-                            setSelectedPlayerId(null);
-                        }, 1000);
+                        hoverTimeoutRef.current = setTimeout(() => setSelectedPlayerId(null), 2500);
                     }
-                }
-            }}
+                }}
+                onClick={() => {
+                    if (window.innerWidth <= 768) {
+                        const same = selectedPlayerId === player.id;
+                        setSelectedPlayerId(same ? null : player.id);
+                        if (!same) {
+                            clearTimeout(hoverTimeoutRef.current);
+                            hoverTimeoutRef.current = setTimeout(() => setSelectedPlayerId(null), 1000);
+                        }
+                    }
+                }}
+                className={[
+                    "player-card relative rounded-2xl overflow-hidden shadow-xl",
+                    "ring-1 ring-black/10 bg-white/5 backdrop-blur-[1px]",
+                    "transition-transform duration-300 ease-out cursor-pointer",
+                    (typeof document !== "undefined" && document.body.classList.contains("exporting"))
+                        ? "scale-100"
+                        : (disableHover ? "scale-95 opacity-80" : (isActive ? "scale-105 z-10" : "scale-95"))
+                ].join(" ")}
+            >
+                {/* TOP: full image on red background */}
+                <div className="relative h-[72%] md:h-[66%] bg-center bg-cover" style={{ backgroundImage: "url('/redbg.png')" }}>
 
-            serial={serialMap[player.id]}
-            className={`player-card relative rounded-xl text-center font-sans transition-all duration-500 ease-in-out cursor-pointer ${disableHover ? "scale-95 opacity-80" : selectedPlayerId === player.id ? "scale-110 z-10" : "scale-95 opacity-80"
-                }`}
-
-        >
-            <div className="w-full h-full flex flex-col justify-center items-center scale-[.95] sm:scale-100">
-                <div className="absolute top-12 left-8 sm:top-12 sm:left-10 md:top-12 md:left-12">
-                    <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs md:text-sm font-bold px-2 py-1 rounded-full shadow-lg tracking-wide">
+                    {/* Serial pill */}
+                    <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow">
                         #{serial}
                     </span>
+
+                    {/* Player image (full figure feel) */}
+                    <img
+                        loading="lazy"
+                        // Use ImageKit face focus + pad resize so the whole figure fits without cutting the head
+                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                        alt={player.name}
+                        className="
+    absolute inset-0                /* pin to the section */
+    w-full h-full                   /* let it fill the red area */
+    object-contain                  /* never crop; fit entirely */
+    object-[center_22%] md:object-[center_15%] /* bias view slightly upward to protect faces */
+    drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]
+    pointer-events-none select-none
+  "
+                        onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = "/no-image-found.png";
+                        }}
+                    />
+
+                    {/* Gentle scrim to improve header readability */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-transparent" />
                 </div>
-                <img
-                    loading="lazy"
-                    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`}
-                    alt={player.name}
-                    className={`object-contain mx-auto rounded-full ${selectedPlayerId === player.id
-                        ? "w-24 h-24 sm:w-24 sm:h-24 md:w-32 md:h-32"
-                        : "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24"
-                        }`}
-                    onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = "/no-image-found.png";
-                    }}
-                />
-                <div className="text-xs font-bold text-black uppercase mt-1">{player.name}</div>
-                <div className={`text-xs font-bold ${selectedPlayerId === player.id ? "text-black" : "text-gray-700"}`}>
-                    <div>Role: {player.role || "-"}</div>
-                    {player.district && (
-                        <div>District: {player.district}</div>
-                    )}
-                </div>
-                {tournamentLogo && (
-                    <div className="flex justify-center items-center gap-1 animate-pulse">
-                        <img
-                            loading="lazy"
-                            src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-20,h-20`}
-                            alt="Tournament Logo"
-                            className="w-14 h-14 object-contain"
-                        />
-                        <img
-                            loading="lazy"
-                            src="/AuctionArena2.png"
-                            alt="Auction Arena"
-                            className="w-10 h-10 object-contain"
-                        />
+
+                {/* BOTTOM: classy white info panel */}
+                <div className="h-[34%] bg-white px-3 pt-3 pb-2 overflow-visible">
+                    <div className="text-[13px] sm:text-sm font-extrabold text-gray-900 leading-[1.25] truncate">
+                        {player.name}
                     </div>
-                )}
+
+                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-600">
+                        <div>
+                            <span className="uppercase tracking-wide text-gray-500">Role</span>
+                            <div className="font-semibold text-gray-800">{player.role || "-"}</div>
+                        </div>
+
+                        {player.district && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-500">District</span>
+                                <div className="font-semibold text-gray-800">{player.district}</div>
+                            </div>
+                        )}
+
+                        {player.base_category && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-500">Category</span>
+                                <div className="font-semibold text-gray-800">{player.base_category}</div>
+                            </div>
+                        )}
+
+                        {player.nickname && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-500">Nickname</span>
+                                <div className="font-semibold text-gray-800">{player.nickname}</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
+
 
     return (
         // <div className="min-h-screen overflow-hidden text-black bg-gradient-to-br from-yellow-100 to-black relative pb-4">
@@ -432,9 +450,8 @@ const AllPlayerCards = () => {
         // >
 
 
-        <div className="min-h-screen text-black relative overflow-hidden">
-            <BackgroundEffect theme="grid" />
-            <div className="relative z-10">
+        <div className="min-h-screen text-black relative overflow-hidden" style={EA_BG_STYLE}>
+            <div className="relative">
 
                 {errorMessage && (
                     <div className="bg-red-100 text-red-700 border border-red-400 p-4 rounded-md max-w-xl mx-auto mt-4 text-center">
