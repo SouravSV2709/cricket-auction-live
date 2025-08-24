@@ -502,8 +502,7 @@ const SpectatorLiveDisplay = () => {
   fetchTeams();
   fetchKcplTeamStates();
 });
-
-  socket.on("saleCommitted", onSaleCommitted);  
+ 
   socket.on("playerChanged", fastRefresh);
   socket.on("secretBiddingToggled", fastRefresh);
 
@@ -581,7 +580,7 @@ const SpectatorLiveDisplay = () => {
   // Cleanup: unregister listeners and close the one socket
   return () => {
     socket.off("bidUpdated", onBidUpdated);
-    socket.off("saleCommitted", onSaleCommitted);
+    socket.off("saleCommitted");
     socket.off("playerUnsold", fastRefresh);
     socket.off("playerChanged", fastRefresh);
     socket.off("secretBiddingToggled", fastRefresh);
