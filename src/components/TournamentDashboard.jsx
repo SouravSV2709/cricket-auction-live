@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import CONFIG from "../components/config";
-import BackgroundEffect from "../components/BackgroundEffect";
+// import BackgroundEffect from "../components/BackgroundEffect";
 
 const API = CONFIG.API_BASE_URL;
 
@@ -46,6 +46,15 @@ const getTeamFlagSrc = (teamName, teamLogo) => {
   return teamLogo
     ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogo}?tr=w-900,h-900,q-50,bl-6`
     : "/no-team-logo.png";
+};
+
+// Brand gradient background (EAARENA)
+const EA_BG_STYLE = {
+  backgroundImage: `
+    radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .15), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(59, 130, 246, .16), transparent 60%),
+    linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+  `
 };
 
 
@@ -176,11 +185,8 @@ const TournamentDashboard = () => {
     //   }}
     // >
 
-    <div className="min-h-screen text-black relative overflow-x-hidden mt-5 flex flex-col">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <BackgroundEffect theme="grid" />
-      </div>
-      <div className="relative z-10 flex-1">
+    <div className="min-h-screen text-black relative overflow-x-hidden mt-5 flex flex-col" style={EA_BG_STYLE}>
+   <div className="relative flex-1">
         <Navbar tournamentSlug={tournamentSlug} />
 
         <div className="flex flex-col items-center justify-center mt-10">
@@ -315,33 +321,33 @@ const TournamentDashboard = () => {
                   <article key={t.teamId} className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg">
                     {/* Watermark flag */}
                     {/* Watermark flag — muted, full-cover, with vignette for readability */}
-{(() => {
-  const flagSrc = getTeamFlagSrc(t.teamName, teamMeta?.logo);
-  return (
-    <div className="absolute inset-0 pointer-events-none select-none z-0">
-      {/* Flag image: desaturated, darker, slightly blurred, scaled to always cover */}
-      <div
-        className="absolute inset-0 bg-center bg-cover"
-        style={{
-          backgroundImage: `url(${flagSrc})`,
-          filter: "grayscale(50%) brightness(0.55) contrast(1.1) blur(1.2px)",
-          transform: "scale(1.12)",           // avoids edges at any ratio
-          transformOrigin: "center",
-        }}
-      />
-      {/* Soft diagonal scrim (keeps text legible on bright areas) */}
-      <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
-      {/* Vignette to fade edges (no stripes) */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
-        }}
-      />
-    </div>
-  );
-})()}
+                    {(() => {
+                      const flagSrc = getTeamFlagSrc(t.teamName, teamMeta?.logo);
+                      return (
+                        <div className="absolute inset-0 pointer-events-none select-none z-0">
+                          {/* Flag image: desaturated, darker, slightly blurred, scaled to always cover */}
+                          <div
+                            className="absolute inset-0 bg-center bg-cover"
+                            style={{
+                              backgroundImage: `url(${flagSrc})`,
+                              filter: "grayscale(50%) brightness(0.55) contrast(1.1) blur(1.2px)",
+                              transform: "scale(1.12)",           // avoids edges at any ratio
+                              transformOrigin: "center",
+                            }}
+                          />
+                          {/* Soft diagonal scrim (keeps text legible on bright areas) */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
+                          {/* Vignette to fade edges (no stripes) */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background:
+                                "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
+                            }}
+                          />
+                        </div>
+                      );
+                    })()}
 
                     {/* Header: logo + name + overall purse + team count */}
                     <div className="relative z-10">

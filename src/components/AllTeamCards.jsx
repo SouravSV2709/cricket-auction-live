@@ -5,11 +5,21 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import clsx from "clsx";
 import Navbar from "../components/Navbar";
-import BackgroundEffect from "../components/BackgroundEffect";
+// import BackgroundEffect from "../components/BackgroundEffect";
 import * as XLSX from "xlsx";
 
 
 const API = CONFIG.API_BASE_URL;
+
+// Brand gradient background (EAARENA)
+const EA_BG_STYLE = {
+  backgroundImage: `
+    radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .15), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(59, 130, 246, .16), transparent 60%),
+    linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+  `
+};
+
 
 const AllTeamCards = () => {
     const { tournamentSlug } = useParams();
@@ -103,9 +113,8 @@ const AllTeamCards = () => {
         //     }}
         // >
 
-        <div className="min-h-screen text-black relative overflow-hidden mt-5">
-            <BackgroundEffect theme="grid" />
-            <div className="relative z-10">
+        <div className="min-h-screen text-black relative overflow-x-hidden mt-5 flex flex-col" style={EA_BG_STYLE}>
+   <div className="relative flex-1">
                 <Navbar tournamentSlug={tournamentSlug} />
 
                 <div className="pt-16">

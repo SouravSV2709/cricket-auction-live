@@ -401,7 +401,7 @@ const AllPlayerCards = () => {
                     <div className="flex justify-center items-center gap-1 animate-pulse">
                         <img
                             loading="lazy"
-                            src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-40,h-40`}
+                            src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-20,h-20`}
                             alt="Tournament Logo"
                             className="w-14 h-14 object-contain"
                         />
