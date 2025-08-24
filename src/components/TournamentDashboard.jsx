@@ -24,6 +24,31 @@ const formatLakhs = (amount) => {
   return `${str} ${unit}`;
 };
 
+// --- Team flags (public/...) ---
+const PUB = process.env.PUBLIC_URL || "";
+const FLAG = (file) => `${PUB}/${file}`;
+
+const TEAM_FLAG_MAP = {
+  Badgers: FLAG("badgers-flag.png"),
+  Blasters: FLAG("blasters-flag.png"),
+  Fighters: FLAG("fighters-flag.png"),
+  Kings: FLAG("kings-flag.png"),
+  Knights: FLAG("knights-flag.png"),
+  Lions: FLAG("lions-flag.png"),
+  Royals: FLAG("royals-flag.png"),
+  Titans: FLAG("titans-flag.png"),
+};
+
+// Fallback to team logo if a flag image is missing
+const getTeamFlagSrc = (teamName, teamLogo) => {
+  const byName = TEAM_FLAG_MAP[teamName?.trim?.()];
+  if (byName) return byName;
+  return teamLogo
+    ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogo}?tr=w-900,h-900,q-50,bl-6`
+    : "/no-team-logo.png";
+};
+
+
 const TournamentDashboard = () => {
   const { tournamentSlug } = useParams();
   const [teams, setTeams] = useState([]);
@@ -287,10 +312,41 @@ const TournamentDashboard = () => {
                 const poolRemaining = Math.max(0, poolLimit - poolSpent);
 
                 return (
-                  <article key={t.teamId} className="rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg">
+                  <article key={t.teamId} className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg">
+                    {/* Watermark flag */}
+                    {/* Watermark flag — muted, full-cover, with vignette for readability */}
+{(() => {
+  const flagSrc = getTeamFlagSrc(t.teamName, teamMeta?.logo);
+  return (
+    <div className="absolute inset-0 pointer-events-none select-none z-0">
+      {/* Flag image: desaturated, darker, slightly blurred, scaled to always cover */}
+      <div
+        className="absolute inset-0 bg-center bg-cover"
+        style={{
+          backgroundImage: `url(${flagSrc})`,
+          filter: "grayscale(50%) brightness(0.55) contrast(1.1) blur(1.2px)",
+          transform: "scale(1.12)",           // avoids edges at any ratio
+          transformOrigin: "center",
+        }}
+      />
+      {/* Soft diagonal scrim (keeps text legible on bright areas) */}
+      <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
+      {/* Vignette to fade edges (no stripes) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
+        }}
+      />
+    </div>
+  );
+})()}
+
                     {/* Header: logo + name + overall purse + team count */}
-                    <header className="flex items-center justify-between mb-3 gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <div className="relative z-10">
+                      {/* Header: logo + name + overall purse + team count */}
+                      <header className="flex items-center justify-between mb-3 gap-3">                      <div className="flex items-center gap-2 min-w-0">
                         <img
                           src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamMeta?.logo || ''}`}
                           alt={t.teamName}
@@ -300,44 +356,45 @@ const TournamentDashboard = () => {
                           {t.teamName}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs md:text-sm">
-                        <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
-                          Purse: <span className="font-bold text-white">{formatLakhs(remainingOverall)}</span>
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
-                          Team: <span className="font-bold text-white">{boughtOverall}/{totalSlots}</span>
-                        </span>
-                      </div>
-                    </header>
+                        <div className="flex items-center gap-2 text-xs md:text-sm">
+                          <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
+                            Purse: <span className="font-bold text-white">{formatLakhs(remainingOverall)}</span>
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
+                            Team: <span className="font-bold text-white">{boughtOverall}/{totalSlots}</span>
+                          </span>
+                        </div>
+                      </header>
 
-                    {/* Pool stats (bigger on laptop) */}
-                    <div className="grid grid-cols-3 gap-3 text-[12px] md:text-sm text-yellow-300">
-                      <div className="bg-black/40 rounded-md p-3 text-center">
-                        <div className="opacity-70">MAX BID</div>
-                        <div className="font-extrabold text-white text-sm md:text-base">
-                          {formatLakhs(stats.maxBid || 0)}
+                      {/* Pool stats (bigger on laptop) */}
+                      <div className="grid grid-cols-3 gap-3 text-[12px] md:text-sm text-yellow-300">
+                        <div className="bg-black/40 rounded-md p-3 text-center">
+                          <div className="opacity-70">MAX BID</div>
+                          <div className="font-extrabold text-white text-sm md:text-base">
+                            {formatLakhs(stats.maxBid || 0)}
+                          </div>
+                        </div>
+                        <div className="bg-black/40 rounded-md p-3 text-center">
+                          <div className="opacity-70">MAX PLY</div>
+                          <div className="font-extrabold text-white text-sm md:text-base">
+                            {stats.maxPlayers ?? 0}
+                          </div>
+                        </div>
+                        <div className="bg-black/40 rounded-md p-3 text-center">
+                          <div className="opacity-70">PURSE</div>
+                          <div className="font-extrabold text-white text-sm md:text-base">
+                            {formatLakhs(poolRemaining)}
+                          </div>
                         </div>
                       </div>
-                      <div className="bg-black/40 rounded-md p-3 text-center">
-                        <div className="opacity-70">MAX PLY</div>
-                        <div className="font-extrabold text-white text-sm md:text-base">
-                          {stats.maxPlayers ?? 0}
-                        </div>
-                      </div>
-                      <div className="bg-black/40 rounded-md p-3 text-center">
-                        <div className="opacity-70">PURSE</div>
-                        <div className="font-extrabold text-white text-sm md:text-base">
-                          {formatLakhs(poolRemaining)}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="mt-3">
-                      <div className="h-2 w-full bg-white/10 rounded">
-                        <div
-                          className="h-2 rounded bg-yellow-400"
-                          style={{ width: poolLimit > 0 ? `${Math.min(100, (poolSpent / poolLimit) * 100)}%` : "0%" }}
-                        />
+                      <div className="mt-3">
+                        <div className="h-2 w-full bg-white/10 rounded">
+                          <div
+                            className="h-2 rounded bg-yellow-400"
+                            style={{ width: poolLimit > 0 ? `${Math.min(100, (poolSpent / poolLimit) * 100)}%` : "0%" }}
+                          />
+                        </div>
                       </div>
                       <div className="mt-1 flex justify-between text-[11px] md:text-xs text-yellow-200">
                         <span>Spent: {formatLakhs(poolSpent)}</span>
