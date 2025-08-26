@@ -1912,6 +1912,7 @@ const SpectatorLiveDisplay = () => {
                                     );
                                 })()}
 
+                                {!unsoldOverlayActive && (
                                 <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
                                     <div className="items-center py-3 px-3 bg-black/40">
                                         <p className="text-lg uppercase text-green-bold">Base Price</p>
@@ -1924,6 +1925,7 @@ const SpectatorLiveDisplay = () => {
                                         </p>
                                     </div>
                                 </div>
+                                )}
 
 
                                 <div>
@@ -1941,7 +1943,7 @@ const SpectatorLiveDisplay = () => {
                     )}
 
 
-                    {["FALSE", "false", false].includes(player?.sold_status) && unsoldClip && (
+                    {(unsoldOverlayActive || ["FALSE","false",false].includes(player?.sold_status)) && unsoldClip && (
                         <div className="relative w-full max-w-[24rem] mx-auto">
                             {/* Media wrapper: same size for video/img */}
                             <div className="relative rounded-xl overflow-hidden border-4 shadow-xl bg-black/30 aspect-video">
