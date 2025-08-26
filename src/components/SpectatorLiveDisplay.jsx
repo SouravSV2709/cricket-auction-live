@@ -105,6 +105,8 @@ const SpectatorLiveDisplay = () => {
         (THEMES && THEMES[theme]) ||
         (THEMES && THEMES[DEFAULT_THEME_KEY]) ||
         { bg: "from-black via-gray-900 to-black", text: "text-white" };
+    const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
+    const unsoldOverlayTimerRef = useRef(null);
 
 
 
@@ -481,13 +483,12 @@ const SpectatorLiveDisplay = () => {
 
         // 🔴 LIVE: update bid instantly on every increment
         const onBidUpdated = ({ bid_amount, team_name }) => {
+            if (unsoldOverlayActive && Number(bid_amount) === 0 && (!team_name || team_name === "")) return;
             setHighestBid(Number(bid_amount) || 0);
             setLeadingTeam(team_name || "");
-            // If a reset happens (sold/cleared), also refresh lists
-            if (Number(bid_amount) === 0 && (!team_name || team_name === "")) {
-                fastRefresh();
-            }
-        };
+            if (Number(bid_amount) === 0 && (!team_name || team_name === "")) fastRefresh();
+            };
+
         socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
 
         socket.on("saleCommitted", (payload) => {
@@ -514,33 +515,26 @@ const SpectatorLiveDisplay = () => {
 
         // optimistic UNSOLD — do not refetch the player
         const onPlayerUnsold = ({ player_id, sold_pool }) => {
-            setPlayer(prev =>
-                prev && Number(prev.id) === Number(player_id)
-                    ? {
-                        ...prev,
-                        sold_status: "FALSE",
-                        team_id: null,
-                        sold_price: 0,
-                        sold_pool: sold_pool ?? prev.sold_pool,
-                    }
-                    : prev
-            );
-
-            // reset banner immediately
-            setHighestBid(0);
-            setLeadingTeam("");
-
-            // pick GIF first so it's ready on render
+            // ① Show the overlay immediately
+            setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
-            // play UNSOLD audio right away
-            try {
-                unsoldAudio.currentTime = 0;
-                unsoldAudio.play();
-            } catch { }
+            try { unsoldAudio.currentTime = 0; unsoldAudio.play(); } catch {}
 
-            // lightweight sync only (no fetchPlayer to avoid flicker)
-            fetchAllPlayers();
-        };
+            // ② After a short delay, *then* apply the state reset
+            if (unsoldOverlayTimerRef.current) clearTimeout(unsoldOverlayTimerRef.current);
+            unsoldOverlayTimerRef.current = setTimeout(() => {
+                setUnsoldOverlayActive(false);
+                setPlayer(prev =>
+                prev && Number(prev.id) === Number(player_id)
+                    ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
+                    : prev
+                );
+                setHighestBid(0);
+                setLeadingTeam("");
+                fetchAllPlayers();
+            }, 1200); // ~1.2s feels snappy; adjust if your clip is longer
+            };
+
 
         socket.on("playerUnsold", onPlayerUnsold);
 
