@@ -752,7 +752,7 @@ const AdminPanel = () => {
                     // Block unsold from the current pool unless reopened manually
                     return (
                         isCurrentPoolUnprocessed ||
-                        isPrevPoolUnprocessed ||
+                        (isPrevPoolUnprocessed && p.sold_pool !== activePool) ||
                         isPrevPoolUnsold
                     ) && !(isCurrentPoolUnsold && p.sold_pool === activePool);
                 });
