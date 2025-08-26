@@ -531,17 +531,17 @@ const AdminPanel = () => {
         };
 
         // 🔊 Broadcast immediately (optimistic), then persist in DB.
-socketRef.current?.emit("bidUpdated", {
-  bid_amount: bidAmount,
-  team_name: selectedTeam,
-  active_pool: activePool,
-});
-socketRef.current?.emit("playerSold", {
-  player_id: currentPlayer.id,
-  team_id: teamId,
-  sold_price: bidAmount,
-  sold_pool: activePool,
-});
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: bidAmount,
+            team_name: selectedTeam,
+            active_pool: activePool,
+        });
+        socketRef.current?.emit("playerSold", {
+            player_id: currentPlayer.id,
+            team_id: teamId,
+            sold_price: bidAmount,
+            sold_pool: activePool,
+        });
 
         // ✅ Perform critical updates in parallel (skip bid reset here)
         await Promise.all([
@@ -885,15 +885,30 @@ socketRef.current?.emit("playerSold", {
 
     const socketRef = useRef(null);
 
+    // Debounce the snapshot fetch used for the side panel
+
+    const teamSnapTimerRef = useRef(null);
+    const queueLightweightTeamSnapshot = (teamId) => {
+        if (teamSnapTimerRef.current) clearTimeout(teamSnapTimerRef.current);
+        teamSnapTimerRef.current = setTimeout(async () => {
+            try {
+                const snap = await fetch(`${API}/api/kcpl/team-state/${teamId}`).then(r => r.json());
+                setTeamPoolState(snap);
+            } catch {
+                /* ignore errors silently */
+            }
+        }, 250); // run only after the user pauses clicking for 250ms
+    };
+
     // Inside useEffect, connect only once
     useEffect(() => {
         socketRef.current = io(API, {
-    transports: ["websocket"],   // only WebSocket
-    upgrade: false,              // skip HTTP long-polling fallback
-    reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 500,
-});
+            transports: ["websocket"],   // only WebSocket
+            upgrade: false,              // skip HTTP long-polling fallback
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 500,
+        });
 
         window.socket = socketRef.current;
 
@@ -944,45 +959,18 @@ socketRef.current?.emit("playerSold", {
             }
         }
 
-        // --- KCPL validation ---
+
+        // --- KCPL validation (instant, local) ---
         if (kcplMode) {
-            try {
-                const verdict = await fetch(`${API}/api/kcpl/validate-bid`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        team_id: team.id,
-                        bid_amount: newBid,
-                        player_id: currentPlayer.id,
-                        active_pool: activePool
-                    })
-                }).then(r => r.json());
-
-                if (!verdict.ok) {
-                    // ✅ format reason string safely
-                    let reason = verdict.reason || "Bid not allowed";
-                    if (verdict.unmetPools && verdict.unmetPools.length > 0) {
-                        reason += ` (must reserve for: ${verdict.unmetPools.join(", ")})`;
-                    }
-                    alert(`❌ Bid blocked: ${reason}`);
-                    return; // stop here, don't broadcast/commit bid
-                }
-
-                // ✅ optional: show maxBid info in console (or UI if needed)
-                if (verdict.maxBid != null) {
-                    console.log("✅ Max allowed bid is", verdict.maxBid);
-                }
-            } catch (e) {
-                console.error("KCPL validate-bid failed", e);
-                alert("❌ Could not validate bid. Try again.");
+            const st = kcplTeamStates.find(t => Number(t.teamId) === Number(team.id));
+            const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
+            if (Number.isFinite(maxAllowed) && newBid > maxAllowed) {
+                alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
                 return;
             }
-
-            // fetch + show KCPL pool budget snapshot for this team
-            try {
-                const snapshot = await fetch(`${API}/api/kcpl/team-state/${team.id}`).then(r => r.json());
-                setTeamPoolState(snapshot);
-            } catch { }
+            // Optional: show the live per-pool snapshot panel only after a short debounce,
+            // not on *every* click.
+            queueLightweightTeamSnapshot(team.id);
         }
         // --- Non-KCPL max bid validation ---
         else {
@@ -1012,7 +1000,7 @@ socketRef.current?.emit("playerSold", {
                 active_pool: activePool
             })
         });
-// 🔊 tell spectators right away
+        // 🔊 tell spectators right away
         socketRef.current?.emit("bidUpdated", {
             bid_amount: newBid,
             team_name: team.name,
