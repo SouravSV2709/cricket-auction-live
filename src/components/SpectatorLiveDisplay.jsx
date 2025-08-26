@@ -8,6 +8,7 @@ import PlayerTransitionLoader from "../components/PlayerTransitionLoader";
 import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
 import { DateTime } from "luxon";
+import { KCPL_RULES } from '../kcplRules';
 
 const PUB = process.env.PUBLIC_URL || '';
 const FLAG = (file) => `${PUB}/${file}`;
@@ -164,6 +165,20 @@ const SpectatorLiveDisplay = () => {
         const map = { A: 1700, B: 3000, C: 5000 };
         return map[player.base_category] || 0;
     };
+
+    // When auctioning a player from a different pool, show the Base Price of the *active* pool.
+const getDisplayBasePrice = (player, activePool) => {
+  // If KCPL team-state is present and a pool base is defined, prefer it
+  const poolBase = KCPL_RULES?.pools?.[activePool]?.base;
+  if (Array.isArray(kcplTeamStates) && kcplTeamStates.length > 0 && poolBase != null) {
+    return Number(poolBase) || 0;
+  }
+
+  // Fallbacks for non-KCPL or when rules aren't available:
+  if (player?.base_price && Number(player.base_price) > 0) return Number(player.base_price);
+  return computeBasePrice(player) || 0;
+};
+
 
     const triggerConfettiIfSold = (playerData) => {
         if (!isLoading && ["TRUE", "true", true].includes(playerData?.sold_status)) {
@@ -702,7 +717,7 @@ const SpectatorLiveDisplay = () => {
                         </p>
                         <p className="text-sm uppercase">BASE PRICE</p>
                         <p className="text-xl font-extrabold text-green-400">
-                            {formatLakhs(player.base_price || 0)}
+                            {formatLakhs(getDisplayBasePrice(player, activePool))}
                         </p>
                     </div>
                 </div>
@@ -1854,7 +1869,7 @@ const SpectatorLiveDisplay = () => {
                                                 <>
                                                     <p className="text-xs text-yellow-400 uppercase tracking-wider">Base Price</p>
                                                     <p className="tracking-wider uppercase">
-                                                        {formatLakhs(player.base_price || 0)}
+                                                        {formatLakhs(getDisplayBasePrice(player, activePool))}
                                                     </p>
                                                 </>
                                             )}
@@ -1917,7 +1932,7 @@ const SpectatorLiveDisplay = () => {
                                     <div className="items-center py-3 px-3 bg-black/40">
                                         <p className="text-lg uppercase text-green-bold">Base Price</p>
 
-                                        <p className="text-4xl tracking-wider uppercase">{formatLakhs(player.base_price || 0)}</p>                                    </div>
+                                        <p className="text-4xl tracking-wider uppercase">{formatLakhs(getDisplayBasePrice(player, activePool))}</p>                                    </div>
                                     <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
                                         <p className="text-lg uppercase text-green-bold">Current Bid</p>
                                         <p className="text-4xl uppercase text-green-bold">

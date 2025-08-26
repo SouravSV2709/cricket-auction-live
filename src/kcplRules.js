@@ -1,11 +1,12 @@
-// kcplRules.js
 export const KCPL_RULES = {
-  order: ["A","B","C","D"],
+  order: ["X","A","B","C","D"],
+  overallUsable: 10000000,
+  totalSquadSize: 17,
   pools: {
-    A: { teamCap: 40_00_000, minReq: 3,  maxCount: 3,  minBase: 3_00_000 },
-    B: { teamCap: 30_00_000, minReq: 0,  maxCount: 5,  minBase: 1_00_000 },
-    C: { teamCap: Infinity,  minReq: 1,  maxCount: Infinity, minBase: 50_000 },
-    D: { teamCap: Infinity,  minReq: 1,  maxCount: Infinity, minBase: 20_000 },
-  },
-  overallUsable: 76_00_000, // 1Cr total minus 24L for icons (Pool X)
+    A: { teamCap: 4000000, minReq: 3, maxCount: 3,        base: 300000 },
+    B: { teamCap: 3000000, minReq: 3, maxCount: 5,        base: 100000 },
+    C: { teamCap: 500000,  minReq: 1, maxCount: Infinity, base:  50000 },
+    D: { teamCap: 100000,  minReq: 1, maxCount: Infinity, base:  20000 },
+    X: { teamCap: 2400000, minReq: 3, maxCount: 3, base:      0 } // headcount only
+  }
 };

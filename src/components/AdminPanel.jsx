@@ -484,8 +484,11 @@ const AdminPanel = () => {
             return;
         }
 
-        if (bidAmount < (currentPlayer.base_price || 0)) {
-            alert(`❌ Sold price must be at least ₹${currentPlayer.base_price}`);
+        const poolBase = KCPL_RULES.pools?.[activePool]?.base
+            ?? currentPlayer?.base_price
+            ?? computeBasePrice(currentPlayer);
+        if (bidAmount < poolBase) {
+            alert(`❌ Sold price must be at least ₹${poolBase}`);
             return;
         }
 
@@ -557,7 +560,8 @@ const AdminPanel = () => {
                     sold_status: "TRUE",
                     team_id: teamId,
                     sold_price: bidAmount,
-                    sold_pool: activePool
+                    sold_pool: activePool,
+                    active_pool: activePool
                 })
             }),
             fetch(`${API}/api/teams/${team.id}`, {
