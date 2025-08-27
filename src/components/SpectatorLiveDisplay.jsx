@@ -554,7 +554,33 @@ const getDisplayBasePrice = (player, activePool) => {
         socket.on("playerUnsold", onPlayerUnsold);
 
 
-        socket.on("playerChanged", fastRefresh);
+        socket.on("playerChanged", (payload) => {
+            // ① paint the new player immediately – no network
+            setIsLoading(true);
+            setPlayer(prev => ({ ...(prev || {}), ...payload }));
+            setHighestBid(0);
+            setLeadingTeam("");
+
+            // ② lazily refresh light aggregates (optional)
+            fetchAllPlayers();
+            fetchKcplTeamStates();
+
+            // ③ fetch teams only if we need them and don't have them
+            if ((!teamSummaries || teamSummaries.length === 0) && payload?.tournament_id) {
+                fetchTeams();
+            }
+
+            // ④ optional: fetch stats asynchronously if present
+            if (payload?.cricheroes_id) {
+                fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
+                .then(r => r.json())
+                .then(setCricheroesStats)
+                .catch(() => setCricheroesStats(null));
+            }
+
+            setTimeout(() => setIsLoading(false), 150);
+            });
+
         socket.on("secretBiddingToggled", fastRefresh);
 
         // Theme + custom message + reveal flow — move onto THIS socket
