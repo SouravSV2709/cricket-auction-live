@@ -857,7 +857,7 @@ app.get('/api/players/:id', async (req, res) => {
     if (filename.startsWith("http")) {
       return filename;
     }
-    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,h-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
+    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
   try {
@@ -1184,7 +1184,7 @@ app.get('/api/players/by-serial/:serial', async (req, res) => {
     if (filename.startsWith("http")) {
       return filename;
     }
-    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,h-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
+    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
   try {
