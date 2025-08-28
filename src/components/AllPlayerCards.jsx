@@ -366,69 +366,86 @@ const AllPlayerCards = () => {
                 ].join(" ")}
             >
                 {/* TOP: full image on red background */}
-                <div className="relative h-[72%] md:h-[66%] bg-center bg-cover" style={{ backgroundImage: "url('/redbg.jpg')" }}>
+                {/* TOP: image section with red bg + watermark + serial + player image */}
+<div
+  className="relative h-[72%] md:h-[66%] bg-center bg-cover"
+  style={{ backgroundImage: "url('/redbg.jpg')" }}
+>
+  {/* Dark overlay to dim the red background */}
+  <div className="absolute inset-0 bg-black/40 z-0" />
 
-                    {/* Serial pill */}
-                    <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow">
-                        #{serial}
-                    </span>
+  {/* EAARENA Logo watermark */}
+  <img
+    src="/AuctionArena2.png"
+    alt="EAARENA Logo"
+    className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
+  />
 
-                    {/* Player image (full figure feel) */}
-                    <img
-   loading="lazy"
-   src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
-   alt={player.name}
-   className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in"
-   onClick={() => setOpenImage(`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`)}
-   onError={(e) => {
+  {/* Serial pill */}
+  <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
+    #{player?.auction_serial ?? serial}
+  </span>
+
+  {/* Player image */}
+  <img
+    loading="lazy"
+    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+    alt={player.name}
+    className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
+    onClick={() =>
+      setOpenImage(
+        `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
+      )
+    }
+    onError={(e) => {
       e.currentTarget.onerror = null;
       e.currentTarget.src = "/no-image-found.png";
-   }}
-/>
+    }}
+  />
 
+  {/* scrim for gradient fade */}
+  <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent z-30" />
+</div>
 
-                    {/* Gentle scrim to improve header readability */}
-<div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent" />
-                </div>
 
                 {/* BOTTOM: classy white info panel */}
                 {/* BOTTOM: classy info panel */}
-<div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-2 rounded-b-2xl">
-   {/* Golden divider */}
-   <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
+                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-2 rounded-b-2xl">
+                    {/* Golden divider */}
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
-   <div className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] truncate drop-shadow">
-      {player.name}
-   </div>
+                    <div className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] truncate drop-shadow">
+                        {player.name}
+                    </div>
 
-   <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200">
-      <div>
-         <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span>
-         <div className="font-semibold text-white">{player.role || "-"}</div>
-      </div>
+                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200">
+                        <div>
+                            <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span>
+                            <div className="font-semibold text-white">{player.role || "-"}</div>
+                        </div>
 
-      {player.district && (
-         <div>
-            <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span>
-            <div className="font-semibold text-white">{player.district}</div>
-         </div>
-      )}
+                        {player.district && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span>
+                                <div className="font-semibold text-white">{player.district}</div>
+                            </div>
+                        )}
 
-      {player.base_category && (
-         <div>
-            <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
-            <div className="font-semibold text-white">{player.base_category}</div>
-         </div>
-      )}
+                        {player.base_category && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
+                                <div className="font-semibold text-white">{player.base_category}</div>
+                            </div>
+                        )}
 
-      {player.nickname && (
-         <div>
-            <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span>
-            <div className="font-semibold text-white">{player.nickname}</div>
-         </div>
-      )}
-   </div>
-</div>
+                        {player.nickname && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span>
+                                <div className="font-semibold text-white">{player.nickname}</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
             </div>
         );
@@ -724,24 +741,24 @@ const AllPlayerCards = () => {
                             </div>
 
                             {openImage && (
-  <div 
-    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
-    onClick={() => setOpenImage(null)}
-  >
-    <img 
-      src={openImage} 
-      alt="Full View"
-      className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400"
-      onClick={(e) => e.stopPropagation()}
-    />
-    <button 
-      className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300"
-      onClick={() => setOpenImage(null)}
-    >
-      ✕
-    </button>
-  </div>
-)}
+                                <div
+                                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+                                    onClick={() => setOpenImage(null)}
+                                >
+                                    <img
+                                        src={openImage}
+                                        alt="Full View"
+                                        className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                    <button
+                                        className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300"
+                                        onClick={() => setOpenImage(null)}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            )}
 
                             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
                                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
