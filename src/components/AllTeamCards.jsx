@@ -223,9 +223,9 @@ const AllTeamCards = () => {
 
                     {/* Player Cards */}
                     {viewMode === "card" ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-7 gap-4 px-3">
+<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4 px-3">
                             {[...teamPlayers, ...Array(placeholdersToShow).fill(null)].map((player, idx) => (
-                                <div key={player ? `player-${player.id}` : `placeholder-${idx}`} className="w-[240px] h-[320px] mx-auto m-2">
+                                <div key={player ? `player-${player.id}` : `placeholder-${idx}`} className="aspect-[3/4] w-full max-w-[220px] mx-auto m-2">
                                     {player ? (
                                         <div className="player-card relative h-full rounded-2xl overflow-hidden shadow-xl ring-1 ring-black/10 bg-white/5 backdrop-blur-[1px] transition-transform duration-300 ease-out cursor-pointer hover:scale-105">
                                             {/* TOP: full image on red background */}

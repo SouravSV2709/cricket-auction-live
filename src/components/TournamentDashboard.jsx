@@ -300,7 +300,7 @@ const TournamentDashboard = () => {
             </div>
 
             {/* Full-page grid, scaled up for laptops */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-2 gap-4">
               {kcplTeamStates.map((t, idx) => {
                 // Overall (all pools)
                 const teamMeta = teams.find(x => Number(x.id) === Number(t.teamId));
@@ -356,13 +356,13 @@ const TournamentDashboard = () => {
                           <img
                             src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamMeta?.logo || ''}`}
                             alt={t.teamName}
-                            className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/60"
+                            className="w-8 h-8 md:w-16 md:h-16 rounded-full border border-white/60"
                           />
-                          <span className="font-bold text-white text-base md:text-lg truncate">
+                          <span className="font-bold text-white text-base md:text-xl truncate">
                             {t.teamName}
                           </span>
                         </div>
-                          <div className="flex items-center gap-2 text-xs md:text-sm">
+                          <div className="flex items-center gap-2 text-xs md:text-xl">
                             <span className="px-2 py-0.5 rounded bg-white/10 text-yellow-200 whitespace-nowrap">
                               Purse: <span className="font-bold text-white">{formatLakhs(remainingOverall)}</span>
                             </span>
@@ -373,7 +373,7 @@ const TournamentDashboard = () => {
                         </header>
 
                         {/* Pool stats (bigger on laptop) */}
-                        <div className="grid grid-cols-3 gap-3 text-[12px] md:text-sm text-yellow-300">
+                        <div className="grid grid-cols-3 gap-3 text-[12px] md:text-lg text-yellow-300">
                           <div className="bg-black/40 rounded-md p-3 text-center">
                             <div className="opacity-70">MAX BID</div>
                             <div className="font-extrabold text-white text-sm md:text-base">
@@ -402,11 +402,11 @@ const TournamentDashboard = () => {
                             />
                           </div>
                         </div>
-                        <div className="mt-1 flex justify-between text-[11px] md:text-xs text-yellow-200">
+                        <div className="mt-1 flex justify-between text-[11px] md:text-lg text-yellow-200">
                           <span>Spent: {formatLakhs(poolSpent)}</span>
                           <span>Cap: {formatLakhs(poolLimit)}</span>
                         </div>
-                        <div className="mt-1 text-[11px] md:text-xs text-yellow-200">
+                        <div className="mt-1 text-[11px] md:text-lg text-yellow-200">
                           Bought in {activePool}: <span className="font-semibold text-white">{poolBought}</span>
                         </div>
                       </div>
