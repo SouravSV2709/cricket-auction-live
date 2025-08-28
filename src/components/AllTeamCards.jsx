@@ -230,43 +230,43 @@ const AllTeamCards = () => {
                                         <div className="player-card relative h-full rounded-2xl overflow-hidden shadow-xl ring-1 ring-black/10 bg-white/5 backdrop-blur-[1px] transition-transform duration-300 ease-out cursor-pointer hover:scale-105">
                                             {/* TOP: full image on red background */}
                                             {/* TOP: image section with red bg + watermark + serial + player image */}
-<div
-  className="relative h-[72%] bg-center bg-cover"
-  style={{ backgroundImage: "url('/redbg.jpg')" }}
->
-  {/* Dark overlay to dim the red background */}
-  <div className="absolute inset-0 bg-black/40 z-0" />
+                                            <div
+                                                className="relative h-[72%] bg-center bg-cover"
+                                                style={{ backgroundImage: "url('/redbg.jpg')" }}
+                                            >
+                                                {/* Dark overlay to dim the red background */}
+                                                <div className="absolute inset-0 bg-black/40 z-0" />
 
-  {/* EAARENA Logo watermark */}
-  <img
-    src="/AuctionArena2.png"
-    alt="EAARENA Logo"
-    className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
-  />
+                                                {/* EAARENA Logo watermark */}
+                                                <img
+                                                    src="/AuctionArena2.png"
+                                                    alt="EAARENA Logo"
+                                                    className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
+                                                />
 
-  {/* Serial pill */}
-  <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
-    #{player?.auction_serial ?? idx + 1}
-  </span>
+                                                {/* Serial pill */}
+                                                <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
+                                                    #{player?.auction_serial ?? idx + 1}
+                                                </span>
 
-  {/* Player image */}
-  <img
-    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
-    alt={player.name}
-    className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
-    onClick={() =>
-      setOpenImage(
-        `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
-      )
-    }
-    onError={(e) => {
-      e.currentTarget.src = "/no-image-found.png";
-    }}
-  />
+                                                {/* Player image */}
+                                                <img
+                                                    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                                                    alt={player.name}
+                                                    className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
+                                                    onClick={() =>
+                                                        setOpenImage(
+                                                            `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
+                                                        )
+                                                    }
+                                                    onError={(e) => {
+                                                        e.currentTarget.src = "/no-image-found.png";
+                                                    }}
+                                                />
 
-  {/* scrim for gradient fade */}
-  <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent z-30" />
-</div>
+                                                {/* scrim for gradient fade */}
+                                                <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent z-30" />
+                                            </div>
 
 
                                             {/* BOTTOM: classy info panel (same as PlayerCard) */}
@@ -351,15 +351,28 @@ const AllTeamCards = () => {
                     )}
 
                     {openImage && (
-                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]" onClick={() => setOpenImage(null)}>
+                        <div
+                            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+                            onClick={() => setOpenImage(null)}
+                        >
+                            {/* EAARENA watermark background */}
+                            <img
+                                src="/AuctionArena2.png"
+                                alt="EA ARENA Logo"
+                                className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
+                            />
+
+                            {/* Player full image */}
                             <img
                                 src={openImage}
                                 alt="Full View"
-                                className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400"
+                                className="relative max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400 z-10"
                                 onClick={(e) => e.stopPropagation()}
                             />
+
+                            {/* Close button */}
                             <button
-                                className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300"
+                                className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
                                 onClick={() => setOpenImage(null)}
                             >
                                 ✕

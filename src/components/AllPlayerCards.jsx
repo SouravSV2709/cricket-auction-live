@@ -741,24 +741,34 @@ const AllPlayerCards = () => {
                             </div>
 
                             {openImage && (
-                                <div
-                                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
-                                    onClick={() => setOpenImage(null)}
-                                >
-                                    <img
-                                        src={openImage}
-                                        alt="Full View"
-                                        className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400"
-                                        onClick={(e) => e.stopPropagation()}
-                                    />
-                                    <button
-                                        className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300"
-                                        onClick={() => setOpenImage(null)}
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                            )}
+  <div
+    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+    onClick={() => setOpenImage(null)}
+  >
+    {/* EAARENA watermark background */}
+    <img
+      src="/AuctionArena2.png"
+      alt="EA ARENA Logo"
+      className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
+    />
+
+    {/* Player full image */}
+    <img
+      src={openImage}
+      alt="Full View"
+      className="relative max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400 z-10"
+      onClick={(e) => e.stopPropagation()}
+    />
+
+    {/* Close button */}
+    <button
+      className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
+      onClick={() => setOpenImage(null)}
+    >
+      ✕
+    </button>
+  </div>
+)}
 
                             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
                                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
