@@ -80,24 +80,44 @@ const AllTeamCards = () => {
     const placeholdersToShow = Math.max(0, playersPerTeam - teamPlayers.length);
 
     const exportToExcel = () => {
-        const teamName = selectedTeam?.name || "Team";
-        const data = [...teamPlayers]
-            .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
-            .map((player, idx) => ({
-                "#": idx + 1,
-                Name: player.name,
-                Role: player.role,
-                "Kit Size": `${player.jersey_size || "-"}/${player.pant_size || "-"}`,
-                Mobile: player.mobile || "-",
-                "Sold Amount": player.sold_price || 0,
-            }));
+    const teamName = selectedTeam?.name || "Team";
 
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Players");
-
-        XLSX.writeFile(workbook, `${teamName}-Players.xlsx`);
+    // Collect all fields that might be useful
+    const allFields = {
+        Name: (p) => p.name,
+        Role: (p) => p.role,
+        "Kit Size": (p) => p.jersey_size || p.pant_size ? `${p.jersey_size || "-"} / ${p.pant_size || "-"}` : null,
+        Mobile: (p) => p.mobile,
+        "Sold Amount": (p) => p.sold_price != null ? p.sold_price : null,
+        Nickname: (p) => p.nickname,
+        District: (p) => p.district,
     };
+
+    // Determine all fields that are actually used (have at least one value)
+    const usedFields = Object.entries(allFields).filter(([label, getter]) =>
+        teamPlayers.some(player => getter(player))
+    );
+
+    const data = teamPlayers
+        .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
+        .map((player, idx) => {
+            const row = { "#": idx + 1 };
+            usedFields.forEach(([label, getter]) => {
+                const value = getter(player);
+                if (value !== null && value !== undefined) {
+                    row[label] = value;
+                }
+            });
+            return row;
+        });
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Players");
+
+    XLSX.writeFile(workbook, `${teamName}-Players.xlsx`);
+};
+
 
 
     return (
@@ -225,7 +245,7 @@ const AllTeamCards = () => {
                     {viewMode === "card" ? (
 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-4 px-3">
                             {[...teamPlayers, ...Array(placeholdersToShow).fill(null)].map((player, idx) => (
-                                <div key={player ? `player-${player.id}` : `placeholder-${idx}`} className="aspect-[3/4] w-full max-w-[220px] mx-auto m-2">
+                                <div key={player ? `player-${player.id}` : `placeholder-${idx}`} className="aspect-[1/2] w-full max-w-[220px] mx-auto m-2">
                                     {player ? (
                                         <div className="player-card relative h-full rounded-2xl overflow-hidden shadow-xl ring-1 ring-black/10 bg-white/5 backdrop-blur-[1px] transition-transform duration-300 ease-out cursor-pointer hover:scale-105">
                                             {/* TOP: full image on red background */}
@@ -270,32 +290,34 @@ const AllTeamCards = () => {
 
 
                                             {/* BOTTOM: classy info panel (same as PlayerCard) */}
-                                            <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-2 rounded-b-2xl">
+                                            <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-2 rounded-b-2xl max-h-[180px] overflow-y-auto">
                                                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
                                                 <div className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] truncate drop-shadow">
                                                     {player.name}
-                                                </div>
-
-                                                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200">
-                                                    <div>
-                                                        <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span>
-                                                        <div className="font-semibold text-white">{player.role || "-"}</div>
-                                                    </div>
-                                                    <div>
-                                                        <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span>
-                                                        <div className="font-semibold text-white">{player.district || "-"}</div>
-                                                    </div>
-                                                    <div>
-                                                        <span className="uppercase tracking-wide text-gray-400 text-[10px]">Sold Price</span>
-                                                        <div className="font-semibold text-white">₹{player.sold_price?.toLocaleString() || "0"}</div>
-                                                    </div>
                                                     {player.nickname && (
                                                         <div>
-                                                            <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span>
+                                                            {/* <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span> */}
                                                             <div className="font-semibold text-white">{player.nickname}</div>
                                                         </div>
                                                     )}
+                                                </div>
+
+                                                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200 px-2">
+                                                    <div>
+                                                        {/* <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span> */}
+                                                        <div className="font-semibold text-white">{player.role || "-"}</div>
+                                                    </div>
+                                                    {player.district && (
+                                                    <div>
+                                                        {/* <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span> */}
+                                                        <div className="font-semibold text-white">{player.district || "-"}</div>
+                                                    </div>
+                                                    )}
+                                                    <div>
+                                                        {/* <span className="uppercase tracking-wide text-gray-400 text-[10px]">Sold Price</span> */}
+                                                        <div className="font-semibold text-white">₹{player.sold_price?.toLocaleString() || "0"}</div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
