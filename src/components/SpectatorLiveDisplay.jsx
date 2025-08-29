@@ -1912,7 +1912,7 @@ const getDisplayBasePrice = (player, activePool) => {
                         isWaitingForBid ? (
                             <div className="text-center items-center justify-center">
                                 <img
-                                    src="/waitingbid.gif"
+                                    src="/bidding.gif"
                                     alt="Waiting for a Bid"
                                     className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
                                 />
