@@ -35,6 +35,8 @@ const AllPlayerCards = () => {
     const [showToast, setShowToast] = useState(false);
     const hoverTimeoutRef = useRef(null);
     const [openImage, setOpenImage] = useState(null);
+    const [openDetails, setOpenDetails] = useState(null);
+
 
     // Brand gradient background (EAARENA)
     const EA_BG_STYLE = {
@@ -267,6 +269,254 @@ const AllPlayerCards = () => {
 
     };
 
+    // Build a branded, offscreen DOM and download as PNG
+    const handleDownloadCard = async (player) => {
+        try {
+            const serial = player?.auction_serial ?? serialMap[player.id];
+            const safeName = String(player.name || "player")
+                .replace(/[^a-z0-9\-_\s]/gi, "")
+                .replace(/\s+/g, "-")
+                .toLowerCase();
+
+            // ----- Container (desktop-friendly: 1100x620) -----
+            const container = document.createElement("div");
+            container.style.width = "1100px";
+            container.style.height = "620px";
+            container.style.position = "fixed";
+            container.style.left = "-100000px";
+            container.style.top = "0";
+            container.style.zIndex = "-1";
+            container.style.padding = "20px";
+            container.style.borderRadius = "16px";
+            container.style.overflow = "hidden";
+            container.style.boxShadow = "0 12px 60px rgba(0,0,0,.4)";
+            // EA ARENA gradient
+            container.style.background = `
+      radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .12), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(168, 85, 247, .12), transparent 60%),
+      linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+    `;
+
+            // watermark
+            const wm = document.createElement("img");
+            wm.src = "/AuctionArena2.png";
+            wm.alt = "EA ARENA";
+            Object.assign(wm.style, {
+                position: "absolute",
+                inset: "0",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                opacity: ".06",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 0 2px rgba(0,0,0,.2))",
+            });
+            container.appendChild(wm);
+
+            // ----- Header bar -----
+            const header = document.createElement("div");
+            Object.assign(header.style, {
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "rgba(0,0,0,.45)",
+                border: "1px solid rgba(250,204,21,.35)",
+                borderRadius: "12px",
+                padding: "10px 14px",
+                color: "#EAB308",
+                fontWeight: "700",
+                letterSpacing: ".3px",
+            });
+
+            const hdrLeft = document.createElement("div");
+            hdrLeft.style.display = "flex";
+            hdrLeft.style.alignItems = "center";
+            hdrLeft.style.gap = "10px";
+
+            const logo = document.createElement("img");
+            logo.src = "/AuctionArena2.png";
+            logo.alt = "EA ARENA";
+            logo.style.height = "34px";
+            logo.style.objectFit = "contain";
+
+            const title = document.createElement("div");
+            title.style.color = "#FDE68A";
+            title.style.fontSize = "18px";
+            title.textContent = `#${serial} — ${player.name || ""}`;
+
+            hdrLeft.appendChild(logo);
+            hdrLeft.appendChild(title);
+
+            const hdrRight = document.createElement("div");
+            hdrRight.style.fontSize = "13px";
+            hdrRight.textContent = "Powered by Auction Arena";
+
+            header.appendChild(hdrLeft);
+            header.appendChild(hdrRight);
+            container.appendChild(header);
+
+            // ----- Body: image + fields -----
+            const body = document.createElement("div");
+            Object.assign(body.style, {
+                display: "grid",
+                gridTemplateColumns: "460px 1fr",
+                gap: "18px",
+                marginTop: "14px",
+                height: "500px",
+            });
+
+            // Left = player image on EA red bg
+            const left = document.createElement("div");
+            Object.assign(left.style, {
+                position: "relative",
+                borderRadius: "14px",
+                overflow: "hidden",
+                border: "1px solid rgba(250,204,21,.35)",
+                backgroundImage: "url('/redbg.jpg')",
+                backgroundPosition: "center",
+                backgroundSize: "cover",
+            });
+
+            const dim = document.createElement("div");
+            Object.assign(dim.style, {
+                position: "absolute", inset: "0",
+                background: "rgba(0,0,0,.35)"
+            });
+            left.appendChild(dim);
+
+            const serialPill = document.createElement("div");
+            Object.assign(serialPill.style, {
+                position: "absolute", top: "10px", left: "10px",
+                background: "linear-gradient(90deg,#facc15,#f97316)",
+                color: "#111",
+                fontWeight: "800",
+                fontSize: "12px",
+                padding: "4px 8px",
+                borderRadius: "999px",
+                boxShadow: "0 2px 10px rgba(0,0,0,.35)",
+                zIndex: "2"
+            });
+            serialPill.textContent = `#${serial}`;
+            left.appendChild(serialPill);
+
+            const pimg = document.createElement("img");
+            pimg.src = `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-1400,q-90,e-sharpen,f-webp`;
+            pimg.alt = player.name || "";
+            Object.assign(pimg.style, {
+                position: "absolute", inset: "0",
+                width: "100%", height: "100%",
+                objectFit: "contain",
+                filter: "drop-shadow(0 10px 26px rgba(0,0,0,.55))"
+            });
+            pimg.crossOrigin = "anonymous";
+            left.appendChild(pimg);
+
+            body.appendChild(left);
+
+            // Right = detail boxes
+            const right = document.createElement("div");
+            Object.assign(right.style, {
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+            });
+
+            const addField = (label, value) => {
+                if (!value) return;
+                const box = document.createElement("div");
+                Object.assign(box.style, {
+                    background: "rgba(255,255,255,.06)",
+                    border: "1px solid rgba(255,255,255,.12)",
+                    borderRadius: "10px",
+                    padding: "14px",
+                    color: "white",
+                });
+                const l = document.createElement("div");
+                l.textContent = label.toUpperCase();
+                Object.assign(l.style, {
+                    color: "#C0C0C0",
+                    fontSize: "11px",
+                    letterSpacing: ".8px",
+                    marginBottom: "6px"
+                });
+                const v = document.createElement("div");
+                v.textContent = String(value);
+                Object.assign(v.style, {
+                    fontWeight: "700",
+                    fontSize: "14px",
+                    wordWrap: "break-word"
+                });
+                box.appendChild(l); box.appendChild(v);
+                right.appendChild(box);
+            };
+
+            addField("Role", player.role);
+            addField("Category", player.base_category);
+            addField("District", player.district);
+            addField("Location", player.location);
+            addField("Nickname", player.nickname);
+            addField("Email", player.email);
+            // addField("Mobile", player.mobile); // enable if needed
+
+            body.appendChild(right);
+            container.appendChild(body);
+
+            // ----- Footer bar -----
+            const footer = document.createElement("div");
+            Object.assign(footer.style, {
+                marginTop: "12px",
+                background: "rgba(0,0,0,.45)",
+                border: "1px solid rgba(168,85,247,.35)",
+                color: "#FDE68A",
+                fontSize: "12px",
+                textAlign: "center",
+                padding: "6px 10px",
+                borderRadius: "10px",
+            });
+            footer.textContent = "🔴 All rights reserved | EA ARENA | +91-9547652702 🧨";
+            container.appendChild(footer);
+
+            document.body.appendChild(container);
+
+            // Wait for images
+            const imgs = container.querySelectorAll("img");
+            await Promise.all(
+                Array.from(imgs).map(
+                    (img) =>
+                        new Promise((res) => {
+                            if (img.complete && img.naturalWidth) return res();
+                            const to = setTimeout(res, 2500);
+                            img.onload = () => { clearTimeout(to); res(); };
+                            img.onerror = () => res();
+                        })
+                )
+            );
+
+            // Snapshot
+            const canvas = await html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: null,
+            });
+
+            // Download
+            const data = canvas.toDataURL("image/png", 1.0);
+            const a = document.createElement("a");
+            a.href = data;
+            a.download = `player-${serial}-${safeName}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // cleanup
+            document.body.removeChild(container);
+        } catch (e) {
+            console.error("Download failed:", e);
+            alert("Could not generate the image. Please try again.");
+        }
+    };
+
+
     useEffect(() => {
         return () => {
             clearTimeout(hoverTimeoutRef.current);
@@ -367,45 +617,45 @@ const AllPlayerCards = () => {
             >
                 {/* TOP: full image on red background */}
                 {/* TOP: image section with red bg + watermark + serial + player image */}
-<div
-  className="relative h-[72%] md:h-[66%] bg-center bg-cover"
-  style={{ backgroundImage: "url('/redbg.jpg')" }}
->
-  {/* Dark overlay to dim the red background */}
-  <div className="absolute inset-0 bg-black/40 z-0" />
+                <div
+                    className="relative h-[72%] md:h-[66%] bg-center bg-cover"
+                    style={{ backgroundImage: "url('/redbg.jpg')" }}
+                >
+                    {/* Dark overlay to dim the red background */}
+                    <div className="absolute inset-0 bg-black/40 z-0" />
 
-  {/* EAARENA Logo watermark */}
-  <img
-    src="/AuctionArena2.png"
-    alt="EAARENA Logo"
-    className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
-  />
+                    {/* EAARENA Logo watermark */}
+                    <img
+                        src="/AuctionArena2.png"
+                        alt="EAARENA Logo"
+                        className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
+                    />
 
-  {/* Serial pill */}
-  <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
-    #{player?.auction_serial ?? serial}
-  </span>
+                    {/* Serial pill */}
+                    <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
+                        #{player?.auction_serial ?? serial}
+                    </span>
 
-  {/* Player image */}
-  <img
-    loading="lazy"
-    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
-    alt={player.name}
-    className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
-    onClick={() =>
-      setOpenImage(
-        `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
-      )
-    }
-    onError={(e) => {
-      e.currentTarget.onerror = null;
-      e.currentTarget.src = "/no-image-found.png";
-    }}
-  />
+                    {/* Player image */}
+                    <img
+                        loading="lazy"
+                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                        alt={player.name}
+                        className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
+                        onClick={() =>
+                            setOpenImage(
+                                `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
+                            )
+                        }
+                        onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = "/no-image-found.png";
+                        }}
+                    />
 
-  {/* scrim for gradient fade */}
-  <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent z-30" />
-</div>
+                    {/* scrim for gradient fade */}
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent z-30" />
+                </div>
 
 
                 {/* BOTTOM: classy white info panel */}
@@ -414,7 +664,15 @@ const AllPlayerCards = () => {
                     {/* Golden divider */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
-                    <div className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] truncate drop-shadow">
+                    <div
+                        className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] drop-shadow"
+                        style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,           // show up to 2 lines
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden"
+                        }}
+                    >
                         {player.name}
                     </div>
 
@@ -444,8 +702,28 @@ const AllPlayerCards = () => {
                                 <div className="font-semibold text-white">{player.nickname}</div>
                             </div>
                         )}
+
+                        {/* {player.location && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Location</span>
+                                <div className="font-semibold text-white">{player.location}</div>
+                            </div>
+                        )} */}
+
+                        <div className="mt-2">
+                            <button
+                                className="text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDetails(player);
+                                }}
+                            >
+                                View full
+                            </button>
+                        </div>
                     </div>
                 </div>
+
 
             </div>
         );
@@ -671,12 +949,12 @@ const AllPlayerCards = () => {
                                     Clear Filters
                                 </button>
 
-                                <button
+                                {/* <button
                                     onClick={downloadAllCardsAsPDF}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                                 >
                                     📥 Download All Player Cards (PDF)
-                                </button>
+                                </button> */}
 
 
                             </div>
@@ -741,34 +1019,136 @@ const AllPlayerCards = () => {
                             </div>
 
                             {openImage && (
-  <div
-    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
-    onClick={() => setOpenImage(null)}
-  >
-    {/* EAARENA watermark background */}
-    <img
-      src="/AuctionArena2.png"
-      alt="EA ARENA Logo"
-      className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
-    />
+                                <div
+                                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+                                    onClick={() => setOpenImage(null)}
+                                >
+                                    {/* EAARENA watermark background */}
+                                    <img
+                                        src="/AuctionArena2.png"
+                                        alt="EA ARENA Logo"
+                                        className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
+                                    />
 
-    {/* Player full image */}
-    <img
-      src={openImage}
-      alt="Full View"
-      className="relative max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400 z-10"
-      onClick={(e) => e.stopPropagation()}
-    />
+                                    {/* Player full image */}
+                                    <img
+                                        src={openImage}
+                                        alt="Full View"
+                                        className="relative max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400 z-10"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
 
-    {/* Close button */}
-    <button
-      className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
-      onClick={() => setOpenImage(null)}
-    >
-      ✕
-    </button>
-  </div>
-)}
+                                    {/* Close button */}
+                                    <button
+                                        className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
+                                        onClick={() => setOpenImage(null)}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            )}
+
+                            {openDetails && (
+                                <div
+                                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+                                    onClick={() => setOpenDetails(null)}
+                                >
+                                    {/* EAARENA watermark */}
+                                    <img
+                                        src="/AuctionArena2.png"
+                                        alt="EA ARENA Logo"
+                                        className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
+                                    />
+
+                                    <div
+                                        className="relative w-[92vw] max-w-[720px] max-h-[88vh] bg-[#11121a] border border-yellow-400/40 rounded-xl shadow-2xl overflow-hidden"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                            <div className="text-yellow-300 font-semibold text-base ml-1/2">
+                                                #{openDetails.auction_serial ?? serialMap[openDetails.id]} — {openDetails.name}
+                                            </div>
+                                            <button
+                                                className="text-white text-2xl leading-none hover:text-yellow-300"
+                                                onClick={() => setOpenDetails(null)}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+
+                                        {/* Body */}
+                                        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-auto" style={{ maxHeight: "70vh" }}>
+                                            {/* Photo */}
+                                            <div className="md:col-span-1">
+                                                <div className="relative bg-black/40 rounded-lg overflow-hidden border border-white/10">
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${openDetails.profile_image}?tr=w-1200,q-90`}
+                                                        alt={openDetails.name}
+                                                        className="w-full h-auto object-contain"
+                                                        onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Fields */}
+                                            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                                {[
+                                                    ["Nickname", openDetails.nickname],
+                                                    ["Role", openDetails.role],
+                                                    ["Category", openDetails.base_category],
+                                                    ["District", openDetails.district],
+                                                    ["Location", openDetails.location],
+                                                    ["Email", openDetails.email]
+                                                    // ["Mobile", openDetails.mobile],
+                                                ].map(([label, value]) => (
+                                                    value ? (
+                                                        <div key={label} className="bg-white/5 border border-white/10 rounded-md p-3">
+                                                            <div className="uppercase text-[10px] tracking-wider text-gray-400">{label}</div>
+                                                            <div className="text-white font-medium break-words">{String(value)}</div>
+                                                        </div>
+                                                    ) : null
+                                                ))}
+                                            </div>
+
+                                        </div>
+
+                                        {/* Footer */}
+                                        <div className="px-4 py-3 border-t border-white/10 flex justify-end gap-2">
+                                            <button
+                                                className="px-4 py-2 rounded-md bg-yellow-500/90 hover:bg-yellow-500 text-black font-semibold"
+                                                onClick={() => handleDownloadCard(openDetails)}
+                                            >
+                                                Download
+                                            </button>
+                                            <button
+                                                className="px-4 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                                                onClick={() => setOpenDetails(null)}
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                    {/* EA Arena Branding */}
+                                    <div className="absolute top-0 left-0 right-0 bg-black/40 flex items-center justify-between px-4 py-2">
+                                        <img
+                                            src="/AuctionArena2.png"
+                                            alt="EA Arena Logo"
+                                            className="h-8 md:h-10 object-contain"
+                                        />
+                                        <span className="text-yellow-400 font-bold text-xs md:text-sm tracking-wide">
+                                            Powered by Auction Arena
+                                        </span>
+                                    </div>
+
+                                    {/* Branded footer inside modal */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-center text-yellow-300 text-xs py-2">
+                                        🔴 All rights reserved | EA Arena | +91-9547652702 🧨
+                                    </div>
+                                </div>
+                            )}
+
 
                             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
                                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
