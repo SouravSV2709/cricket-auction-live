@@ -9,20 +9,26 @@ const API = CONFIG.API_BASE_URL;
 
 
 // Helper: format rupees to lakhs (e.g., 2000000 -> "20 lakhs", 2050000 -> "20.5 lakhs")
-const formatLakhs = (amount) => {
-  const n = Number(amount) || 0;
-  const lakhs = n / 100000;
+// Formats rupees: >= 1,00,000 as lakhs; else as k (thousands).
+// Shows "0" cleanly if value is 0.
+const formatLakhs = (amt) => {
+  const n = Number(amt) || 0;
 
-  // Decide decimal places: 0 if whole, 1 if tenths fits, else 2
-  let decimals = 0;
-  if (lakhs % 1 !== 0) {
-    decimals = (Math.round(lakhs * 10) / 10 === lakhs) ? 1 : 2;
+  if (n === 0) return "0";
+
+  // Lakhs
+  if (n >= 100000) {
+    const lakhs = n / 100000;
+    const str = (Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)).replace(/\.0$/, "");
+    return `${str} ${parseFloat(str) === 1 ? "lakh" : "lakhs"}`;
   }
 
-  const str = lakhs.toFixed(decimals).replace(/\.0$/, ''); // trim trailing .0
-  const unit = parseFloat(str) === 1 ? 'lakh' : 'lakhs';
-  return `${str} ${unit}`;
+  // Thousands → k
+  const thousands = n / 1000;
+  const str = (Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)).replace(/\.0$/, "");
+  return `${str}k`;
 };
+
 
 // --- Team flags (public/...) ---
 const PUB = process.env.PUBLIC_URL || "";

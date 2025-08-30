@@ -692,9 +692,22 @@ const AllPlayerCards = () => {
                         {player.base_category && (
                             <div>
                                 <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
-                                <div className="font-semibold text-white">{player.base_category}</div>
+                                <div className="font-semibold text-white">
+                                    {(() => {
+                                        const baseCat = String(player.base_category).toUpperCase();
+                                        const soldAmt = Number(player.sold_price) || 0;
+
+                                        if (baseCat === "X") {
+                                            if (soldAmt === 400000) return "Owner";
+                                            if (soldAmt === 1000000) return "Icon";
+                                            return "X"; // fallback if different amount
+                                        }
+                                        return baseCat;
+                                    })()}
+                                </div>
                             </div>
                         )}
+
 
                         {player.nickname && (
                             <div>
@@ -1096,11 +1109,24 @@ const AllPlayerCards = () => {
                                                 {[
                                                     ["Nickname", openDetails.nickname],
                                                     ["Role", openDetails.role],
-                                                    ["Category", openDetails.base_category],
+                                                    [
+                                                        "Category",
+                                                        (() => {
+                                                            const baseCat = String(openDetails.base_category).toUpperCase();
+                                                            const soldAmt = Number(openDetails.sold_price) || 0;
+
+                                                            if (baseCat === "X") {
+                                                                if (soldAmt === 400000) return "Owner";
+                                                                if (soldAmt === 1000000) return "Icon";
+                                                                return "X";
+                                                            }
+                                                            return baseCat;
+                                                        })()
+                                                    ],
                                                     ["District", openDetails.district],
                                                     ["Location", openDetails.location],
-                                                    ["Email", openDetails.email]
-                                                    // ["Mobile", openDetails.mobile],
+                                                    ["Email", openDetails.email],
+                                                    ["Sold Price", openDetails.sold_price]
                                                 ].map(([label, value]) => (
                                                     value ? (
                                                         <div key={label} className="bg-white/5 border border-white/10 rounded-md p-3">
@@ -1109,6 +1135,7 @@ const AllPlayerCards = () => {
                                                         </div>
                                                     ) : null
                                                 ))}
+
                                             </div>
 
                                         </div>

@@ -35,21 +35,28 @@ const TEAM_BG_MAP = {
     "Titans": "#D8F0FF",        // ice blue
 };
 
-// Helper: format rupees to lakhs (e.g., 2000000 -> "20 lakhs", 2050000 -> "20.5 lakhs")
-const formatLakhs = (amount) => {
-    const n = Number(amount) || 0;
-    const lakhs = n / 100000;
+// Helper: format rupees to lakhs (e.g., 2000000 -> "20 lakhs", 2050000 -> "20.5 lakhs").
+const formatLakhs = (amt) => {
+    const n = Number(amt) || 0;
 
-    // Decide decimal places: 0 if whole, 1 if tenths fits, else 2
-    let decimals = 0;
-    if (lakhs % 1 !== 0) {
-        decimals = (Math.round(lakhs * 10) / 10 === lakhs) ? 1 : 2;
+    if (n === 0) return "0";
+
+    // Lakhs
+    if (n >= 100000) {
+        const lakhs = n / 100000;
+        const str = (Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)).replace(/\.0$/, "");
+        return `${str} ${parseFloat(str) === 1 ? "lakh" : "lakhs"}`;
     }
 
-    const str = lakhs.toFixed(decimals).replace(/\.0$/, ''); // trim trailing .0
-    const unit = parseFloat(str) === 1 ? 'lakh' : 'lakhs';
-    return `${str} ${unit}`;
+    // Thousands → k format
+    const thousands = n / 1000;
+    const str = (Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)).replace(/\.0$/, "");
+    return `${str}k`;
 };
+
+
+
+
 
 const API = CONFIG.API_BASE_URL;
 
@@ -1022,11 +1029,23 @@ const SpectatorLiveDisplay = () => {
 
 
         return (
-            <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
-                <div className="w-screen h-screen flex flex-row">
+            <div className="w-screen h-screen relative overflow-hidden">
+                {/* Background – Team Flag (KCPL only, animated) */}
+                {tournamentSlug?.toLowerCase().includes("kcpl") &&
+                    team?.name &&
+                    TEAM_FLAG_MAP[team.name.trim()] && (
+                        <img
+                            src={TEAM_FLAG_MAP[team.name.trim()]}
+                            alt={`${team.name} flag`}
+                            className="absolute inset-0 z-0 w-full h-full object-cover opacity-30 pointer-events-none
+                   animate-[kenburns-slow_45s_ease-in-out_infinite_alternate]"
+                        />
+                    )}
 
-                    {/* <BackgroundEffect theme={theme} /> */}
+                {/* Subtle dark tint for readability */}
+                <div className="absolute inset-0 bg-black/40" />
 
+                <div className="relative w-screen h-screen flex flex-row items-center">
                     {/* Tournament Logo – Top Left Corner */}
                     {tournamentLogo && (
                         <div className="absolute top-4 left-4 z-50">
@@ -1039,14 +1058,12 @@ const SpectatorLiveDisplay = () => {
                     )}
 
                     {/* Left Panel – Highlight Player */}
-                    <div className="w-1/3 flex flex-col items-center justify-center p-6">
-                        <h3 className="text-2xl  text-yellow-300 mb-3">#1 Most Expensive Player</h3>
+                    <div className="w-1/3 h-full flex flex-col items-center justify-center p-6">
+                        <h3 className="text-2xl text-yellow-300 mb-3">#1 Most Valuable Player</h3>
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-extrabold">{topPlayer?.name || "No Player"}</h1>
                             <p className="text-yellow-200 text-sm">{topPlayer?.role || "Not Assigned"}</p>
-                            <p className="text-2xl text-green-400  mt-2">
-                                {formatLakhs(topPlayer.sold_price)}
-                            </p>
+                            <p className="text-2xl text-green-400 mt-2">{formatLakhs(topPlayer?.sold_price)}</p>
                         </div>
                         <img
                             src={
@@ -1055,31 +1072,26 @@ const SpectatorLiveDisplay = () => {
                                     : "/no-image-found.png"
                             }
                             alt={topPlayer?.name || "No Player"}
-                            className="w-[36rem] h-[36rem] object-cover rounded-2xl shadow-2xl drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]
-                 animate-[kenburns_6s_ease-in-out_infinite]"
+                            className="w-full max-w-[48rem] h-auto max-h-[56rem] object-contain rounded-2xl shadow-2xl drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)] animate-[kenburns_6s_ease-in-out_infinite] bg-white/40"
                         />
                     </div>
 
                     {/* Right Panel – Rest of Players (Stacked 2 Columns) */}
-                    <div className="w-2/3 p-6 space-y-4">
-                        {/* Selected Team Logo + Name */}
-                        <div className="flex items-center justify-center gap-3 mb-2">
-                            {teamIdToShow && (
-                                <>
-                                    <img
-                                        src={
-                                            team?.logo
-                                                ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
-                                                : "/no-team-logo.png"
-                                        }
-                                        alt="Team Logo"
-                                        className="w-36 h-36 object-contain animate-pulse"
-                                    />
-
-                                    <h3 className="text-xl  text-yellow-300 text-center mb-2 uppercase">{team.name} Squad</h3>
-                                </>
+                    <div className="w-2/3 h-full flex flex-col justify-center p-6 space-y-4">
+                        {/* Team Header – Full Width at Top */}
+                        <div className="w-full flex flex-row items-center justify-center bg-black/30 rounded-2xl py-6 mb-6">
+                            {team?.logo && (
+                                <img
+                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                    alt={team.name}
+                                    className="w-40 h-40 object-contain mb-4 animate-pulse"
+                                />
                             )}
+                            <h2 className="text-6xl font-extrabold text-yellow-300 uppercase tracking-wide">
+                                {team.name} Squad
+                            </h2>
                         </div>
+
                         <div className="flex flex-row justify-between gap-4">
                             {[0, 1].map((groupIdx) => {
                                 const playerGroup = restWithPlaceholders.length
@@ -1094,7 +1106,7 @@ const SpectatorLiveDisplay = () => {
                                                 className="flex items-center justify-between bg-white/10 border-l-4 pl-4 pr-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border-white/20"
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className="text-2xl  text-yellow-300 w-8">#{groupIdx * 8 + idx + 2}</div>
+                                                    <div className="text-2xl text-yellow-300 w-8">#{groupIdx * 8 + idx + 2}</div>
                                                     <img
                                                         src={
                                                             player?.profile_image
@@ -1109,11 +1121,11 @@ const SpectatorLiveDisplay = () => {
                                                         className="w-14 h-14 rounded-full border border-white object-cover"
                                                     />
                                                     <div className="flex flex-col">
-                                                        <div className=" text-white">{player?.name || "No Player"}</div>
-                                                        <div className="text-sm text-yellow-100">{player?.role || "Not Assigned"}</div>
+                                                        <div className="text-white text-2xl">{player?.name || "No Player"}</div>
+                                                        <div className="text-xl text-yellow-100">{player?.role || "Not Assigned"}</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-xl  text-green-400">
+                                                <div className="text-2xl text-green-400">
                                                     {formatLakhs(player?.sold_price || 0)}
                                                 </div>
                                             </div>
@@ -1128,8 +1140,18 @@ const SpectatorLiveDisplay = () => {
                         🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
                     </footer>
                 </div>
+                {/* Ken Burns keyframes (scoped to this component) */}
+                <style>{`
+    @keyframes kenburns-slow {
+      0%   { transform: scale(1.05) translate3d(0, 0, 0); }
+      50%  { transform: scale(1.12) translate3d(-1.5%, -1.5%, 0); }
+      100% { transform: scale(1.18) translate3d(1.5%, 1.5%, 0); }
+    }
+  `}</style>
             </div>
         );
+
+
     }
 
     // Top 10 most expensive players
@@ -1471,17 +1493,17 @@ const SpectatorLiveDisplay = () => {
         );
     }
 
-if (!player && tournamentSlug?.toLowerCase() === "kcpl") {
-    return (
-        <div className="w-screen h-screen flex items-center justify-center bg-black">
-            <img
-                src="/KCPL cover.jpg"
-                alt="KCPL Cover"
-                className="w-full h-full object-cover"
-            />
-        </div>
-    );
-}
+    if (!player && tournamentSlug?.toLowerCase() === "kcpl") {
+        return (
+            <div className="w-screen h-screen flex items-center justify-center bg-black">
+                <img
+                    src="/KCPL cover.jpg"
+                    alt="KCPL Cover"
+                    className="w-full h-full object-cover"
+                />
+            </div>
+        );
+    }
 
 
     if (!player) {
