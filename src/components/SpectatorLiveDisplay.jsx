@@ -167,17 +167,17 @@ const SpectatorLiveDisplay = () => {
     };
 
     // When auctioning a player from a different pool, show the Base Price of the *active* pool.
-const getDisplayBasePrice = (player, activePool) => {
-  // If KCPL team-state is present and a pool base is defined, prefer it
-  const poolBase = KCPL_RULES?.pools?.[activePool]?.base;
-  if (Array.isArray(kcplTeamStates) && kcplTeamStates.length > 0 && poolBase != null) {
-    return Number(poolBase) || 0;
-  }
+    const getDisplayBasePrice = (player, activePool) => {
+        // If KCPL team-state is present and a pool base is defined, prefer it
+        const poolBase = KCPL_RULES?.pools?.[activePool]?.base;
+        if (Array.isArray(kcplTeamStates) && kcplTeamStates.length > 0 && poolBase != null) {
+            return Number(poolBase) || 0;
+        }
 
-  // Fallbacks for non-KCPL or when rules aren't available:
-  if (player?.base_price && Number(player.base_price) > 0) return Number(player.base_price);
-  return computeBasePrice(player) || 0;
-};
+        // Fallbacks for non-KCPL or when rules aren't available:
+        if (player?.base_price && Number(player.base_price) > 0) return Number(player.base_price);
+        return computeBasePrice(player) || 0;
+    };
 
 
     const triggerConfettiIfSold = (playerData) => {
@@ -502,7 +502,7 @@ const getDisplayBasePrice = (player, activePool) => {
             setHighestBid(Number(bid_amount) || 0);
             setLeadingTeam(team_name || "");
             if (Number(bid_amount) === 0 && (!team_name || team_name === "")) fastRefresh();
-            };
+        };
 
         socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
 
@@ -533,22 +533,22 @@ const getDisplayBasePrice = (player, activePool) => {
             // ① Show the overlay immediately
             setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
-            try { unsoldAudio.currentTime = 0; unsoldAudio.play(); } catch {}
+            try { unsoldAudio.currentTime = 0; unsoldAudio.play(); } catch { }
 
             // ② After a short delay, *then* apply the state reset
             if (unsoldOverlayTimerRef.current) clearTimeout(unsoldOverlayTimerRef.current);
             unsoldOverlayTimerRef.current = setTimeout(() => {
                 setUnsoldOverlayActive(false);
                 setPlayer(prev =>
-                prev && Number(prev.id) === Number(player_id)
-                    ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
-                    : prev
+                    prev && Number(prev.id) === Number(player_id)
+                        ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
+                        : prev
                 );
                 setHighestBid(0);
                 setLeadingTeam("");
                 fetchAllPlayers();
             }, 1200); // ~1.2s feels snappy; adjust if your clip is longer
-            };
+        };
 
 
         socket.on("playerUnsold", onPlayerUnsold);
@@ -573,13 +573,13 @@ const getDisplayBasePrice = (player, activePool) => {
             // ④ optional: fetch stats asynchronously if present
             if (payload?.cricheroes_id) {
                 fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
-                .then(r => r.json())
-                .then(setCricheroesStats)
-                .catch(() => setCricheroesStats(null));
+                    .then(r => r.json())
+                    .then(setCricheroesStats)
+                    .catch(() => setCricheroesStats(null));
             }
 
             setTimeout(() => setIsLoading(false), 150);
-            });
+        });
 
         socket.on("secretBiddingToggled", fastRefresh);
 
@@ -1471,6 +1471,18 @@ const getDisplayBasePrice = (player, activePool) => {
         );
     }
 
+if (!player && tournamentSlug?.toLowerCase() === "kcpl") {
+    return (
+        <div className="w-screen h-screen flex items-center justify-center bg-black">
+            <img
+                src="/KCPL cover.jpg"
+                alt="KCPL Cover"
+                className="w-full h-full object-cover"
+            />
+        </div>
+    );
+}
+
 
     if (!player) {
         const midpoint = Math.ceil(teamSummaries.length / 2);
@@ -1954,18 +1966,18 @@ const getDisplayBasePrice = (player, activePool) => {
                                 })()}
 
                                 {!unsoldOverlayActive && (
-                                <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
-                                    <div className="items-center py-3 px-3 bg-black/40">
-                                        <p className="text-lg uppercase text-green-bold">Base Price</p>
+                                    <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
+                                        <div className="items-center py-3 px-3 bg-black/40">
+                                            <p className="text-lg uppercase text-green-bold">Base Price</p>
 
-                                        <p className="text-4xl tracking-wider uppercase">{formatLakhs(getDisplayBasePrice(player, activePool))}</p>                                    </div>
-                                    <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
-                                        <p className="text-lg uppercase text-green-bold">Current Bid</p>
-                                        <p className="text-4xl uppercase text-green-bold">
-                                            {formatLakhs(highestBid)}
-                                        </p>
+                                            <p className="text-4xl tracking-wider uppercase">{formatLakhs(getDisplayBasePrice(player, activePool))}</p>                                    </div>
+                                        <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
+                                            <p className="text-lg uppercase text-green-bold">Current Bid</p>
+                                            <p className="text-4xl uppercase text-green-bold">
+                                                {formatLakhs(highestBid)}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
                                 )}
 
 
@@ -1984,7 +1996,7 @@ const getDisplayBasePrice = (player, activePool) => {
                     )}
 
 
-                    {(unsoldOverlayActive || ["FALSE","false",false].includes(player?.sold_status)) && unsoldClip && (
+                    {(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status)) && unsoldClip && (
                         <div className="relative w-full max-w-[24rem] mx-auto">
                             {/* Media wrapper: same size for video/img */}
                             <div className="relative rounded-xl overflow-hidden border-4 shadow-xl bg-black/30 aspect-video">
