@@ -387,7 +387,7 @@ const TournamentDashboard = () => {
                             </div>
                           </div>
                           <div className="bg-black/40 rounded-md p-3 text-center">
-                            <div className="opacity-70">PURSE</div>
+                            <div className="opacity-70">POOL PURSE</div>
                             <div className="font-extrabold text-white text-sm md:text-base">
                               {formatLakhs(poolRemaining)}
                             </div>
