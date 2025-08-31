@@ -19,13 +19,13 @@ const formatLakhs = (amt) => {
   // Lakhs
   if (n >= 100000) {
     const lakhs = n / 100000;
-    const str = (Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(1)).replace(/\.0$/, "");
+    const str = (Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(2)).replace(/\.0$/, "");
     return `${str} ${parseFloat(str) === 1 ? "lakh" : "lakhs"}`;
   }
 
   // Thousands → k
   const thousands = n / 1000;
-  const str = (Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)).replace(/\.0$/, "");
+  const str = (Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(2)).replace(/\.0$/, "");
   return `${str}k`;
 };
 
