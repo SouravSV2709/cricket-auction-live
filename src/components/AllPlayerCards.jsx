@@ -660,7 +660,7 @@ const AllPlayerCards = () => {
 
                 {/* BOTTOM: classy white info panel */}
                 {/* BOTTOM: classy info panel */}
-                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-7 rounded-b-2xl">
+                <div className="relative min-h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-8 rounded-b-2xl">
                     {/* Golden divider */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
