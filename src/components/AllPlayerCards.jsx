@@ -660,7 +660,7 @@ const AllPlayerCards = () => {
 
                 {/* BOTTOM: classy white info panel */}
                 {/* BOTTOM: classy info panel */}
-                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-2 rounded-b-2xl">
+                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-7 rounded-b-2xl">
                     {/* Golden divider */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
@@ -679,20 +679,20 @@ const AllPlayerCards = () => {
                     <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200">
                         <div>
                             <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span>
-                            <div className="font-semibold text-white">{player.role || "-"}</div>
+                            <div className="font-semibold text-white truncate">{player.role || "-"}</div>
                         </div>
 
                         {player.district && (
                             <div>
                                 <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span>
-                                <div className="font-semibold text-white">{player.district}</div>
+                                <div className="font-semibold text-white truncate">{player.district}</div>
                             </div>
                         )}
 
                         {player.base_category && (
                             <div>
                                 <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
-                                <div className="font-semibold text-white">
+                                <div className="font-semibold text-white truncate">
                                     {(() => {
                                         const baseCat = String(player.base_category).toUpperCase();
                                         const soldAmt = Number(player.sold_price) || 0;
@@ -712,7 +712,7 @@ const AllPlayerCards = () => {
                         {player.nickname && (
                             <div>
                                 <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span>
-                                <div className="font-semibold text-white">{player.nickname}</div>
+                                <div className="font-semibold text-white truncate">{player.nickname}</div>
                             </div>
                         )}
 
@@ -725,7 +725,7 @@ const AllPlayerCards = () => {
 
                         <div className="mt-2">
                             <button
-                                className="text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
+                                className="absolute bottom-2 right-3 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenDetails(player);
