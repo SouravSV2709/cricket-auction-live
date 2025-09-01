@@ -723,7 +723,7 @@ const AllPlayerCards = () => {
                             </div>
                         )} */}
 
-                        <div className="mt-2">
+                        
                             <button
                                 className="absolute bottom-2 right-3 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
                                 onClick={(e) => {
@@ -733,7 +733,6 @@ const AllPlayerCards = () => {
                             >
                                 View full
                             </button>
-                        </div>
                     </div>
                 </div>
 
