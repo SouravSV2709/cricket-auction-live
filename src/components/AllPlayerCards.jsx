@@ -37,6 +37,11 @@ const AllPlayerCards = () => {
     const [openImage, setOpenImage] = useState(null);
     const [openDetails, setOpenDetails] = useState(null);
 
+        const CARD_ROW_HEIGHT =
+        windowWidth < 640 ? 420 :   // more space for mobile
+        windowWidth < 768 ? 380 : 
+        340;
+
 
     // Brand gradient background (EAARENA)
     const EA_BG_STYLE = {
@@ -618,7 +623,7 @@ const AllPlayerCards = () => {
                 {/* TOP: full image on red background */}
                 {/* TOP: image section with red bg + watermark + serial + player image */}
                 <div
-                    className="relative h-[72%] md:h-[66%] bg-center bg-cover"
+                    className="relative h-[66%] bg-center bg-cover"
                     style={{ backgroundImage: "url('/redbg.jpg')" }}
                 >
                     {/* Dark overlay to dim the red background */}
@@ -660,8 +665,7 @@ const AllPlayerCards = () => {
 
                 {/* BOTTOM: classy white info panel */}
                 {/* BOTTOM: classy info panel */}
-                <div className="relative min-h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-8 rounded-b-2xl">
-                    {/* Golden divider */}
+                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-4 rounded-b-2xl">                    {/* Golden divider */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
                     <div
@@ -716,27 +720,23 @@ const AllPlayerCards = () => {
                             </div>
                         )}
 
-                        {/* {player.location && (
+                        {player.location && (
                             <div>
                                 <span className="uppercase tracking-wide text-gray-400 text-[10px]">Location</span>
-                                <div className="font-semibold text-white">{player.location}</div>
+                                <div className="font-semibold text-white truncate">{player.location}</div>
                             </div>
-                        )} */}
-
-                        
-                            <button
-                                className="absolute bottom-2 right-3 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
+                        )}
+                        <button
+                                className="absolute bottom-2 right-5 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenDetails(player);
                                 }}
                             >
                                 View full
-                            </button>
+                    </button>
                     </div>
                 </div>
-
-
             </div>
         );
     };
@@ -1018,7 +1018,7 @@ const AllPlayerCards = () => {
                                         columnWidth={columnWidth}
                                         height={Math.max(window.innerHeight - 250, 400)}
                                         rowCount={rowCount}
-                                        rowHeight={340}
+                                        rowHeight={CARD_ROW_HEIGHT}
                                         width={windowWidth - 20}
                                     >
                                         {({ columnIndex, rowIndex, style }) => {
