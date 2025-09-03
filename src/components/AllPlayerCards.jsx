@@ -645,7 +645,7 @@ const AllPlayerCards = () => {
                     {/* Player image */}
                     <img
                         loading="lazy"
-                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
                         alt={player.name}
                         className="absolute inset-0 w-full h-full object-cover object-[center_22%] md:object-[center_22%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
                         onClick={() =>
