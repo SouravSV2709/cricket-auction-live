@@ -613,7 +613,7 @@ const AllPlayerCards = () => {
                 }}
                 className={[
                     "player-card relative rounded-2xl overflow-hidden shadow-xl",
-                    "ring-1 ring-black/10 bg-white/5 backdrop-blur-[1px]",
+                    "ring-1 ring-black/10 bg-red/5 backdrop-blur-[1px]",
                     "transition-transform duration-300 ease-out cursor-pointer",
                     (typeof document !== "undefined" && document.body.classList.contains("exporting"))
                         ? "scale-100"
@@ -624,10 +624,11 @@ const AllPlayerCards = () => {
                 {/* TOP: image section with red bg + watermark + serial + player image */}
                 <div
                     className="relative h-[66%] bg-center bg-cover"
-                    style={{ backgroundImage: "url('/redbg.jpg')" }}
+                    style={{ backgroundImage: "url('/goldbg.jpg')" }}
                 >
                     {/* Dark overlay to dim the red background */}
-                    <div className="absolute inset-0 bg-black/40 z-0" />
+
+                   {/* <div className="absolute inset-0 bg-black/40 z-0" /> */}
 
                     {/* EAARENA Logo watermark */}
                     <img
@@ -644,9 +645,9 @@ const AllPlayerCards = () => {
                     {/* Player image */}
                     <img
                         loading="lazy"
-                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
                         alt={player.name}
-                        className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
+                        className="absolute inset-0 w-full h-full object-cover object-[center_22%] md:object-[center_22%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
                         onClick={() =>
                             setOpenImage(
                                 `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`

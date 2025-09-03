@@ -252,7 +252,7 @@ const AllTeamCards = () => {
                                             {/* TOP: image section with red bg + watermark + serial + player image */}
                                             <div
                                                 className="relative h-[72%] bg-center bg-cover"
-                                                style={{ backgroundImage: "url('/redbg.jpg')" }}
+                                                style={{ backgroundImage: "url('/goldbg.jpg')" }}
                                             >
                                                 {/* Dark overlay to dim the red background */}
                                                 <div className="absolute inset-0 bg-black/40 z-0" />
@@ -273,7 +273,7 @@ const AllTeamCards = () => {
                                                 <img
                                                     src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
                                                     alt={player.name}
-                                                    className="absolute inset-0 w-full h-full object-contain object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
+                                                    className="absolute inset-0 w-full h-full object-cover object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
                                                     onClick={() =>
                                                         setOpenImage(
                                                             `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
@@ -322,9 +322,19 @@ const AllTeamCards = () => {
                                             </div>
                                         </div>
                                     ) : (
+                                        <div
+                                                className="relative h-[72%] bg-center bg-cover"
+                                                style={{ backgroundImage: "url('/goldbg.jpg')" }}
+                                            >
                                         <div className="flex h-full flex-col justify-center items-center text-yellow-900 font-semibold opacity-50 rounded-2xl ring-1 ring-white/10 bg-white/5">
-                                            <span>Player Slot</span>
-                                            <span>Not Filled</span>
+                                            <img
+                                            src="/AuctionArena2.png"
+                                            alt="EAARENA Logo"
+                                            className="relative inset-0 w-full h-auto object-contain opacity-80 pointer-events-none z-10 mt-20"
+                                            />
+                                            <span>Empty Slot</span>
+                                        </div>
+                                    
                                         </div>
                                     )}
                                 </div>
