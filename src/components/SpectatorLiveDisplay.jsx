@@ -2146,10 +2146,10 @@ const SpectatorLiveDisplay = () => {
 
             {kcplTeamStates?.length > 0 && (
                 <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/70 backdrop-blur-md border-b border-white/10">
-                    {/* Title row */}
-                    <div className="px-4 py-2 text-yellow-400 text-lg font-bold tracking-wide">
+                    Title row
+                    {/* <div className="px-4 py-2 text-yellow-400 text-lg font-bold tracking-wide">
                         POOL {activePool} — LIVE MAX BID / MAX PLAYERS / POOL PURSE
-                    </div>
+                    </div> */}
 
                     {/* Grid layout */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3 px-4 pb-3">

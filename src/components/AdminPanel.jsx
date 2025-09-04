@@ -12,9 +12,10 @@ import { KCPL_RULES } from '../kcplRules';
 const API = CONFIG.API_BASE_URL;
 
 const computeBasePrice = (player) => {
-    if (player.base_price && player.base_price > 0) return player.base_price;
+    if (player?.base_price && Number(player.base_price) > 0) return Number(player.base_price);
     const map = { A: 1700, B: 3000, C: 5000 };
-    return map[player.base_category] || 0;
+    const comp = String(player?.component || '').toUpperCase();
+    return map[comp] || 0;
 };
 
 const AdminPanel = () => {
@@ -46,8 +47,8 @@ const AdminPanel = () => {
     const [showAuctionControls, setShowAuctionControls] = useState(true);
     const [showResetPanel, setShowResetPanel] = useState(false);
     const themeOptions = ["default", "fireflies", "neon", "grid", "aurora", "meteor", "stars"];
-    const [kcplMode, setKcplMode] = useState(true);  // flip off if not KCPL
-    const [activePool, setActivePool] = useState("A");
+    const [kcplMode, setKcplMode] = useState(false);  // flip off if not KCPL
+    const [activePool, setActivePool] = useState("");
     const [teamPoolState, setTeamPoolState] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
     const [playerStats, setPlayerStats] = useState(null);
@@ -143,37 +144,37 @@ const AdminPanel = () => {
         fetchCurrentPlayer();
     }, [tournamentId, kcplMode, activePool]);
 
-    useEffect(() => {
-        if (!tournamentId || !kcplMode) return;
-        (async () => {
-            await fetch(`${API}/api/kcpl/initialize`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tournament_id: tournamentId })
-            });
-            await fetch(`${API}/api/kcpl/active-pool`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pool: "A" }) });
-            setActivePool("A");
-        })();
-    }, [tournamentId, kcplMode]);
+    // useEffect(() => {
+    //     if (!tournamentId || !kcplMode) return;
+    //     (async () => {
+    //         await fetch(`${API}/api/kcpl/initialize`, {
+    //             method: "POST",
+    //             headers: { "Content-Type": "application/json" },
+    //             body: JSON.stringify({ tournament_id: tournamentId })
+    //         });
+    //         await fetch(`${API}/api/kcpl/active-pool`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pool: "" }) });
+    //         setActivePool("");
+    //     })();
+    // }, [tournamentId, kcplMode]);
 
-    useEffect(() => {
-        if (!tournamentId) return;
+    // useEffect(() => {
+    //     if (!tournamentId) return;
 
-        const initKCPL = async () => {
-            try {
-                await fetch(`${API}/api/kcpl/initialize`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ tournament_id: tournamentId })
-                });
-                console.log("✅ KCPL caps initialized from DB");
-            } catch (err) {
-                console.error("❌ Error initializing KCPL caps:", err);
-            }
-        };
+    //     const initKCPL = async () => {
+    //         try {
+    //             await fetch(`${API}/api/kcpl/initialize`, {
+    //                 method: "POST",
+    //                 headers: { "Content-Type": "application/json" },
+    //                 body: JSON.stringify({ tournament_id: tournamentId })
+    //             });
+    //             console.log("✅ KCPL caps initialized from DB");
+    //         } catch (err) {
+    //             console.error("❌ Error initializing KCPL caps:", err);
+    //         }
+    //     };
 
-        initKCPL();
-    }, [tournamentId]);
+    //     initKCPL();
+    // }, [tournamentId]);
 
     useEffect(() => {
         if (currentPlayer?.cricheroes_id) {
@@ -435,27 +436,56 @@ const AdminPanel = () => {
 
 
     const updateCurrentBid = async () => {
-        if (!selectedTeam || bidAmount === 0) {
-            alert("Please select a team and set a bid.");
-            return;
+        try {
+            if (!selectedTeam) {
+                alert("Please select a team first.");
+                return;
+            }
+
+            const amt = typeof bidAmount === "number" ? bidAmount : parseInt(bidAmount, 10) || 0;
+
+            // Non-KCPL guard against team's max bid (when available)
+            if (!kcplMode && selectedTeam?.id) {
+                try {
+                    const teamData = await fetch(`${API}/api/teams/${selectedTeam.id}`).then(r => r.json());
+                    if (teamData?.max_bid_allowed != null && amt > teamData.max_bid_allowed) {
+                        alert(
+                            `❌ Bid blocked: Cannot bid ₹${amt.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
+                        );
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Max bid validation (non-KCPL) skipped due to fetch error:", e);
+                }
+            }
+
+            // 1) Spectators first
+            socketRef.current?.emit("bidUpdated", {
+                bid_amount: amt,
+                team_name: selectedTeam,
+                active_pool: activePool || null
+            });
+
+            // 2) Then persist
+            await fetch(`${API}/api/current-bid`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    bid_amount: amt,
+                    team_name: selectedTeam,
+                    active_pool: activePool || null
+                })
+            });
+
+            // keep local state clean
+            setBidAmount(amt);
+            setIsBidManual(true);
+        } catch (err) {
+            console.error("❌ updateCurrentBid failed:", err);
+            alert("Failed to update bid. Please try again.");
         }
-
-        if (bidAmount < currentPlayer.base_price) {
-            alert(`Bid must be at least ₹${currentPlayer.base_price}`);
-            return;
-        }
-
-        await fetch(`${API}/api/current-bid`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                bid_amount: bidAmount,
-                team_name: selectedTeam
-            })
-        });
-
-        alert("Bid updated.");
     };
+
 
     const refreshKcplTeamStates = async () => {
         if (!kcplMode || !tournamentId) return;
@@ -484,9 +514,12 @@ const AdminPanel = () => {
             return;
         }
 
-        const poolBase = KCPL_RULES.pools?.[activePool]?.base
-            ?? currentPlayer?.base_price
-            ?? computeBasePrice(currentPlayer);
+        const poolBase = kcplMode && activePool
+            ? (KCPL_RULES.pools?.[activePool]?.base
+                ?? currentPlayer?.base_price
+                ?? computeBasePrice(currentPlayer))
+            : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
+
         if (bidAmount < poolBase) {
             alert(`❌ Sold price must be at least ₹${poolBase}`);
             return;
@@ -770,10 +803,10 @@ const AdminPanel = () => {
                 });
 
             } else {
-                // Non-KCPL: just take unprocessed from current pool
+                // Non-KCPL: pick from ANY unprocessed player (no pool filter)
                 unprocessedPlayers = allPlayers.filter(
-                    p => p.base_category === activePool &&
-                        !["TRUE", "FALSE", true, false, "true", "false"].includes(p.sold_status) &&
+                    (p) =>
+                        (p.sold_status === null || p.sold_status === undefined) &&
                         !p.deleted_at
                 );
             }
@@ -787,9 +820,11 @@ const AdminPanel = () => {
             const nextBasic = unprocessedPlayers[Math.floor(Math.random() * unprocessedPlayers.length)];
 
             // 5. Fetch full details
-            const detailedRes = await fetch(
-                `${API}/api/players/${nextBasic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
-            );
+            const detailUrl = kcplMode && activePool
+                ? `${API}/api/players/${nextBasic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
+                : `${API}/api/players/${nextBasic.id}?slug=${tournamentSlug}`;
+
+            const detailedRes = await fetch(detailUrl);
             const nextPlayer = await detailedRes.json();
 
             // 6. Save undo state
@@ -835,6 +870,10 @@ const AdminPanel = () => {
         try {
             // 1) Find the player by serial
             const res = await fetch(`${API}/api/players/by-serial/${searchId}?slug=${tournamentSlug}`);
+            if (!res.ok) {
+                alert("❌ Player not found.");
+                return;
+            }
             const basic = await res.json();
 
             // ✅ Validate tournament_id
@@ -843,17 +882,17 @@ const AdminPanel = () => {
                 return;
             }
 
-            // 2) Get full player with KCPL-correct base price for the active pool
-            const detailedRes = await fetch(
-                `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
-            );
+            // 2) Get full player (when KCPL is OFF, don't pass active_pool)
+            const detailUrl = (kcplMode && activePool)
+                ? `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
+                : `${API}/api/players/${basic.id}?slug=${tournamentSlug}`;
+
+            const detailedRes = await fetch(detailUrl);
             if (!detailedRes.ok) {
                 alert("❌ Failed to load player details.");
                 return;
             }
-            const detailed = await detailedRes.json(); // includes base_price from active pool
-
-            console.log("📦 About to update current player:", detailed);
+            const detailed = await detailedRes.json(); // ← define 'detailed'
 
             // 3) Update current player + reset bid (in parallel)
             await Promise.all([
@@ -885,6 +924,7 @@ const AdminPanel = () => {
             alert("❌ Failed to find player. Please try again.");
         }
     };
+
 
 
     const socketRef = useRef(null);
@@ -924,17 +964,16 @@ const AdminPanel = () => {
 
 
     const handleTeamClick = async (team) => {
+        // If you're in Squad View, just show that team and return (unchanged behavior)
         if (isTeamViewActive) {
             setSelectedTeam(team.name);
 
-            // 🔁 Explicitly request server to show the new team squad
             await fetch(`${API}/api/show-team`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ team_id: team.id }),
             });
 
-            // 🔔 Also notify via socket (if needed by spectators)
             socketRef.current?.emit("showTeam", {
                 team_id: team.id,
                 empty: team.players?.length === 0,
@@ -946,25 +985,29 @@ const AdminPanel = () => {
         // Normal live auction flow
         if (!isLiveAuctionActive || !currentPlayer) return;
 
-        const base = Number(currentPlayer.base_price || computeBasePrice(currentPlayer));
+        // Always treat team-click as auto-increment flow
+        setSelectedTeam(team.name);
+        setIsBidManual(false);
 
-        console.log("📦 Raw bidAmount state value:", bidAmount, typeof bidAmount);
-        let currentBid = typeof bidAmount === 'number' ? bidAmount : parseInt(bidAmount, 10) || 0;
-        console.log("✅ Parsed currentBid:", currentBid, typeof currentBid);
+        // Base price (KCPL-aware when ON; otherwise tournament/base/component)
+        const poolBase = (kcplMode && activePool)
+            ? (KCPL_RULES.pools?.[activePool]?.base
+                ?? currentPlayer?.base_price
+                ?? computeBasePrice(currentPlayer))
+            : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
+        const base = Number(poolBase) || 0;
 
-        let newBid = currentBid;
+        // Current bid as number
+        const currentBid = (typeof bidAmount === "number")
+            ? bidAmount
+            : (parseInt(bidAmount, 10) || 0);
 
-        if (!isBidManual) {
-            if (currentBid === 0) {
-                newBid = base;
-            } else {
-                const increment = getDynamicBidIncrement(currentBid);
-                newBid = currentBid + increment;
-            }
-        }
+        // First click → base; subsequent clicks → + dynamic increment
+        const newBid = (currentBid <= 0)
+            ? base
+            : currentBid + getDynamicBidIncrement(currentBid);
 
-
-        // --- KCPL validation (instant, local) ---
+        // KCPL validation (when ON)
         if (kcplMode) {
             const st = kcplTeamStates.find(t => Number(t.teamId) === Number(team.id));
             const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
@@ -972,17 +1015,16 @@ const AdminPanel = () => {
                 alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
                 return;
             }
-            // Optional: show the live per-pool snapshot panel only after a short debounce,
-            // not on *every* click.
             queueLightweightTeamSnapshot(team.id);
-        }
-        // --- Non-KCPL max bid validation ---
-        else {
+        } else {
+            // Non-KCPL validation against team's max bid
             try {
                 const teamData = await fetch(`${API}/api/teams/${team.id}`).then(r => r.json());
                 if (teamData?.max_bid_allowed != null && newBid > teamData.max_bid_allowed) {
-                    alert(`❌ Bid blocked: Cannot bid ₹${newBid.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`);
-                    return; // stop here
+                    alert(
+                        `❌ Bid blocked: Cannot bid ₹${newBid.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
+                    );
+                    return;
                 }
             } catch (e) {
                 console.error("Max bid validation failed", e);
@@ -991,26 +1033,30 @@ const AdminPanel = () => {
             }
         }
 
+        // Apply and broadcast
         setBidAmount(newBid);
-        setIsBidManual(false);
-        setSelectedTeam(team.name);
 
-        fetch(`${API}/api/current-bid`, {
+        // 1) PUSH to spectators immediately
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: newBid,
+            team_name: team.name,
+            active_pool: activePool,
+        });
+
+        // 2) THEN persist on the server (non-blocking for UI)
+        await fetch(`${API}/api/current-bid`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 bid_amount: newBid,
                 team_name: team.name,
-                active_pool: activePool
-            })
+                active_pool: activePool,
+            }),
         });
-        // 🔊 tell spectators right away
-        socketRef.current?.emit("bidUpdated", {
-            bid_amount: newBid,
-            team_name: team.name,
-            active_pool: activePool
-        });
+
     };
+
+
 
 
 
@@ -1133,7 +1179,7 @@ const AdminPanel = () => {
             setBidAmount(previousBid);
 
             await fetch(`${API}/api/current-bid`, {
-                method: "PATCH",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     bid_amount: previousBid,
@@ -1458,7 +1504,7 @@ const AdminPanel = () => {
                 )}
             </div>
 
-            <div className="mb-4 flex items-center gap-3">
+            {/* <div className="mb-4 flex items-center gap-3">
                 <label className="flex items-center gap-2">
                     <input type="checkbox" checked={kcplMode} onChange={e => setKcplMode(e.target.checked)} />
                     <span>KCPL Mode</span>
@@ -1493,7 +1539,7 @@ const AdminPanel = () => {
                         </select>
                     </>
                 )}
-            </div>
+            </div> */}
 
 
 
@@ -2114,8 +2160,6 @@ const AdminPanel = () => {
                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
             </footer>
         </div>
-
-
     );
 };
 
