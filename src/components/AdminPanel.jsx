@@ -51,8 +51,7 @@ const AdminPanel = () => {
     const [teamPoolState, setTeamPoolState] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
     const [playerStats, setPlayerStats] = useState(null);
-
-
+    const [isMarqueeOn, setIsMarqueeOn] = useState(false);
 
 
     useEffect(() => {
@@ -1702,6 +1701,27 @@ const AdminPanel = () => {
                                     <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isLiveAuctionActive ? 'translate-x-5' : ''}`}></div>
                                 </div>
                             </label>
+                            <label className="flex items-center cursor-pointer space-x-2">
+  <span className="text-sm text-white">Bottom Marquee</span>
+  <input
+    type="checkbox"
+    className="sr-only"
+    checked={isMarqueeOn}
+    onChange={async () => {
+      const next = !isMarqueeOn;
+      setIsMarqueeOn(next);
+      await fetch(`${API}/api/custom-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: next ? "__MARQUEE_ON__" : "__MARQUEE_OFF__" }),
+      });
+    }}
+  />
+  <div className={`w-10 h-5 rounded-full ${isMarqueeOn ? 'bg-green-500' : 'bg-red-400'} relative`}>
+    <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isMarqueeOn ? 'translate-x-5' : ''}`}></div>
+  </div>
+</label>
+
                         </div>
 
                         {/* 💰 Bid Amount Input */}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
 import { useParams } from "react-router-dom";
 import useWindowSize from "react-use/lib/useWindowSize";
@@ -53,6 +53,216 @@ const formatLakhs = (amt) => {
     const str = (Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(2)).replace(/\.0$/, "");
     return `${str}k`;
 };
+
+const BannerSlide = ({ icon, title, subtitle }) => (
+  <div className="mx-16 md:mx-24">
+    <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                    bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                    border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                    backdrop-blur">
+      <span className="text-2xl md:text-3xl">{icon}</span>
+      <div className="flex flex-col">
+        <span className="text-amber-300 font-extrabold uppercase tracking-widest
+                         text-lg md:text-2xl leading-none">
+          {title}
+        </span>
+        {subtitle && (
+          <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+            {subtitle}
+          </span>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
+
+// ===== Bottom marquee (Top-5 SOLD players) + unified footer =====
+const BottomMarquee = ({ items, teamPurseChunks = [] }) => {
+  // Hooks first
+  const viewportRef = React.useRef(null);
+  const trackRef = React.useRef(null);
+  const [duration, setDuration] = React.useState(30);
+  const [vars, setVars] = React.useState({ from: "0px", to: "0px" });
+
+  const recompute = React.useCallback(() => {
+    if (!viewportRef.current || !trackRef.current) return;
+
+    const contentWidth = trackRef.current.scrollWidth;      // total track width
+    const viewportWidth = viewportRef.current.offsetWidth;  // visible area
+    const distance = contentWidth + viewportWidth;
+
+    // Speed target (px/sec). Keep ≥30s overall by taking max below.
+    const SPEED_PX_PER_SEC = 180;
+    const time = Math.max(30, distance / SPEED_PX_PER_SEC);
+
+    setVars({ from: `${viewportWidth}px`, to: `-${contentWidth}px` });
+    setDuration(time);
+  }, []);
+
+  // Measure after paint so banners/players/team-chunks are laid out
+  React.useEffect(() => {
+    const id = requestAnimationFrame(recompute);
+    return () => cancelAnimationFrame(id);
+  }, [recompute, items, teamPurseChunks]);
+
+  // Recompute on size/content changes (fonts/images/resizes)
+  React.useEffect(() => {
+    const ro = new ResizeObserver(recompute);
+    if (trackRef.current) ro.observe(trackRef.current);
+    if (viewportRef.current) ro.observe(viewportRef.current);
+
+    window.addEventListener("load", recompute);
+    window.addEventListener("resize", recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("load", recompute);
+      window.removeEventListener("resize", recompute);
+    };
+  }, [recompute]);
+
+  if (!items || items.length === 0) return null;
+
+  // Build slides
+  const bannerTop5 = {
+  icon: "🏆",
+  title: "Top 5 Most Expensive Players",
+  subtitle: "Highest sold prices this auction",
+};
+
+const bannerTeams = {
+  icon: "💰",
+  title: "Team Purse Remaining",
+  subtitle: "Sorted high → low",
+};
+  const teamSlides = (Array.isArray(teamPurseChunks) ? teamPurseChunks : []).map((chunk, i) => ({
+    type: "team-chunk",
+    chunk,
+    key: `tc-${i}`,
+  }));
+
+  const displayItems = [
+  { type: "banner", data: bannerTop5 },
+  ...items.map((p) => ({ type: "player", ...p })),
+  { type: "banner", data: bannerTop5 },
+  { type: "banner", data: bannerTeams },
+  ...teamSlides, // your existing team-chunk slides
+  { type: "banner", data: bannerTeams },
+];
+
+
+  return (
+    <div
+      ref={viewportRef}
+      className="relative overflow-hidden w-full h-40 bg-gradient-to-r from-black via-gray-900 to-black backdrop-blur-sm border-t-4 border-purple-600 shadow-inner"
+    >
+      {/* Scrolling track */}
+      <div
+        ref={trackRef}
+        className="absolute inset-x-0 top-0 bottom-10 whitespace-nowrap will-change-transform flex items-center"
+        style={{
+          animation: `aa-marquee-once ${duration}s linear infinite`,
+          // pixel-based travel
+          "--from": vars.from,
+          "--to": vars.to,
+        }}
+      >
+        {displayItems.map((it, idx) => {
+          if (it.type === "banner") {
+  return (
+    <BannerSlide
+      key={`bn-${idx}`}
+      icon={it.data.icon}
+      title={it.data.title}
+      subtitle={it.data.subtitle}
+    />
+  );
+}
+
+
+          if (it.type === "team-chunk") {
+            const chunk = Array.isArray(it.chunk) ? it.chunk : [];
+            if (chunk.length === 0) return null;
+
+            return (
+              <div
+                key={it.key || `tc-${idx}`}
+                className="mx-12 inline-flex items-center px-8 py-4 bg-white/10 rounded-3xl shadow-xl min-w-[720px]"
+              >
+                {chunk.map((t, j) => (
+                  <div key={j} className="flex items-center w-[240px] md:w-[280px]">
+                    <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
+                      {t?.name ?? "Unknown"}
+                    </span>
+                    <span className="ml-3 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
+                      {typeof formatLakhs === "function" ? formatLakhs(t?.purse ?? 0) : (t?.purse ?? 0)}
+                    </span>
+                    {j < chunk.length - 1 && <span className="mx-4 h-6 w-px bg-white/20" />}
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
+          // Top-5 player card
+          return (
+            <div
+              key={`pl-${it.id ?? idx}`}
+              className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
+            >
+              <img
+                src={it.image_url}
+                alt={it.name}
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
+                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
+                  {it.name}
+                </div>
+                <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
+                  {it.teamName}
+                </div>
+              </div>
+              <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
+                {it.priceText}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Copyright inside */}
+      <div className="absolute bottom-2 right-4 pointer-events-none">
+        <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-xs md:text-sm text-white/80 tracking-wider">
+          🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
+        </div>
+      </div>
+
+      {/* KEYFRAMES: pixel-based, no pause */}
+      <style>{`
+        @keyframes aa-marquee-once {
+          0%   { transform: translateX(var(--from)); }
+          100% { transform: translateX(var(--to)); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+
+
+
+
+
+
+const renderFooter = (items, teamPurseChunks) => (
+  <div className="fixed bottom-0 left-0 w-full z-[60]">
+    <BottomMarquee items={items} teamPurseChunks={teamPurseChunks} />
+  </div>
+);
+
+// ===== End marquee/footer helpers =====
 
 
 const API = CONFIG.API_BASE_URL;
@@ -111,13 +321,11 @@ const SpectatorLiveDisplay = () => {
         { bg: "from-[#0F2A5A] via-[#1F3E73] to-[#0F2A5A]", text: "text-yellow-50" };
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
-
-
-
+    const [marqueeEnabled, setMarqueeEnabled] = useState(true);
 
 
     useEffect(() => {
-        document.title = "Live1 | Auction Arena";
+        document.title = "Live1 | EA ARENA";
     }, []);
 
     // Preload UNSOLD GIFs so they render instantly
@@ -375,6 +583,81 @@ const SpectatorLiveDisplay = () => {
         }
     };
 
+    const top5SoldPlayers = useMemo(() => {
+  // pick SOLD only, order by sold_price desc, keep top 5
+  const sold = (playerList || [])
+    .filter(p => p?.sold_status === true || p?.sold_status === "TRUE")
+    .sort((a, b) => (Number(b.sold_price) || 0) - (Number(a.sold_price) || 0))
+    .slice(0, 5);
+
+  return sold.map(p => {
+    const team = Array.isArray(teamSummaries)
+      ? teamSummaries.find(t => Number(t.id) === Number(p.team_id))
+      : null;
+
+    // Build a safe image URL:
+    // - If profile_image is absolute (starts with http), use as-is
+    // - Else, use ImageKit path with light face crop + sharpen
+    const img =
+      p?.profile_image
+        ? (String(p.profile_image).startsWith("http")
+            ? p.profile_image
+            : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${p.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`)
+        : "/no-image-found.png";
+
+    return {
+      id: p.id,
+      name: p.name,
+      priceText: formatLakhs(p.sold_price),
+      teamName: team?.name || "Unknown",
+      image_url: img,
+    };
+  });
+}, [playerList, teamSummaries]);
+
+const totalPurseRemaining = useMemo(() => {
+  if (!Array.isArray(teamSummaries)) return 0;
+  return teamSummaries.reduce(
+    (sum, t) => sum + (Number(t.remaining_purse) || 0),
+    0
+  );
+}, [teamSummaries]);
+
+const teamPurseChunks = useMemo(() => {
+  if (!Array.isArray(teamSummaries) || !Array.isArray(playerList)) return [];
+
+  const arr = teamSummaries.map((team) => {
+    const teamPlayers = playerList.filter(
+      (p) =>
+        Number(p.team_id) === Number(team.id) &&
+        (p.sold_status === true || p.sold_status === "TRUE")
+    );
+
+    const spent = teamPlayers.reduce((sum, p) => {
+      const price = Number(p.sold_price);
+      return sum + (isNaN(price) ? 0 : price);
+    }, 0);
+
+    const purse = Math.max(Number(team.budget || 0) - spent, 0);
+
+    return {
+      name: team?.name ?? "Unknown",
+      purse,
+    };
+  });
+
+  // Sort high → low
+  arr.sort((a, b) => b.purse - a.purse);
+
+  // Break into chunks (3 teams per pill)
+  const size = 3;
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}, [teamSummaries, playerList]);
+
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
@@ -382,6 +665,8 @@ const SpectatorLiveDisplay = () => {
     const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
+
+    
 
 
 
@@ -416,6 +701,7 @@ const SpectatorLiveDisplay = () => {
                 setPlayers(soldPlayers);
                 setTeams(teamData);
                 setTeamSummaries(teamData); // ✅ THIS FIXES THE ERROR
+                setPlayerList(playerData);
             } catch (err) {
                 console.error("❌ Failed to load tournament data:", err);
             }
@@ -615,10 +901,14 @@ const SpectatorLiveDisplay = () => {
                 }, 1000);
             } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
                 setCustomView("top-10-expensive"); setCustomMessage(null);
+            } else if (msg === "__MARQUEE_OFF__") {
+                setMarqueeEnabled(false);
+            } else if (msg === "__MARQUEE_ON__") {
+                setMarqueeEnabled(true);
             } else {
                 setCustomMessage(msg); setCustomView(null);
             }
-        });
+            });
 
         socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
             try {
@@ -924,7 +1214,7 @@ const SpectatorLiveDisplay = () => {
 
                 {/* FOOTER */}
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
@@ -984,7 +1274,7 @@ const SpectatorLiveDisplay = () => {
                         )}
 
                         <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                            🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                            🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                         </footer>
                     </div>
                 </div>
@@ -1130,7 +1420,7 @@ const SpectatorLiveDisplay = () => {
                     </div>
 
                     <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                        🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                        🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                     </footer>
                 </div>
                 {/* Ken Burns keyframes (scoped to this component) */}
@@ -1202,7 +1492,7 @@ const SpectatorLiveDisplay = () => {
                                 />
                             )}
                             <h2 className="text-3xl font-extrabold tracking-wider uppercase drop-shadow-md text-center">
-                                {tournamentName || "AUCTION ARENA"} <br />
+                                {tournamentName || "EA ARENA"} <br />
                                 <span className="text-white text-xl">Top 10 Most Expensive Players</span>
                             </h2>
                         </div>
@@ -1274,7 +1564,7 @@ const SpectatorLiveDisplay = () => {
                 </div>
 
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
@@ -1393,7 +1683,7 @@ const SpectatorLiveDisplay = () => {
                 </div>
 
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
@@ -1413,7 +1703,7 @@ const SpectatorLiveDisplay = () => {
                         <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
                             <img
                                 src="/AuctionArena2.png"
-                                alt="Auction Arena"
+                                alt="EA ARENA"
                                 className="w-64 h-64 object-contain mb-2 animate-shake"
                             />
                             <div className="text-xl text-white text-center leading-snug">
@@ -1480,7 +1770,7 @@ const SpectatorLiveDisplay = () => {
                     </>
                 )}
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
@@ -1618,7 +1908,7 @@ const SpectatorLiveDisplay = () => {
                                     🔴 LIVE STREAMING
                                 </div>
                                 <img src="/hammer.png" alt="Gavel" className="w-10 h-10 object-contain" />
-                                <img src="/AuctionArena2.png" alt="Auction Arena" className="w-20 h-20 object-contain" />
+                                <img src="/AuctionArena2.png" alt="EA ARENA" className="w-20 h-20 object-contain" />
                             </div>
 
                             <div className="text-white text-xl bg-black/60 border border-white/30 px-6 py-2 rounded-lg tracking-widest font-semibold">
@@ -1657,7 +1947,7 @@ const SpectatorLiveDisplay = () => {
 
                 {/* Footer */}
                 <footer className="absolute bottom-0 left-0 w-full text-center text-white text-sm bg-black/80 border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
 
@@ -1725,19 +2015,19 @@ const SpectatorLiveDisplay = () => {
             {/* <BackgroundEffect theme={theme} /> */}
 
             <div className="flex items-center justify-between px-6 py-4">
-                {/* Left: Auction Arena Logo */}
+                {/* Left: EA ARENA Logo */}
                 <img
                     src="/AuctionArena2.png"
-                    alt="Auction Arena"
+                    alt="EA ARENA"
                     className="w-20 h-20 object-contain animate-pulse"
                 />
                 <h1 className="text-4xl font-extrabold tracking-wide text-center flex-1 animate-pulse">
-                    {tournamentName?.toUpperCase() || "AUCTION ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
+                    {tournamentName?.toUpperCase() || "EA ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
                 </h1>
                 {tournamentLogo && (
                     <img
                         src="/AuctionArena2.png"
-                        alt="Auction Arena"
+                        alt="EA ARENA"
                         className="w-20 h-20 object-contain ml-4 animate-pulse"
                     />
                 )}
@@ -2188,11 +2478,6 @@ const SpectatorLiveDisplay = () => {
                     </div>
                 </div>
 
-
-
-
-
-
             </div>
 
             {tournamentLogo && (
@@ -2203,10 +2488,9 @@ const SpectatorLiveDisplay = () => {
                 />
             )}
 
-            {/* 
-            <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black animate-pulse z-50 py-2">
-                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
-            </footer> */}
+            
+{marqueeEnabled && renderFooter(top5SoldPlayers, teamPurseChunks)}
+
         </div>
 
     );
