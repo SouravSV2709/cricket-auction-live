@@ -737,7 +737,7 @@ const SpectatorLiveDisplay = () => {
                     />
 
                     <div className="text-center space-y-2">
-                        <h1 className="text-2xl ">{player.name}</h1>
+                        <h1 className="text-3xl ">{player.name}</h1>
                         <p className="text-sm italic text-yellow-200">
                             {player.role} | {player.district || "NA"}
                         </p>
@@ -773,7 +773,7 @@ const SpectatorLiveDisplay = () => {
                             // ✅ Single Table Layout
                             <div className="w-full max-w-4xl">
                                 <table className="w-full table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in">
-                                    <thead className="bg-white/10 text-yellow-300 text-xs uppercase text-center">
+                                    <thead className="bg-white/10 text-yellow-300 text-xl uppercase text-center">
                                         <tr>
                                             <th className="px-4 py-2 border-b border-white/10">#</th>
                                             <th className="px-4 py-2 border-b border-white/10">Logo</th>
@@ -849,7 +849,7 @@ const SpectatorLiveDisplay = () => {
                                         key={i}
                                         className="w-1/2 table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in"
                                     >
-                                        <thead className="bg-white/10 text-yellow-300 text-xs uppercase text-center">
+                                        <thead className="bg-white/10 text-yellow-300 text-xl uppercase text-center">
                                             <tr>
                                                 <th className="px-3 py-2 border-b border-white/10">#</th>
                                                 <th className="px-3 py-2 border-b border-white/10">Logo</th>
@@ -968,7 +968,7 @@ const SpectatorLiveDisplay = () => {
                             />
                         )}
 
-                        <h1 className="text-2xl font-extrabold text-center mb-4">{team?.name || "Team Not Found"}</h1>
+                        <h1 className="text-3xl font-extrabold text-center mb-4">{team?.name || "Team Not Found"}</h1>
 
 
                         <p className="text-red-500  text-3xl mb-4 text-center">
@@ -1052,11 +1052,11 @@ const SpectatorLiveDisplay = () => {
 
                     {/* Left Panel – Highlight Player */}
                     <div className="w-1/3 h-full flex flex-col items-center justify-center p-6">
-                        <h3 className="text-2xl text-yellow-300 mb-3">#1 Most Valuable Player</h3>
+                        <h3 className="text-3xl text-yellow-300 mb-3">#1 Most Valuable Player</h3>
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-extrabold">{topPlayer?.name || "No Player"}</h1>
                             <p className="text-yellow-200 text-sm">{topPlayer?.role || "Not Assigned"}</p>
-                            <p className="text-2xl text-green-400 mt-2">{formatLakhs(topPlayer?.sold_price)}</p>
+                            <p className="text-3xl text-green-400 mt-2">{formatLakhs(topPlayer?.sold_price)}</p>
                         </div>
                         <img
                             src={
@@ -1099,7 +1099,7 @@ const SpectatorLiveDisplay = () => {
                                                 className="flex items-center justify-between bg-white/10 border-l-4 pl-4 pr-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border-white/20"
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className="text-2xl text-yellow-300 w-8">#{groupIdx * 8 + idx + 2}</div>
+                                                    <div className="text-3xl text-yellow-300 w-8">#{groupIdx * 8 + idx + 2}</div>
                                                     <img
                                                         src={
                                                             player?.profile_image
@@ -1114,11 +1114,11 @@ const SpectatorLiveDisplay = () => {
                                                         className="w-14 h-14 rounded-full border border-white object-cover"
                                                     />
                                                     <div className="flex flex-col">
-                                                        <div className="text-white text-2xl">{player?.name || "No Player"}</div>
+                                                        <div className="text-white text-3xl">{player?.name || "No Player"}</div>
                                                         <div className="text-xl text-yellow-100">{player?.role || "Not Assigned"}</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-2xl text-green-400">
+                                                <div className="text-3xl text-green-400">
                                                     {formatLakhs(player?.sold_price || 0)}
                                                 </div>
                                             </div>
@@ -1225,7 +1225,7 @@ const SpectatorLiveDisplay = () => {
                                                 style={{ animationDelay: `${rank * 0.1}s` }}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`text-2xl  w-8 ${getRankText(rank)}`}>#{rank}</div>
+                                                    <div className={`text-3xl  w-8 ${getRankText(rank)}`}>#{rank}</div>
                                                     <img
                                                         src={player.profile_image
                                                             ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`
@@ -1253,11 +1253,11 @@ const SpectatorLiveDisplay = () => {
 
                     {/* Right Panel */}
                     <div className="w-1/3 flex flex-col items-center justify-center p-6 bg-gradient-to-t from-black to-black-900 shadow-inner animate-fadeIn">
-                        <h3 className="text-2xl  text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
+                        <h3 className="text-3xl  text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-extrabold">{topPlayer.name}</h1>
                             <p className="text-yellow-200 text-sm">{topTeam?.name}</p>
-                            <p className="text-2xl text-green-400  mt-2">{formatLakhs(topPlayer.sold_price)}</p>
+                            <p className="text-3xl text-green-400  mt-2">{formatLakhs(topPlayer.sold_price)}</p>
                         </div>
                         <img
                             src={
@@ -1314,7 +1314,7 @@ const SpectatorLiveDisplay = () => {
                             className="w-36 h-36 object-contain animate-pulse"
                         />
                     )}
-                    <h1 className="text-2xl text-center mt-2">{tournamentName}</h1>
+                    <h1 className="text-3xl text-center mt-2">{tournamentName}</h1>
                 </div>
 
                 <h2 className="text-3xl text-center py-5 text-white">📊 Team Statistics</h2>
@@ -1357,7 +1357,7 @@ const SpectatorLiveDisplay = () => {
                                     return (
                                         <div
                                             key={team.id}
-                                            className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-2xl font-semibold shadow-sm"
+                                            className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-3xl font-semibold shadow-sm"
                                         >
                                             {/* Team */}
                                             <div className="flex items-center gap-2 truncate">
@@ -1914,7 +1914,7 @@ const SpectatorLiveDisplay = () => {
                                 </div>
 
                                 {/* Team Name */}
-                                <p className="text-2xl text-center mt-2 text-white uppercase tracking-wide">
+                                <p className="text-3xl text-center mt-2 text-white uppercase tracking-wide">
                                     {teamName}
                                 </p>
 
@@ -1931,7 +1931,7 @@ const SpectatorLiveDisplay = () => {
                                 {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
                                     <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
                                         <div className="flex flex-col items-center py-3 bg-black/40">
-                                            <p className="text-xs text-yellow-400 uppercase tracking-wider">Players Bought</p>
+                                            <p className="text-xl text-yellow-400 uppercase tracking-wider">Players Bought</p>
                                             <p className="text-xl text-white">
                                                 🧑‍🤝‍🧑 {team.bought_count} / {totalPlayersToBuy || 17}
                                             </p>
@@ -1940,14 +1940,14 @@ const SpectatorLiveDisplay = () => {
                                         <div className="flex flex-col items-center py-3 bg-black/40">
                                             {isPoolX ? (
                                                 <>
-                                                    <p className="text-xs text-yellow-400 uppercase tracking-wider">Category</p>
+                                                    <p className="text-xl text-yellow-400 uppercase tracking-wider">Category</p>
                                                     <p className="text-xl text-white tracking-wider uppercase">
                                                         {xLabel}
                                                     </p>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <p className="text-xs text-yellow-400 uppercase tracking-wider">Base Price</p>
+                                                    <p className="text-xl text-yellow-400 uppercase tracking-wider">Base Price</p>
                                                     <p className="tracking-wider uppercase">
                                                         {formatLakhs(getDisplayBasePrice(player, activePool))}
                                                     </p>
@@ -1970,7 +1970,7 @@ const SpectatorLiveDisplay = () => {
                                     alt="Waiting for a Bid"
                                     className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
                                 />
-                                <p className="text-2xl text-yellow-300  animate-pulse">
+                                <p className="text-3xl text-yellow-300  animate-pulse">
                                     Waiting for a Bid...
                                 </p>
                             </div>
@@ -1989,7 +1989,7 @@ const SpectatorLiveDisplay = () => {
 
                                     return (
                                         <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
-                                            {/* <p className="text-2xl mb-4 uppercase tracking-wider  drop-shadow-sm">Leading Team</p> */}
+                                            {/* <p className="text-3xl mb-4 uppercase tracking-wider  drop-shadow-sm">Leading Team</p> */}
 
                                             {leadingTeamLogo && (
                                                 <img
@@ -2027,7 +2027,7 @@ const SpectatorLiveDisplay = () => {
                                     {/* 👇 Secret Bidding Flag Message */}
                                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
                                         player?.secret_bidding_enabled && (
-                                            <p className="text-2xl mt-4 text-yellow-300  animate-pulse">
+                                            <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
                                                 Secret Bidding In Progress...
                                             </p>
                                         )}
@@ -2077,7 +2077,7 @@ const SpectatorLiveDisplay = () => {
                 <div className="w-1/3 flex flex-col space-y-6 mt-10">
                     {/* ——— Player Info ——— */}
                     <div
-                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl
+                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-3xl
                bg-white/5 backdrop-blur-md"
                     >
                         <div className="relative p-6 md:p-8 font-orbitron">
@@ -2088,7 +2088,7 @@ const SpectatorLiveDisplay = () => {
                                 Player Info
                             </div>
 
-                            <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
+                            <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-3xl">
                                 <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
                                 <div className="px-3 py-2">{player?.nickname || "-"}</div>
 
@@ -2115,8 +2115,8 @@ const SpectatorLiveDisplay = () => {
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {/* Base Price */}
                             <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                <div className="text-xs tracking-widest text-white/70 uppercase">Base Price</div>
-                                <div className="text-2xl font-extrabold text-green-300 mt-1">
+                                <div className="text-xl tracking-widest text-white/70 uppercase">Base Price</div>
+                                <div className="text-3xl font-extrabold text-green-300 mt-1">
                                     {formatLakhs(getDisplayBasePrice(player, activePool))}
                                 </div>
                             </div>
@@ -2125,20 +2125,20 @@ const SpectatorLiveDisplay = () => {
                             <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
                                 {["FALSE", "false", false].includes(player?.sold_status) ? (
                                     <>
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Status</div>
-                                        <div className="text-2xl font-extrabold text-red-400 mt-1">Unsold</div>
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Status</div>
+                                        <div className="text-3xl font-extrabold text-red-400 mt-1">Unsold</div>
                                     </>
                                 ) : ["TRUE", "true", true].includes(player?.sold_status) ? (
                                     <>
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Sold Amount</div>
-                                        <div className="text-2xl font-extrabold text-green-300 mt-1">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Sold Amount</div>
+                                        <div className="text-3xl font-extrabold text-green-300 mt-1">
                                             {formatLakhs(player?.sold_price || 0)}
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Current Bid</div>
-                                        <div className="text-2xl font-extrabold text-yellow-300 mt-1">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Current Bid</div>
+                                        <div className="text-3xl font-extrabold text-yellow-300 mt-1">
                                             {formatLakhs(highestBid || 0)}
                                         </div>
                                     </>
@@ -2151,7 +2151,7 @@ const SpectatorLiveDisplay = () => {
                                 <>
                                     {/* Leading Team */}
                                     <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center col-span-2 md:col-span-1">
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Leading Team</div>
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Leading Team</div>
                                         <div className="text-xl font-bold text-white mt-1 truncate">
                                             {leadingTeamObj?.name || teamName}
                                         </div>
@@ -2159,14 +2159,14 @@ const SpectatorLiveDisplay = () => {
 
                                     {/* Players in Team */}
                                     <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Players in Team</div>
-                                        <div className="text-2xl font-extrabold text-white mt-1">{playersInTeamCount}</div>
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Players in Team</div>
+                                        <div className="text-3xl font-extrabold text-white mt-1">{playersInTeamCount}</div>
                                     </div>
 
                                     {/* Available Purse */}
                                     <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Available Purse</div>
-                                        <div className="text-2xl font-extrabold text-blue-300 mt-1">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Available Purse</div>
+                                        <div className="text-3xl font-extrabold text-blue-300 mt-1">
                                             {formatLakhs(availablePurse)}
                                         </div>
                                     </div>
@@ -2174,8 +2174,8 @@ const SpectatorLiveDisplay = () => {
 
                                     {/* Leading Team Max Bid */}
                                     <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                        <div className="text-xs tracking-widest text-white/70 uppercase">Leading Team Max Bid</div>
-                                        <div className="text-2xl font-extrabold text-green-300 mt-1">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Team Max Bid</div>
+                                        <div className="text-3xl font-extrabold text-green-300 mt-1">
                                             {formatLakhs(leadingTeamMaxBid)}
                                         </div>
                                     </div>
