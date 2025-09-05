@@ -3,7 +3,7 @@ import confetti from "canvas-confetti";
 import { useParams } from "react-router-dom";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
-import THEMES from '../components/themes';
+import THEMES, { DEFAULT_THEME_KEY } from '../components/themes';
 import PlayerTransitionLoader from "../components/PlayerTransitionLoader";
 import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
@@ -106,13 +106,12 @@ const SpectatorLiveDisplay = () => {
     const [auctionDatetime, setAuctionDatetime] = useState(null);
     const [cricheroesStats, setCricheroesStats] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
-    const [activePool, setActivePool] = useState("A"); // optional: keep in sync with Admin
-    const DEFAULT_THEME_KEY = "fireflies"; // pick any valid key that exists in THEMES
+    const [activePool, setActivePool] = useState(""); // optional: keep in sync with Admin
     const [theme, setTheme] = useState(DEFAULT_THEME_KEY);
     const activeTheme =
         (THEMES && THEMES[theme]) ||
         (THEMES && THEMES[DEFAULT_THEME_KEY]) ||
-        { bg: "from-black via-gray-900 to-black", text: "text-white" };
+        { bg: "from-[#0F2A5A] via-[#1F3E73] to-[#0F2A5A]", text: "text-yellow-50" };
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
 
@@ -378,9 +377,6 @@ const SpectatorLiveDisplay = () => {
             // ⚠️ Do NOT clear player — let old player remain visible
         }
     };
-
-
-
 
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");

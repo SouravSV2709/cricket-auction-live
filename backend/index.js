@@ -534,7 +534,7 @@ io.on("connection", (socket) => {
 
 // Adding themes to the layout
 
-let currentTheme = 'kcpl';
+let currentTheme = '';
 
 app.get('/api/theme', (req, res) => {
   res.json({ theme: currentTheme });

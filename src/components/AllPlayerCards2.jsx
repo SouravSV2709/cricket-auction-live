@@ -34,6 +34,14 @@ const AllPlayerCards = () => {
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
     const [showToast, setShowToast] = useState(false);
     const hoverTimeoutRef = useRef(null);
+    const [openImage, setOpenImage] = useState(null);
+    const [openDetails, setOpenDetails] = useState(null);
+
+    const CARD_ROW_HEIGHT =
+        windowWidth < 640 ? 420 :   // more space for mobile
+            windowWidth < 768 ? 380 :
+                340;
+
 
     // Brand gradient background (EAARENA)
     const EA_BG_STYLE = {
@@ -99,6 +107,7 @@ const AllPlayerCards = () => {
     };
 
     const [disableHover, setDisableHover] = useState(false);
+
     const downloadAllCardsAsPDF = async () => {
 
         setDisableHover(true);
@@ -127,10 +136,14 @@ const AllPlayerCards = () => {
             container.style.width = "1000px";
             container.style.minHeight = "1400px";
             container.style.padding = "40px 40px 80px";
-            container.style.background = "linear-gradient(to bottom right, #fff8dc, #ffffff)"; // gradient
-            container.style.border = "5px dashed #facc15"; // golden dashed border
-            container.style.borderRadius = "12px";
-            container.style.boxShadow = "0 0 8px rgba(0, 0, 0, 0.1)";
+            container.style.background = `
+            radial-gradient(1200px 700px at 0% 0%, rgba(250, 204, 21, 0.12), transparent 60%),
+            radial-gradient(900px 500px at 100% 0%, rgba(168, 85, 247, 0.12), transparent 60%),
+            linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+            `;
+            container.style.border = "3px solid rgba(250, 204, 21, 0.5)";
+            container.style.borderRadius = "18px";
+            container.style.boxShadow = "0 12px 50px rgba(0,0,0,.45)";
             container.style.display = "flex";
             container.style.flexDirection = "column";
             container.style.alignItems = "center";
@@ -160,44 +173,168 @@ const AllPlayerCards = () => {
 
             const title = document.createElement("div");
             title.innerHTML = `
-  <div style="font-size: 24px; font-weight: bold;">${tournamentName}</div>
-  <div style="font-size: 16px; margin-top: 5px;">${getPageSubtitle(pageIndex, pagePlayers, serialMap)}</div>
-`;
+            <div style="font-size: 26px; font-weight: 800; color:#FDE68A; text-shadow:0 2px 6px rgba(0,0,0,.6)">
+                ${tournamentName}
+            </div>
+            <div style="font-size: 14px; margin-top: 5px; color:#D8B4FE;">
+                ${getPageSubtitle(pageIndex, pagePlayers, serialMap)}
+            </div>
+            `;
 
 
             header.appendChild(logo);
             header.appendChild(title);
             container.appendChild(header);
 
-            // CARD GRID
+            // --- EA ARENA watermark background ---
+            const wm = document.createElement("img");
+            wm.src = "/AuctionArena2.png"; // or full ImageKit URL
+            wm.alt = "EA ARENA";
+            Object.assign(wm.style, {
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%) rotate(-10deg)",
+                width: "70%",
+                maxWidth: "720px",
+                opacity: "0.06",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
+                zIndex: "0",
+            });
+            container.style.position = "relative";
+            container.appendChild(wm);
+
+            // --- Small corner logos ---
+            ["left", "right"].forEach((side) => {
+                const cornerLogo = document.createElement("img");
+                cornerLogo.src = "/AuctionArena2.png";
+                cornerLogo.alt = "EA ARENA";
+                Object.assign(cornerLogo.style, {
+                    position: "absolute",
+                    top: "10px",
+                    [side]: "10px",
+                    width: "40px",
+                    height: "40px",
+                    objectFit: "contain",
+                    opacity: "0.85", // visible but not overpowering
+                    zIndex: "2",
+                });
+                container.appendChild(cornerLogo);
+            });
+
+            // --- CARD GRID ---
             const cardGrid = document.createElement("div");
+            cardGrid.style.position = "relative";
+            cardGrid.style.zIndex = "1"; // cards above watermark, below corner logos
             cardGrid.style.display = "flex";
             cardGrid.style.flexWrap = "wrap";
             cardGrid.style.justifyContent = "center";
             cardGrid.style.gap = "20px";
             container.appendChild(cardGrid);
 
-            pagePlayers.forEach((player) => {
-                const card = document.querySelector(`#player-card-${player.id}`);
-                if (card) {
-                    // Force default styling (remove hover effect)
-                    card.classList.remove("scale-110", "z-10");
-                    card.classList.add("scale-95", "opacity-80");
 
-                    const clone = card.cloneNode(true);
-                    clone.style.width = "240px";
-                    clone.style.height = "320px";
-                    cardGrid.appendChild(clone);
-                }
+
+            pagePlayers.forEach((player) => {
+                const src = document.querySelector(`#player-card-${player.id}`);
+                if (!src) return;
+
+                const clone = src.cloneNode(true);
+                clone.style.width = "240px";
+                clone.style.height = "320px";
+
+                // Remove hover/opacity classes
+                clone.classList.remove("opacity-80", "scale-95", "scale-105", "z-10");
+                clone.style.opacity = "1";
+                clone.style.transform = "none";
+
+                // Remove "View full" buttons/links
+                clone.querySelectorAll("button, a").forEach((el) => el.remove());
+
+                // Remove Nickname field
+                const removeNickname = () => {
+                    const nodes = clone.querySelectorAll("*");
+                    nodes.forEach((el) => {
+                        const txt = (el.textContent || "").trim().toLowerCase();
+                        if (txt === "nickname") {
+                            const field = el.closest("div");
+                            if (field) field.remove();
+                        }
+                        if (player.nickname && txt === player.nickname.toLowerCase()) {
+                            const field = el.closest("div");
+                            if (field) field.remove();
+                        }
+                    });
+                };
+                removeNickname();
+
+                // Remove the label "Role" (keep only value)
+                clone.querySelectorAll("div, span, strong, small, label").forEach((el) => {
+                    const txt = (el.textContent || "").trim().toLowerCase();
+                    if (txt === "role") {
+                        const field = el.closest("div");
+                        if (field) {
+                            // Keep the value sibling, remove the label
+                            el.remove();
+                        }
+                    }
+                });
+
+                // Style text
+                clone.querySelectorAll("*").forEach((el) => {
+                    el.style.color = "#FFFFFF";
+                    el.style.textShadow = "0 1px 2px rgba(0,0,0,0.5)";
+                });
+
+                // Optimize field layout: single column
+                clone.querySelectorAll("div").forEach((div) => {
+                    if (div.classList.contains("grid")) {
+                        div.classList.remove("grid-cols-2");
+                        div.classList.add("grid-cols-1");
+                    }
+                });
+
+                // Compact field styling: remove extra wrappers & padding
+                clone.querySelectorAll("div").forEach((div) => {
+                    const txt = (div.textContent || "").trim();
+                    if (txt.length > 1) {
+                        // keep only value text, no big box
+                        div.style.background = "transparent";
+                        div.style.padding = "0";       // remove unnecessary space
+                        div.style.margin = "0";        // reset margin
+                        div.style.borderRadius = "0";
+                        div.style.whiteSpace = "normal";
+                        div.style.wordBreak = "break-word";
+                        div.style.overflow = "visible";
+                    }
+                });
+
+
+                // Brighten player images
+                clone.querySelectorAll("img").forEach((img) => {
+                    if (img.getAttribute("src") === "/AuctionArena2.png") {
+                        img.style.display = "none";
+                    } else {
+                        img.style.filter = "brightness(1.1) contrast(1.15)";
+                    }
+                });
+
+                cardGrid.appendChild(clone);
+
+
             });
+
+
+
 
             // FOOTER
             const footer = document.createElement("div");
             footer.style.marginTop = "30px";
             footer.style.textAlign = "center";
             footer.style.fontSize = "16px";
-            footer.style.color = "#000000";
-            footer.style.borderTop = "2px solid #7c3aed";
+            footer.style.color = "#FDE68A";
+            footer.style.borderTop = "2px solid #A855F7";
+            footer.style.textShadow = "0 1px 3px rgba(0,0,0,.6)";
             footer.style.paddingTop = "10px";
             footer.style.width = "100%";
             footer.innerText = "🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨";
@@ -265,6 +402,254 @@ const AllPlayerCards = () => {
         setDisableHover(false);
 
     };
+
+    // Build a branded, offscreen DOM and download as PNG
+    const handleDownloadCard = async (player) => {
+        try {
+            const serial = player?.auction_serial ?? serialMap[player.id];
+            const safeName = String(player.name || "player")
+                .replace(/[^a-z0-9\-_\s]/gi, "")
+                .replace(/\s+/g, "-")
+                .toLowerCase();
+
+            // ----- Container (desktop-friendly: 1100x620) -----
+            const container = document.createElement("div");
+            container.style.width = "1100px";
+            container.style.height = "620px";
+            container.style.position = "fixed";
+            container.style.left = "-100000px";
+            container.style.top = "0";
+            container.style.zIndex = "-1";
+            container.style.padding = "20px";
+            container.style.borderRadius = "16px";
+            container.style.overflow = "hidden";
+            container.style.boxShadow = "0 12px 60px rgba(0,0,0,.4)";
+            // EA ARENA gradient
+            container.style.background = `
+      radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .12), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(168, 85, 247, .12), transparent 60%),
+      linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+    `;
+
+            // watermark
+            const wm = document.createElement("img");
+            wm.src = "/AuctionArena2.png";
+            wm.alt = "EA ARENA";
+            Object.assign(wm.style, {
+                position: "absolute",
+                inset: "0",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                opacity: ".06",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 0 2px rgba(0,0,0,.2))",
+            });
+            container.appendChild(wm);
+
+            // ----- Header bar -----
+            const header = document.createElement("div");
+            Object.assign(header.style, {
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "rgba(0,0,0,.45)",
+                border: "1px solid rgba(250,204,21,.35)",
+                borderRadius: "12px",
+                padding: "10px 14px",
+                color: "#EAB308",
+                fontWeight: "700",
+                letterSpacing: ".3px",
+            });
+
+            const hdrLeft = document.createElement("div");
+            hdrLeft.style.display = "flex";
+            hdrLeft.style.alignItems = "center";
+            hdrLeft.style.gap = "10px";
+
+            const logo = document.createElement("img");
+            logo.src = "/AuctionArena2.png";
+            logo.alt = "EA ARENA";
+            logo.style.height = "34px";
+            logo.style.objectFit = "contain";
+
+            const title = document.createElement("div");
+            title.style.color = "#FDE68A";
+            title.style.fontSize = "18px";
+            title.textContent = `#${serial} — ${player.name || ""}`;
+
+            hdrLeft.appendChild(logo);
+            hdrLeft.appendChild(title);
+
+            const hdrRight = document.createElement("div");
+            hdrRight.style.fontSize = "13px";
+            hdrRight.textContent = "Powered by Auction Arena";
+
+            header.appendChild(hdrLeft);
+            header.appendChild(hdrRight);
+            container.appendChild(header);
+
+            // ----- Body: image + fields -----
+            const body = document.createElement("div");
+            Object.assign(body.style, {
+                display: "grid",
+                gridTemplateColumns: "460px 1fr",
+                gap: "18px",
+                marginTop: "14px",
+                height: "500px",
+            });
+
+            // Left = player image on EA red bg
+            const left = document.createElement("div");
+            Object.assign(left.style, {
+                position: "relative",
+                borderRadius: "14px",
+                overflow: "hidden",
+                border: "1px solid rgba(250,204,21,.35)",
+                backgroundImage: "url('/redbg.jpg')",
+                backgroundPosition: "center",
+                backgroundSize: "cover",
+            });
+
+            const dim = document.createElement("div");
+            Object.assign(dim.style, {
+                position: "absolute", inset: "0",
+                background: "rgba(0,0,0,.35)"
+            });
+            left.appendChild(dim);
+
+            const serialPill = document.createElement("div");
+            Object.assign(serialPill.style, {
+                position: "absolute", top: "10px", left: "10px",
+                background: "linear-gradient(90deg,#facc15,#f97316)",
+                color: "#111",
+                fontWeight: "800",
+                fontSize: "12px",
+                padding: "4px 8px",
+                borderRadius: "999px",
+                boxShadow: "0 2px 10px rgba(0,0,0,.35)",
+                zIndex: "2"
+            });
+            serialPill.textContent = `#${serial}`;
+            left.appendChild(serialPill);
+
+            const pimg = document.createElement("img");
+            pimg.src = `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-1400,q-90,e-sharpen,f-webp`;
+            pimg.alt = player.name || "";
+            Object.assign(pimg.style, {
+                position: "absolute", inset: "0",
+                width: "100%", height: "100%",
+                objectFit: "contain",
+                filter: "drop-shadow(0 10px 26px rgba(0,0,0,.55))"
+            });
+            pimg.crossOrigin = "anonymous";
+            left.appendChild(pimg);
+
+            body.appendChild(left);
+
+            // Right = detail boxes
+            const right = document.createElement("div");
+            Object.assign(right.style, {
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+            });
+
+            const addField = (label, value) => {
+                if (!value) return;
+                const box = document.createElement("div");
+                Object.assign(box.style, {
+                    background: "rgba(255,255,255,.06)",
+                    border: "1px solid rgba(255,255,255,.12)",
+                    borderRadius: "10px",
+                    padding: "14px",
+                    color: "white",
+                });
+                const l = document.createElement("div");
+                l.textContent = label.toUpperCase();
+                Object.assign(l.style, {
+                    color: "#C0C0C0",
+                    fontSize: "11px",
+                    letterSpacing: ".8px",
+                    marginBottom: "6px"
+                });
+                const v = document.createElement("div");
+                v.textContent = String(value);
+                Object.assign(v.style, {
+                    fontWeight: "700",
+                    fontSize: "14px",
+                    wordWrap: "break-word"
+                });
+                box.appendChild(l); box.appendChild(v);
+                right.appendChild(box);
+            };
+
+            addField("Role", player.role);
+            addField("Category", player.base_category);
+            addField("District", player.district);
+            addField("Location", player.location);
+            addField("Nickname", player.nickname);
+            addField("Email", player.email);
+            // addField("Mobile", player.mobile); // enable if needed
+
+            body.appendChild(right);
+            container.appendChild(body);
+
+            // ----- Footer bar -----
+            const footer = document.createElement("div");
+            Object.assign(footer.style, {
+                marginTop: "12px",
+                background: "rgba(0,0,0,.45)",
+                border: "1px solid rgba(168,85,247,.35)",
+                color: "#FDE68A",
+                fontSize: "12px",
+                textAlign: "center",
+                padding: "6px 10px",
+                borderRadius: "10px",
+            });
+            footer.textContent = "🔴 All rights reserved | EA ARENA | +91-9547652702 🧨";
+            container.appendChild(footer);
+
+            document.body.appendChild(container);
+
+            // Wait for images
+            const imgs = container.querySelectorAll("img");
+            await Promise.all(
+                Array.from(imgs).map(
+                    (img) =>
+                        new Promise((res) => {
+                            if (img.complete && img.naturalWidth) return res();
+                            const to = setTimeout(res, 2500);
+                            img.onload = () => { clearTimeout(to); res(); };
+                            img.onerror = () => res();
+                        })
+                )
+            );
+
+            // Snapshot
+            const canvas = await html2canvas(container, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: null,
+            });
+
+            // Download
+            const data = canvas.toDataURL("image/png", 1.0);
+            const a = document.createElement("a");
+            a.href = data;
+            a.download = `player-${serial}-${safeName}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            // cleanup
+            document.body.removeChild(container);
+        } catch (e) {
+            console.error("Download failed:", e);
+            alert("Could not generate the image. Please try again.");
+        }
+    };
+
 
     useEffect(() => {
         return () => {
@@ -357,7 +742,7 @@ const AllPlayerCards = () => {
                 }}
                 className={[
                     "player-card relative rounded-2xl overflow-hidden shadow-xl",
-                    "ring-1 ring-black/10 bg-white/5 backdrop-blur-[1px]",
+                    "ring-1 ring-black/10 bg-red/5 backdrop-blur-[1px]",
                     "transition-transform duration-300 ease-out cursor-pointer",
                     (typeof document !== "undefined" && document.body.classList.contains("exporting"))
                         ? "scale-100"
@@ -365,69 +750,121 @@ const AllPlayerCards = () => {
                 ].join(" ")}
             >
                 {/* TOP: full image on red background */}
-                <div className="relative h-[72%] md:h-[66%] bg-center bg-cover" style={{ backgroundImage: "url('/redbg.png')" }}>
+                {/* TOP: image section with red bg + watermark + serial + player image */}
+                <div
+                    className="relative h-[66%] bg-center bg-cover"
+                    style={{ backgroundImage: "url('/goldbg.jpg')" }}
+                >
+                    {/* Dark overlay to dim the red background */}
+
+                    {/* <div className="absolute inset-0 bg-black/40 z-0" /> */}
+
+                    {/* EAARENA Logo watermark */}
+                    <img
+                        src="/AuctionArena2.png"
+                        alt="EAARENA Logo"
+                        className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
+                    />
 
                     {/* Serial pill */}
-                    <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow">
-                        #{serial}
+                    <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
+                        #{player?.auction_serial ?? serial}
                     </span>
 
-                    {/* Player image (full figure feel) */}
+                    {/* Player image */}
                     <img
                         loading="lazy"
-                        // Use ImageKit face focus + pad resize so the whole figure fits without cutting the head
-                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,ar-3-4,cm-pad_resize,bg-FFFFFF,w-900,q-85,f-webp`}
                         alt={player.name}
-                        className="
-    absolute inset-0                /* pin to the section */
-    w-full h-full                   /* let it fill the red area */
-    object-contain                  /* never crop; fit entirely */
-    object-[center_22%] md:object-[center_15%] /* bias view slightly upward to protect faces */
-    drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)]
-    pointer-events-none select-none
-  "
+                        className="absolute inset-0 w-full h-full object-cover object-[center_22%] md:object-[center_22%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
+                        onClick={() =>
+                            setOpenImage(
+                                `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
+                            )
+                        }
                         onError={(e) => {
                             e.currentTarget.onerror = null;
                             e.currentTarget.src = "/no-image-found.png";
                         }}
                     />
 
-                    {/* Gentle scrim to improve header readability */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-transparent" />
+                    {/* scrim for gradient fade */}
+                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-black/10 via-transparent to-transparent z-30" />
                 </div>
 
+
                 {/* BOTTOM: classy white info panel */}
-                <div className="h-[34%] bg-white px-3 pt-3 pb-2 overflow-visible">
-                    <div className="text-[13px] sm:text-sm font-extrabold text-gray-900 leading-[1.25] truncate">
+                {/* BOTTOM: classy info panel */}
+                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-4 rounded-b-2xl">                    {/* Golden divider */}
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
+
+                    <div
+                        className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] drop-shadow"
+                        style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,           // show up to 2 lines
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden"
+                        }}
+                    >
                         {player.name}
                     </div>
 
-                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-600">
+                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200">
                         <div>
-                            <span className="uppercase tracking-wide text-gray-500">Role</span>
-                            <div className="font-semibold text-gray-800">{player.role || "-"}</div>
+                            <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span>
+                            <div className="font-semibold text-white truncate">{player.role || "-"}</div>
                         </div>
 
                         {player.district && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-500">District</span>
-                                <div className="font-semibold text-gray-800">{player.district}</div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span>
+                                <div className="font-semibold text-white truncate">{player.district}</div>
                             </div>
                         )}
 
                         {player.base_category && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-500">Category</span>
-                                <div className="font-semibold text-gray-800">{player.base_category}</div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
+                                <div className="font-semibold text-white truncate">
+                                    {(() => {
+                                        const baseCat = String(player.base_category).toUpperCase();
+                                        const soldAmt = Number(player.sold_price) || 0;
+
+                                        if (baseCat === "X") {
+                                            if (soldAmt === 400000) return "Owner";
+                                            if (soldAmt === 1000000) return "Icon";
+                                            return "X"; // fallback if different amount
+                                        }
+                                        return baseCat;
+                                    })()}
+                                </div>
                             </div>
                         )}
 
+
                         {player.nickname && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-500">Nickname</span>
-                                <div className="font-semibold text-gray-800">{player.nickname}</div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span>
+                                <div className="font-semibold text-white truncate">{player.nickname}</div>
                             </div>
                         )}
+
+                        {player.location && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Location</span>
+                                <div className="font-semibold text-white truncate">{player.location}</div>
+                            </div>
+                        )}
+                        <button
+                            className="absolute bottom-2 right-5 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDetails(player);
+                            }}
+                        >
+                            View full
+                        </button>
                     </div>
                 </div>
             </div>
@@ -711,7 +1148,7 @@ const AllPlayerCards = () => {
                                         columnWidth={columnWidth}
                                         height={Math.max(window.innerHeight - 250, 400)}
                                         rowCount={rowCount}
-                                        rowHeight={340}
+                                        rowHeight={CARD_ROW_HEIGHT}
                                         width={windowWidth - 20}
                                     >
                                         {({ columnIndex, rowIndex, style }) => {
@@ -722,6 +1159,152 @@ const AllPlayerCards = () => {
                                     </Grid>
                                 </div>
                             </div>
+
+                            {openImage && (
+                                <div
+                                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+                                    onClick={() => setOpenImage(null)}
+                                >
+                                    {/* EAARENA watermark background */}
+                                    <img
+                                        src="/AuctionArena2.png"
+                                        alt="EA ARENA Logo"
+                                        className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
+                                    />
+
+                                    {/* Player full image */}
+                                    <img
+                                        src={openImage}
+                                        alt="Full View"
+                                        className="relative max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl border-2 border-yellow-400 z-10"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+
+                                    {/* Close button */}
+                                    <button
+                                        className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
+                                        onClick={() => setOpenImage(null)}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            )}
+
+                            {openDetails && (
+                                <div
+                                    className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
+                                    onClick={() => setOpenDetails(null)}
+                                >
+                                    {/* EAARENA watermark */}
+                                    <img
+                                        src="/AuctionArena2.png"
+                                        alt="EA ARENA Logo"
+                                        className="absolute inset-0 w-full h-full object-contain opacity-10 pointer-events-none"
+                                    />
+
+                                    <div
+                                        className="relative w-[92vw] max-w-[720px] max-h-[88vh] bg-[#11121a] border border-yellow-400/40 rounded-xl shadow-2xl overflow-hidden"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                                            <div className="text-yellow-300 font-semibold text-base ml-1/2">
+                                                #{openDetails.auction_serial ?? serialMap[openDetails.id]} — {openDetails.name}
+                                            </div>
+                                            <button
+                                                className="text-white text-2xl leading-none hover:text-yellow-300"
+                                                onClick={() => setOpenDetails(null)}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+
+                                        {/* Body */}
+                                        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-auto" style={{ maxHeight: "70vh" }}>
+                                            {/* Photo */}
+                                            <div className="md:col-span-1">
+                                                <div className="relative bg-black/40 rounded-lg overflow-hidden border border-white/10">
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${openDetails.profile_image}?tr=w-1200,q-90`}
+                                                        alt={openDetails.name}
+                                                        className="w-full h-auto object-contain"
+                                                        onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Fields */}
+                                            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                                {[
+                                                    ["Nickname", openDetails.nickname],
+                                                    ["Role", openDetails.role],
+                                                    [
+                                                        "Category",
+                                                        (() => {
+                                                            const baseCat = String(openDetails.base_category).toUpperCase();
+                                                            const soldAmt = Number(openDetails.sold_price) || 0;
+
+                                                            if (baseCat === "X") {
+                                                                if (soldAmt === 400000) return "Owner";
+                                                                if (soldAmt === 1000000) return "Icon";
+                                                                return "X";
+                                                            }
+                                                            return baseCat;
+                                                        })()
+                                                    ],
+                                                    ["District", openDetails.district],
+                                                    ["Location", openDetails.location],
+                                                    ["Email", openDetails.email],
+                                                    ["Sold Price", openDetails.sold_price]
+                                                ].map(([label, value]) => (
+                                                    value ? (
+                                                        <div key={label} className="bg-white/5 border border-white/10 rounded-md p-3">
+                                                            <div className="uppercase text-[10px] tracking-wider text-gray-400">{label}</div>
+                                                            <div className="text-white font-medium break-words">{String(value)}</div>
+                                                        </div>
+                                                    ) : null
+                                                ))}
+
+                                            </div>
+
+                                        </div>
+
+                                        {/* Footer */}
+                                        <div className="px-4 py-3 border-t border-white/10 flex justify-end gap-2">
+                                            <button
+                                                className="px-4 py-2 rounded-md bg-yellow-500/90 hover:bg-yellow-500 text-black font-semibold"
+                                                onClick={() => handleDownloadCard(openDetails)}
+                                            >
+                                                Download
+                                            </button>
+                                            <button
+                                                className="px-4 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                                                onClick={() => setOpenDetails(null)}
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                    {/* EA Arena Branding */}
+                                    <div className="absolute top-0 left-0 right-0 bg-black/40 flex items-center justify-between px-4 py-2">
+                                        <img
+                                            src="/AuctionArena2.png"
+                                            alt="EA Arena Logo"
+                                            className="h-8 md:h-10 object-contain"
+                                        />
+                                        <span className="text-yellow-400 font-bold text-xs md:text-sm tracking-wide">
+                                            Powered by Auction Arena
+                                        </span>
+                                    </div>
+
+                                    {/* Branded footer inside modal */}
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-center text-yellow-300 text-xs py-2">
+                                        🔴 All rights reserved | EA Arena | +91-9547652702 🧨
+                                    </div>
+                                </div>
+                            )}
+
 
                             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
                                 🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨

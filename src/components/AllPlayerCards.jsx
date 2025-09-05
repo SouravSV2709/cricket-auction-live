@@ -37,10 +37,10 @@ const AllPlayerCards = () => {
     const [openImage, setOpenImage] = useState(null);
     const [openDetails, setOpenDetails] = useState(null);
 
-        const CARD_ROW_HEIGHT =
+    const CARD_ROW_HEIGHT =
         windowWidth < 640 ? 420 :   // more space for mobile
-        windowWidth < 768 ? 380 : 
-        340;
+            windowWidth < 768 ? 380 :
+                340;
 
 
     // Brand gradient background (EAARENA)
@@ -107,6 +107,7 @@ const AllPlayerCards = () => {
     };
 
     const [disableHover, setDisableHover] = useState(false);
+
     const downloadAllCardsAsPDF = async () => {
 
         setDisableHover(true);
@@ -135,10 +136,14 @@ const AllPlayerCards = () => {
             container.style.width = "1000px";
             container.style.minHeight = "1400px";
             container.style.padding = "40px 40px 80px";
-            container.style.background = "linear-gradient(to bottom right, #fff8dc, #ffffff)"; // gradient
-            container.style.border = "5px dashed #facc15"; // golden dashed border
-            container.style.borderRadius = "12px";
-            container.style.boxShadow = "0 0 8px rgba(0, 0, 0, 0.1)";
+            container.style.background = `
+            radial-gradient(1200px 700px at 0% 0%, rgba(250, 204, 21, 0.12), transparent 60%),
+            radial-gradient(900px 500px at 100% 0%, rgba(168, 85, 247, 0.12), transparent 60%),
+            linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
+            `;
+            container.style.border = "3px solid rgba(250, 204, 21, 0.5)";
+            container.style.borderRadius = "18px";
+            container.style.boxShadow = "0 12px 50px rgba(0,0,0,.45)";
             container.style.display = "flex";
             container.style.flexDirection = "column";
             container.style.alignItems = "center";
@@ -168,44 +173,168 @@ const AllPlayerCards = () => {
 
             const title = document.createElement("div");
             title.innerHTML = `
-  <div style="font-size: 24px; font-weight: bold;">${tournamentName}</div>
-  <div style="font-size: 16px; margin-top: 5px;">${getPageSubtitle(pageIndex, pagePlayers, serialMap)}</div>
-`;
+            <div style="font-size: 26px; font-weight: 800; color:#FDE68A; text-shadow:0 2px 6px rgba(0,0,0,.6)">
+                ${tournamentName}
+            </div>
+            <div style="font-size: 14px; margin-top: 5px; color:#D8B4FE;">
+                ${getPageSubtitle(pageIndex, pagePlayers, serialMap)}
+            </div>
+            `;
 
 
             header.appendChild(logo);
             header.appendChild(title);
             container.appendChild(header);
 
-            // CARD GRID
+            // --- EA ARENA watermark background ---
+            const wm = document.createElement("img");
+            wm.src = "/AuctionArena2.png"; // or full ImageKit URL
+            wm.alt = "EA ARENA";
+            Object.assign(wm.style, {
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%) rotate(-10deg)",
+                width: "70%",
+                maxWidth: "720px",
+                opacity: "0.06",
+                pointerEvents: "none",
+                filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
+                zIndex: "0",
+            });
+            container.style.position = "relative";
+            container.appendChild(wm);
+
+            // --- Small corner logos ---
+            ["left", "right"].forEach((side) => {
+                const cornerLogo = document.createElement("img");
+                cornerLogo.src = "/AuctionArena2.png";
+                cornerLogo.alt = "EA ARENA";
+                Object.assign(cornerLogo.style, {
+                    position: "absolute",
+                    top: "10px",
+                    [side]: "10px",
+                    width: "40px",
+                    height: "40px",
+                    objectFit: "contain",
+                    opacity: "0.85", // visible but not overpowering
+                    zIndex: "2",
+                });
+                container.appendChild(cornerLogo);
+            });
+
+            // --- CARD GRID ---
             const cardGrid = document.createElement("div");
+            cardGrid.style.position = "relative";
+            cardGrid.style.zIndex = "1"; // cards above watermark, below corner logos
             cardGrid.style.display = "flex";
             cardGrid.style.flexWrap = "wrap";
             cardGrid.style.justifyContent = "center";
             cardGrid.style.gap = "20px";
             container.appendChild(cardGrid);
 
-            pagePlayers.forEach((player) => {
-                const card = document.querySelector(`#player-card-${player.id}`);
-                if (card) {
-                    // Force default styling (remove hover effect)
-                    card.classList.remove("scale-110", "z-10");
-                    card.classList.add("scale-95", "opacity-80");
 
-                    const clone = card.cloneNode(true);
-                    clone.style.width = "240px";
-                    clone.style.height = "320px";
-                    cardGrid.appendChild(clone);
-                }
+
+            pagePlayers.forEach((player) => {
+                const src = document.querySelector(`#player-card-${player.id}`);
+                if (!src) return;
+
+                const clone = src.cloneNode(true);
+                clone.style.width = "240px";
+                clone.style.height = "320px";
+
+                // Remove hover/opacity classes
+                clone.classList.remove("opacity-80", "scale-95", "scale-105", "z-10");
+                clone.style.opacity = "1";
+                clone.style.transform = "none";
+
+                // Remove "View full" buttons/links
+                clone.querySelectorAll("button, a").forEach((el) => el.remove());
+
+                // Remove Nickname field
+                const removeNickname = () => {
+                    const nodes = clone.querySelectorAll("*");
+                    nodes.forEach((el) => {
+                        const txt = (el.textContent || "").trim().toLowerCase();
+                        if (txt === "nickname") {
+                            const field = el.closest("div");
+                            if (field) field.remove();
+                        }
+                        if (player.nickname && txt === player.nickname.toLowerCase()) {
+                            const field = el.closest("div");
+                            if (field) field.remove();
+                        }
+                    });
+                };
+                removeNickname();
+
+                // Remove the label "Role" (keep only value)
+                clone.querySelectorAll("div, span, strong, small, label").forEach((el) => {
+                    const txt = (el.textContent || "").trim().toLowerCase();
+                    if (txt === "role") {
+                        const field = el.closest("div");
+                        if (field) {
+                            // Keep the value sibling, remove the label
+                            el.remove();
+                        }
+                    }
+                });
+
+                // Style text
+                clone.querySelectorAll("*").forEach((el) => {
+                    el.style.color = "#FFFFFF";
+                    el.style.textShadow = "0 1px 2px rgba(0,0,0,0.5)";
+                });
+
+                // Optimize field layout: single column
+                clone.querySelectorAll("div").forEach((div) => {
+                    if (div.classList.contains("grid")) {
+                        div.classList.remove("grid-cols-2");
+                        div.classList.add("grid-cols-1");
+                    }
+                });
+
+                // Compact field styling: remove extra wrappers & padding
+                clone.querySelectorAll("div").forEach((div) => {
+                    const txt = (div.textContent || "").trim();
+                    if (txt.length > 1) {
+                        // keep only value text, no big box
+                        div.style.background = "transparent";
+                        div.style.padding = "0";       // remove unnecessary space
+                        div.style.margin = "0";        // reset margin
+                        div.style.borderRadius = "0";
+                        div.style.whiteSpace = "normal";
+                        div.style.wordBreak = "break-word";
+                        div.style.overflow = "visible";
+                    }
+                });
+
+
+                // Brighten player images
+                clone.querySelectorAll("img").forEach((img) => {
+                    if (img.getAttribute("src") === "/AuctionArena2.png") {
+                        img.style.display = "none";
+                    } else {
+                        img.style.filter = "brightness(1.1) contrast(1.15)";
+                    }
+                });
+
+                cardGrid.appendChild(clone);
+
+
             });
+
+
+
 
             // FOOTER
             const footer = document.createElement("div");
             footer.style.marginTop = "30px";
             footer.style.textAlign = "center";
             footer.style.fontSize = "16px";
-            footer.style.color = "#000000";
-            footer.style.borderTop = "2px solid #7c3aed";
+            footer.style.color = "#FDE68A";
+            footer.style.borderTop = "2px solid #A855F7";
+            footer.style.textShadow = "0 1px 3px rgba(0,0,0,.6)";
             footer.style.paddingTop = "10px";
             footer.style.width = "100%";
             footer.innerText = "🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨";
@@ -628,7 +757,7 @@ const AllPlayerCards = () => {
                 >
                     {/* Dark overlay to dim the red background */}
 
-                   {/* <div className="absolute inset-0 bg-black/40 z-0" /> */}
+                    {/* <div className="absolute inset-0 bg-black/40 z-0" /> */}
 
                     {/* EAARENA Logo watermark */}
                     <img
@@ -728,14 +857,14 @@ const AllPlayerCards = () => {
                             </div>
                         )}
                         <button
-                                className="absolute bottom-2 right-5 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenDetails(player);
-                                }}
-                            >
-                                View full
-                    </button>
+                            className="absolute bottom-2 right-5 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDetails(player);
+                            }}
+                        >
+                            View full
+                        </button>
                     </div>
                 </div>
             </div>
@@ -962,12 +1091,12 @@ const AllPlayerCards = () => {
                                     Clear Filters
                                 </button>
 
-                                {/* <button
+                                <button
                                     onClick={downloadAllCardsAsPDF}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                                 >
                                     📥 Download All Player Cards (PDF)
-                                </button> */}
+                                </button>
 
 
                             </div>
