@@ -55,9 +55,6 @@ const formatLakhs = (amt) => {
 };
 
 
-
-
-
 const API = CONFIG.API_BASE_URL;
 
 let currentSoldAudio = null;
@@ -1676,8 +1673,32 @@ const SpectatorLiveDisplay = () => {
     const team = Array.isArray(teamSummaries)
         ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
         : null;
-    const teamName = team?.name || leadingTeam || "Unknown";
+    const teamName = team?.name || leadingTeam || "-";
     const teamLogoId = team?.logo;
+
+    // Pick the LIVE leading team object (prefer socket leadingTeam, else fall back to player's team)
+    const leadingTeamObj =
+        (leadingTeam
+            ? teamSummaries.find(t => (t?.name || "").trim() === (leadingTeam || "").trim())
+            : null) || team || null;
+
+    // Values from Teams table (no recompute)
+    const playersInTeamCount = leadingTeamObj?.bought_count ?? 0;
+    const leadingTeamMaxBid = Number(leadingTeamObj?.max_bid_allowed || 0);
+    const leadingTeamId = leadingTeamObj?.id ? Number(leadingTeamObj.id) : null;
+
+    const spentByLeadingTeam =
+        leadingTeamId !== null
+            ? playerList.reduce((sum, p) => {
+                const sameTeam = Number(p.team_id) === leadingTeamId;
+                const isSold = p.sold_status === true || p.sold_status === "TRUE";
+                return sum + (sameTeam && isSold ? Number(p.sold_price) || 0 : 0);
+            }, 0)
+            : 0;
+
+    const availablePurse = Math.max(Number(leadingTeamObj?.budget || 0) - spentByLeadingTeam, 0);
+
+
 
     const isWaitingForBid =
         !["TRUE", "true", true].includes(player?.sold_status) &&
@@ -1826,7 +1847,9 @@ const SpectatorLiveDisplay = () => {
                                 .toUpperCase();
                             const soldAmt = Number(player?.sold_price) || 0;
 
-                            let poolLabel = poolCode ? `Pool ${poolCode}` : "Pool -";
+                            if (!poolCode) return null; // ⬅️ Don’t render if no pool
+
+                            let poolLabel = `Pool ${poolCode}`;
 
                             if (poolCode === "X") {
                                 if (soldAmt === 400000) poolLabel = "Owner";
@@ -1844,6 +1867,7 @@ const SpectatorLiveDisplay = () => {
                                 </div>
                             );
                         })()}
+
 
                     </div>
                 </div>
@@ -1909,7 +1933,7 @@ const SpectatorLiveDisplay = () => {
                                         <div className="flex flex-col items-center py-3 bg-black/40">
                                             <p className="text-xs text-yellow-400 uppercase tracking-wider">Players Bought</p>
                                             <p className="text-xl text-white">
-                                                🧑‍🤝‍🧑 {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 17}
+                                                🧑‍🤝‍🧑 {team.bought_count} / {totalPlayersToBuy || 17}
                                             </p>
                                         </div>
 
@@ -2050,80 +2074,120 @@ const SpectatorLiveDisplay = () => {
 
                 </div>
 
-                <div className="w-1/3 flex flex-col justify-items-stretch space-y-8 mt-10">
+                <div className="w-1/3 flex flex-col space-y-6 mt-10">
+                    {/* ——— Player Info ——— */}
                     <div
-                        className="relative w-[48rem] h-auto rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl
+                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl
                bg-white/5 backdrop-blur-md"
                     >
-                        {/* Content (more padding) */}
                         <div className="relative p-6 md:p-8 font-orbitron">
-
-                            {/* Batting Stat */}
-                            <div>
-                                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
-                        bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
-                        text-xl tracking-widest uppercase">
-                                    Batting Stat
-                                </div>
-
-                                <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
-                                    <div className="px-3 py-2 tracking-wider uppercase">Type</div>
-                                    <div className="px-3 py-2 uppercase">{player?.batsman_type || "LOWER ORDER BATSMAN"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
-                                    <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Runs</div>
-                                    <div className="px-3 py-2">{player?.runs != null ? Number(player.runs).toLocaleString() : "-"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Average</div>
-                                    <div className="px-3 py-2">
-                                        {player?.batting_avg == null ? "-" : Number(player.batting_avg).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Strike Rate</div>
-                                    <div className="px-3 py-2">
-                                        {player?.batting_sr == null ? "-" : Number(player.batting_sr).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-                                </div>
+                            <div
+                                className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
+                   bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
+                   text-xl tracking-widest uppercase">
+                                Player Info
                             </div>
 
-                            {/* DISTINCT SEPARATOR */}
-                            <div className="my-6 h-[2px] bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full" />
+                            <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
+                                <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
+                                <div className="px-3 py-2">{player?.nickname || "-"}</div>
 
-                            {/* Bowling Stat */}
-                            <div>
-                                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
-                        bg-gradient-to-r from-sky-400/30 to-violet-500/30 text-white/90
-                        text-xl tracking-widest uppercase">
-                                    Bowling Stat
-                                </div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Role</div>
+                                <div className="px-3 py-2 uppercase">{player?.role || "-"}</div>
 
-                                <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
-                                    <div className="px-3 py-2 tracking-wider uppercase">Type</div>
-                                    <div className="px-3 py-2 uppercase">{player?.bowling_type || "PART TIME BOWLER"}</div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Batting Type</div>
+                                <div className="px-3 py-2 uppercase">{player?.batting_hand || "-"}</div>
 
-                                    <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
-                                    <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
+                                <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div>
 
-                                    <div className="px-3 py-2 tracking-wider uppercase">Wickets</div>
-                                    <div className="px-3 py-2">{player?.wickets != null ? Number(player.wickets).toLocaleString() : "-"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Economy</div>
-                                    <div className="px-3 py-2">
-                                        {player?.bowling_eco == null ? "-" : Number(player.bowling_eco).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Average</div>
-                                    <div className="px-3 py-2">
-                                        {player?.bowling_avg == null ? "-" : Number(player.bowling_avg).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-                                </div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Location</div>
+                                <div className="px-3 py-2">{player?.location || "-"}</div>
                             </div>
-
                         </div>
                     </div>
+
+                    {/* ——— Auction Snapshot (fills the blank area neatly) ——— */}
+                    <div
+                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20
+               bg-white/5 backdrop-blur-md"
+                    >
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {/* Base Price */}
+                            <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                <div className="text-xs tracking-widest text-white/70 uppercase">Base Price</div>
+                                <div className="text-2xl font-extrabold text-green-300 mt-1">
+                                    {formatLakhs(getDisplayBasePrice(player, activePool))}
+                                </div>
+                            </div>
+
+                            {/* Current Bid / Sold / Unsold */}
+                            <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                {["FALSE", "false", false].includes(player?.sold_status) ? (
+                                    <>
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Status</div>
+                                        <div className="text-2xl font-extrabold text-red-400 mt-1">Unsold</div>
+                                    </>
+                                ) : ["TRUE", "true", true].includes(player?.sold_status) ? (
+                                    <>
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Sold Amount</div>
+                                        <div className="text-2xl font-extrabold text-green-300 mt-1">
+                                            {formatLakhs(player?.sold_price || 0)}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Current Bid</div>
+                                        <div className="text-2xl font-extrabold text-yellow-300 mt-1">
+                                            {formatLakhs(highestBid || 0)}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+
+                            {/* Leading Team */}
+                            {!["FALSE", "false", false].includes(player?.sold_status) && (
+                                <>
+                                    {/* Leading Team */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center col-span-2 md:col-span-1">
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Leading Team</div>
+                                        <div className="text-xl font-bold text-white mt-1 truncate">
+                                            {leadingTeamObj?.name || teamName}
+                                        </div>
+                                    </div>
+
+                                    {/* Players in Team */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Players in Team</div>
+                                        <div className="text-2xl font-extrabold text-white mt-1">{playersInTeamCount}</div>
+                                    </div>
+
+                                    {/* Available Purse */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Available Purse</div>
+                                        <div className="text-2xl font-extrabold text-blue-300 mt-1">
+                                            {formatLakhs(availablePurse)}
+                                        </div>
+                                    </div>
+
+
+                                    {/* Leading Team Max Bid */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                        <div className="text-xs tracking-widest text-white/70 uppercase">Leading Team Max Bid</div>
+                                        <div className="text-2xl font-extrabold text-green-300 mt-1">
+                                            {formatLakhs(leadingTeamMaxBid)}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+
+                        </div>
+
+                    </div>
                 </div>
+
 
 
 
