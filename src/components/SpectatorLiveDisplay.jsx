@@ -401,7 +401,7 @@ const SpectatorLiveDisplay = () => {
                 setTournamentName(data.title || tournamentSlug);
                 setTournamentLogo(
                     data.logo
-                        ? `https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=w-300,h-600,q-95,e-sharpen`
+                        ? `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=w-300,h-600,q-95,e-sharpen`
                         : ""
                 );
                 setTotalPlayersToBuy(data.players_per_team || 14);
@@ -737,7 +737,7 @@ const SpectatorLiveDisplay = () => {
                         src={
                             player.profile_image?.startsWith("http")
                                 ? player.profile_image
-                                : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-400,fo-face,z-0.4,q-95,e-sharpen`
+                                : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-300,h-400,fo-face,z-0.4,q-95,e-sharpen`
                         }
                         alt={player.name}
                         className="w-[30rem] h-[36rem] object-cover rounded-xl border-2 border-white shadow-lg mb-4"
@@ -799,7 +799,7 @@ const SpectatorLiveDisplay = () => {
                                                 <td className="px-4 py-2">{idx + 1}</td>
                                                 <td className="px-4 py-2">
                                                     <img
-                                                        src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${bid.logo}`}
+                                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bid.logo}`}
                                                         alt={bid.team_name}
                                                         className="w-8 h-8 rounded-full object-contain border border-white/30"
                                                     />
@@ -875,7 +875,7 @@ const SpectatorLiveDisplay = () => {
                                                     <td className="px-3 py-2">{idx + 1 + (i === 1 ? midpoint : 0)}</td>
                                                     <td className="px-3 py-2">
                                                         <img
-                                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${bid.logo}`}
+                                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bid.logo}`}
                                                             alt={bid.team_name}
                                                             className="w-8 h-8 rounded-full object-contain border border-white/30"
                                                         />
@@ -954,7 +954,7 @@ const SpectatorLiveDisplay = () => {
         );
 
         const teamLogoUrl = team?.logo
-            ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`
+            ? `https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`
             : null;
 
 
@@ -1068,7 +1068,7 @@ const SpectatorLiveDisplay = () => {
                         <img
                             src={
                                 topPlayer?.profile_image
-                                    ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4,q-95,e-sharpen`
+                                    ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4,q-95,e-sharpen`
                                     : "/no-image-found.png"
                             }
                             alt={topPlayer?.name || "No Player"}
@@ -1082,7 +1082,7 @@ const SpectatorLiveDisplay = () => {
                         <div className="w-full flex flex-row items-center justify-center bg-black/30 rounded-2xl py-6 mb-6">
                             {team?.logo && (
                                 <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                     alt={team.name}
                                     className="w-40 h-40 object-contain mb-4 animate-pulse"
                                 />
@@ -1110,7 +1110,7 @@ const SpectatorLiveDisplay = () => {
                                                     <img
                                                         src={
                                                             player?.profile_image
-                                                                ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4,q-95,e-sharpen`
+                                                                ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-80,h-80,fo-face,z-0.4,q-95,e-sharpen`
                                                                 : "/no-image-found.png"
                                                         }
                                                         onError={(e) => {
@@ -1235,7 +1235,7 @@ const SpectatorLiveDisplay = () => {
                                                     <div className={`text-2xl  w-8 ${getRankText(rank)}`}>#{rank}</div>
                                                     <img
                                                         src={player.profile_image
-                                                            ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`
+                                                            ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`
                                                             : "/no-image-found.png"}
                                                         onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
                                                         className={`rounded-full border border-white object-cover 
@@ -1269,7 +1269,7 @@ const SpectatorLiveDisplay = () => {
                         <img
                             src={
                                 topPlayer.profile_image
-                                    ? `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4,q-95,e-sharpen`
+                                    ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${topPlayer.profile_image}?tr=w-400,h-500,fo-face,z-0.4,q-95,e-sharpen`
                                     : "/no-image-found.png"
                             }
                             onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
@@ -1369,7 +1369,7 @@ const SpectatorLiveDisplay = () => {
                                             {/* Team */}
                                             <div className="flex items-center gap-2 truncate">
                                                 <img
-                                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                     alt={team.name}
                                                     className="w-6 h-6 rounded-full border border-white"
                                                 />
@@ -1544,7 +1544,7 @@ const SpectatorLiveDisplay = () => {
                                     {row.map(team => (
                                         <div key={team.id} className="w-48 h-48 m-3">
                                             <img
-                                                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                 alt={team.name}
                                                 className="w-full h-full object-contain rounded-full shadow-xl border-l-8 border-yellow-300"
                                                 style={{ background: `url('/flame-ring.png') center/contain no-repeat` }}
@@ -1648,7 +1648,7 @@ const SpectatorLiveDisplay = () => {
                                     {row.map(team => (
                                         <div key={team.id} className="w-48 h-48 m-3">
                                             <img
-                                                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                 alt={team.name}
                                                 className="w-full h-full object-contain rounded-full shadow-xl border-r-8 border-yellow-300"
                                                 style={{ background: `url('/flame-ring.png') center/contain no-repeat` }}
@@ -1887,7 +1887,7 @@ const SpectatorLiveDisplay = () => {
                                 {/* Team Logo */}
                                 <div className="flex justify-center">
                                     <img
-                                        src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogoId}?`}
+                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId}?`}
                                         alt={teamName}
                                         className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
                                     />
@@ -1973,7 +1973,7 @@ const SpectatorLiveDisplay = () => {
 
                                             {leadingTeamLogo && (
                                                 <img
-                                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
+                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
                                                     alt={leadingTeamName}
                                                     className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
                                                 />

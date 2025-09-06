@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import ReactDOM from "react-dom/client";
 import CONFIG from "../components/config";
@@ -10,6 +10,7 @@ import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { getPlayerProfileCardExporter } from "../utils/playerprofilecard";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -82,6 +83,25 @@ const AllPlayerCards = () => {
         });
         return map;
     }, [players]);
+
+    // ✅ inside the component, after serialMap is defined
+    // ✅ inside the component, after serialMap is defined
+    const exporter = useMemo(
+        () =>
+            getPlayerProfileCardExporter({
+                serialResolver: (p) => p?.auction_serial ?? serialMap[p.id],
+                tournamentName,
+                tournamentLogo,
+                background: "/goldbg.jpg", // or '/redbg.jpg'
+            }),
+        [serialMap, tournamentName, tournamentLogo]
+    );
+
+    // Use filtered list when present, otherwise all players
+    const handleDownloadProfileCard = (player) => exporter.downloadOne(player);
+    const handleDownloadAllProfileCards = () =>
+        exporter.downloadAll(filteredPlayers.length ? filteredPlayers : players);
+
 
 
     const cardsPerPage = 12;
@@ -166,7 +186,7 @@ const AllPlayerCards = () => {
             header.style.textAlign = "center";
 
             const logo = document.createElement("img");
-            logo.src = `https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}?tr=w-60,h-60`;
+            logo.src = `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}?tr=w-60,h-60`;
             logo.style.width = "60px";
             logo.style.height = "60px";
             logo.style.objectFit = "contain";
@@ -403,252 +423,6 @@ const AllPlayerCards = () => {
 
     };
 
-    // Build a branded, offscreen DOM and download as PNG
-    const handleDownloadCard = async (player) => {
-        try {
-            const serial = player?.auction_serial ?? serialMap[player.id];
-            const safeName = String(player.name || "player")
-                .replace(/[^a-z0-9\-_\s]/gi, "")
-                .replace(/\s+/g, "-")
-                .toLowerCase();
-
-            // ----- Container (desktop-friendly: 1100x620) -----
-            const container = document.createElement("div");
-            container.style.width = "1100px";
-            container.style.height = "620px";
-            container.style.position = "fixed";
-            container.style.left = "-100000px";
-            container.style.top = "0";
-            container.style.zIndex = "-1";
-            container.style.padding = "20px";
-            container.style.borderRadius = "16px";
-            container.style.overflow = "hidden";
-            container.style.boxShadow = "0 12px 60px rgba(0,0,0,.4)";
-            // EA ARENA gradient
-            container.style.background = `
-      radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .12), transparent 60%),
-      radial-gradient(900px 500px at 100% 0%, rgba(168, 85, 247, .12), transparent 60%),
-      linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
-    `;
-
-            // watermark
-            const wm = document.createElement("img");
-            wm.src = "/AuctionArena2.png";
-            wm.alt = "EA ARENA";
-            Object.assign(wm.style, {
-                position: "absolute",
-                inset: "0",
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                opacity: ".06",
-                pointerEvents: "none",
-                filter: "drop-shadow(0 0 2px rgba(0,0,0,.2))",
-            });
-            container.appendChild(wm);
-
-            // ----- Header bar -----
-            const header = document.createElement("div");
-            Object.assign(header.style, {
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                background: "rgba(0,0,0,.45)",
-                border: "1px solid rgba(250,204,21,.35)",
-                borderRadius: "12px",
-                padding: "10px 14px",
-                color: "#EAB308",
-                fontWeight: "700",
-                letterSpacing: ".3px",
-            });
-
-            const hdrLeft = document.createElement("div");
-            hdrLeft.style.display = "flex";
-            hdrLeft.style.alignItems = "center";
-            hdrLeft.style.gap = "10px";
-
-            const logo = document.createElement("img");
-            logo.src = "/AuctionArena2.png";
-            logo.alt = "EA ARENA";
-            logo.style.height = "34px";
-            logo.style.objectFit = "contain";
-
-            const title = document.createElement("div");
-            title.style.color = "#FDE68A";
-            title.style.fontSize = "18px";
-            title.textContent = `#${serial} — ${player.name || ""}`;
-
-            hdrLeft.appendChild(logo);
-            hdrLeft.appendChild(title);
-
-            const hdrRight = document.createElement("div");
-            hdrRight.style.fontSize = "13px";
-            hdrRight.textContent = "Powered by Auction Arena";
-
-            header.appendChild(hdrLeft);
-            header.appendChild(hdrRight);
-            container.appendChild(header);
-
-            // ----- Body: image + fields -----
-            const body = document.createElement("div");
-            Object.assign(body.style, {
-                display: "grid",
-                gridTemplateColumns: "460px 1fr",
-                gap: "18px",
-                marginTop: "14px",
-                height: "500px",
-            });
-
-            // Left = player image on EA red bg
-            const left = document.createElement("div");
-            Object.assign(left.style, {
-                position: "relative",
-                borderRadius: "14px",
-                overflow: "hidden",
-                border: "1px solid rgba(250,204,21,.35)",
-                backgroundImage: "url('/redbg.jpg')",
-                backgroundPosition: "center",
-                backgroundSize: "cover",
-            });
-
-            const dim = document.createElement("div");
-            Object.assign(dim.style, {
-                position: "absolute", inset: "0",
-                background: "rgba(0,0,0,.35)"
-            });
-            left.appendChild(dim);
-
-            const serialPill = document.createElement("div");
-            Object.assign(serialPill.style, {
-                position: "absolute", top: "10px", left: "10px",
-                background: "linear-gradient(90deg,#facc15,#f97316)",
-                color: "#111",
-                fontWeight: "800",
-                fontSize: "12px",
-                padding: "4px 8px",
-                borderRadius: "999px",
-                boxShadow: "0 2px 10px rgba(0,0,0,.35)",
-                zIndex: "2"
-            });
-            serialPill.textContent = `#${serial}`;
-            left.appendChild(serialPill);
-
-            const pimg = document.createElement("img");
-            pimg.src = `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-1400,q-90,e-sharpen,f-webp`;
-            pimg.alt = player.name || "";
-            Object.assign(pimg.style, {
-                position: "absolute", inset: "0",
-                width: "100%", height: "100%",
-                objectFit: "contain",
-                filter: "drop-shadow(0 10px 26px rgba(0,0,0,.55))"
-            });
-            pimg.crossOrigin = "anonymous";
-            left.appendChild(pimg);
-
-            body.appendChild(left);
-
-            // Right = detail boxes
-            const right = document.createElement("div");
-            Object.assign(right.style, {
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "12px",
-            });
-
-            const addField = (label, value) => {
-                if (!value) return;
-                const box = document.createElement("div");
-                Object.assign(box.style, {
-                    background: "rgba(255,255,255,.06)",
-                    border: "1px solid rgba(255,255,255,.12)",
-                    borderRadius: "10px",
-                    padding: "14px",
-                    color: "white",
-                });
-                const l = document.createElement("div");
-                l.textContent = label.toUpperCase();
-                Object.assign(l.style, {
-                    color: "#C0C0C0",
-                    fontSize: "11px",
-                    letterSpacing: ".8px",
-                    marginBottom: "6px"
-                });
-                const v = document.createElement("div");
-                v.textContent = String(value);
-                Object.assign(v.style, {
-                    fontWeight: "700",
-                    fontSize: "14px",
-                    wordWrap: "break-word"
-                });
-                box.appendChild(l); box.appendChild(v);
-                right.appendChild(box);
-            };
-
-            addField("Role", player.role);
-            addField("Category", player.base_category);
-            addField("District", player.district);
-            addField("Location", player.location);
-            addField("Nickname", player.nickname);
-            addField("Email", player.email);
-            // addField("Mobile", player.mobile); // enable if needed
-
-            body.appendChild(right);
-            container.appendChild(body);
-
-            // ----- Footer bar -----
-            const footer = document.createElement("div");
-            Object.assign(footer.style, {
-                marginTop: "12px",
-                background: "rgba(0,0,0,.45)",
-                border: "1px solid rgba(168,85,247,.35)",
-                color: "#FDE68A",
-                fontSize: "12px",
-                textAlign: "center",
-                padding: "6px 10px",
-                borderRadius: "10px",
-            });
-            footer.textContent = "🔴 All rights reserved | EA ARENA | +91-9547652702 🧨";
-            container.appendChild(footer);
-
-            document.body.appendChild(container);
-
-            // Wait for images
-            const imgs = container.querySelectorAll("img");
-            await Promise.all(
-                Array.from(imgs).map(
-                    (img) =>
-                        new Promise((res) => {
-                            if (img.complete && img.naturalWidth) return res();
-                            const to = setTimeout(res, 2500);
-                            img.onload = () => { clearTimeout(to); res(); };
-                            img.onerror = () => res();
-                        })
-                )
-            );
-
-            // Snapshot
-            const canvas = await html2canvas(container, {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: null,
-            });
-
-            // Download
-            const data = canvas.toDataURL("image/png", 1.0);
-            const a = document.createElement("a");
-            a.href = data;
-            a.download = `player-${serial}-${safeName}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            // cleanup
-            document.body.removeChild(container);
-        } catch (e) {
-            console.error("Download failed:", e);
-            alert("Could not generate the image. Please try again.");
-        }
-    };
 
 
     useEffect(() => {
@@ -774,12 +548,12 @@ const AllPlayerCards = () => {
                     {/* Player image */}
                     <img
                         loading="lazy"
-                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,ar-3-4,cm-pad_resize,bg-FFFFFF,w-900,q-85,f-webp`}
+                        src={`https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=fo-face,ar-3-4,cm-pad_resize,bg-FFFFFF,w-900,q-85,f-webp`}
                         alt={player.name}
                         className="absolute inset-0 w-full h-full object-cover object-[center_22%] md:object-[center_22%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
                         onClick={() =>
                             setOpenImage(
-                                `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
+                                `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
                             )
                         }
                         onError={(e) => {
@@ -903,7 +677,7 @@ const AllPlayerCards = () => {
                             <div className="flex items-center justify-center my-2">
                                 {tournamentLogo && (
                                     <img
-                                        src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
+                                        src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}`}
                                         alt="Tournament Logo"
                                         className="w-40 h-40 object-contain animate-pulse"
                                         loading="lazy"
@@ -1195,7 +969,7 @@ const AllPlayerCards = () => {
                                     className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999]"
                                     onClick={() => setOpenDetails(null)}
                                 >
-                                    {/* EAARENA watermark */}
+                                    {/* Background watermark */}
                                     <img
                                         src="/AuctionArena2.png"
                                         alt="EA ARENA Logo"
@@ -1203,107 +977,128 @@ const AllPlayerCards = () => {
                                     />
 
                                     <div
-                                        className="relative w-[92vw] max-w-[720px] max-h-[88vh] bg-[#11121a] border border-yellow-400/40 rounded-xl shadow-2xl overflow-hidden"
+                                        className="relative w-[94vw] max-w-[920px] max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl"
                                         onClick={(e) => e.stopPropagation()}
+                                        style={{
+                                            background:
+                                                "radial-gradient(900px 500px at 0% 0%, rgba(250, 204, 21, .10), transparent 60%), radial-gradient(700px 420px at 100% 0%, rgba(168, 85, 247, .12), transparent 60%), linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)",
+                                            border: "1px solid rgba(250,204,21,.22)",
+                                        }}
                                     >
                                         {/* Header */}
-                                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                                            <div className="text-yellow-300 font-semibold text-base ml-1/2">
-                                                #{openDetails.auction_serial ?? serialMap[openDetails.id]} — {openDetails.name}
+                                        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                                            <div className="flex items-center gap-3">
+                                                {tournamentLogo && (
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}?tr=w-44,h-44`}
+                                                        alt="Tournament"
+                                                        className="h-8 w-8 object-contain"
+                                                    />
+                                                )}
+                                                <div className="text-yellow-300 font-bold text-base leading-none">
+                                                    #{openDetails.auction_serial ?? serialMap[openDetails.id]} — {openDetails.name}
+                                                </div>
                                             </div>
                                             <button
                                                 className="text-white text-2xl leading-none hover:text-yellow-300"
                                                 onClick={() => setOpenDetails(null)}
+                                                aria-label="Close"
                                             >
                                                 ✕
                                             </button>
                                         </div>
 
                                         {/* Body */}
-                                        <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4 overflow-auto" style={{ maxHeight: "70vh" }}>
-                                            {/* Photo */}
-                                            <div className="md:col-span-1">
-                                                <div className="relative bg-black/40 rounded-lg overflow-hidden border border-white/10">
+                                        <div className="p-5 grid grid-cols-1 md:grid-cols-5 gap-5 overflow-auto" style={{ maxHeight: "66vh" }}>
+                                            {/* Photo panel */}
+                                            <div className="md:col-span-2">
+                                                <div className="relative rounded-xl overflow-hidden border border-yellow-400/30"
+                                                    style={{ backgroundImage: "url('/goldbg.jpg')", backgroundPosition: "center", backgroundSize: "cover" }}>
+                                                    <div className="absolute inset-0 bg-black/35" />
+                                                    <span className="absolute top-2 left-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-extrabold px-2.5 py-0.5 rounded-full shadow z-10">
+                                                        #{openDetails.auction_serial ?? serialMap[openDetails.id]}
+                                                    </span>
                                                     <img
-                                                        src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${openDetails.profile_image}?tr=w-1200,q-90`}
+                                                        src={`https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${openDetails.profile_image}?tr=fo-face,cm-pad_resize,w-1400,q-90,e-sharpen,f-webp`}
                                                         alt={openDetails.name}
-                                                        className="w-full h-auto object-contain"
+                                                        className="relative w-full h-[420px] object-cover drop-shadow-[0_12px_28px_rgba(0,0,0,.55)]"
                                                         onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
                                                     />
                                                 </div>
                                             </div>
 
                                             {/* Fields */}
-                                            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                                                {[
-                                                    ["Nickname", openDetails.nickname],
-                                                    ["Role", openDetails.role],
-                                                    [
-                                                        "Category",
-                                                        (() => {
-                                                            const baseCat = String(openDetails.base_category).toUpperCase();
-                                                            const soldAmt = Number(openDetails.sold_price) || 0;
+                                            {/* Details (single block) */}
+                                            <div className="md:col-span-3">
+                                                <div className="rounded-xl p-4 bg-white/5 border border-white/10">
+                                                    <div className="uppercase text-[10px] tracking-wider text-gray-400 mb-2">
+                                                        Player Details
+                                                    </div>
 
-                                                            if (baseCat === "X") {
-                                                                if (soldAmt === 400000) return "Owner";
-                                                                if (soldAmt === 1000000) return "Icon";
-                                                                return "X";
-                                                            }
-                                                            return baseCat;
-                                                        })()
-                                                    ],
-                                                    ["District", openDetails.district],
-                                                    ["Location", openDetails.location],
-                                                    ["Email", openDetails.email],
-                                                    ["Sold Price", openDetails.sold_price]
-                                                ].map(([label, value]) => (
-                                                    value ? (
-                                                        <div key={label} className="bg-white/5 border border-white/10 rounded-md p-3">
-                                                            <div className="uppercase text-[10px] tracking-wider text-gray-400">{label}</div>
-                                                            <div className="text-white font-medium break-words">{String(value)}</div>
+                                                    <div className="grid grid-cols-[130px_1fr] sm:grid-cols-[160px_1fr] gap-y-2 text-sm">
+                                                        {/* Full Name */}
+                                                        <div className="text-gray-400">Full Name</div>
+                                                        <div className="font-semibold text-white">
+                                                            {(openDetails?.name && String(openDetails.name).toLowerCase() !== "null") ? openDetails.name : "-"}
                                                         </div>
-                                                    ) : null
-                                                ))}
 
+                                                        {/* Nick Name */}
+                                                        <div className="text-gray-400">Nick Name</div>
+                                                        <div className="font-semibold text-white">
+                                                            {(openDetails?.nickname && String(openDetails.nickname).toLowerCase() !== "null") ? openDetails.nickname : "-"}
+                                                        </div>
+
+                                                        {/* Role */}
+                                                        <div className="text-gray-400">Role</div>
+                                                        <div className="font-semibold text-white">
+                                                            {(openDetails?.role && String(openDetails.role).toLowerCase() !== "null") ? openDetails.role : "-"}
+                                                        </div>
+
+                                                        {/* Mobile */}
+                                                        <div className="text-gray-400">Mobile</div>
+                                                        <div className="font-semibold text-white">
+                                                            {(openDetails?.mobile && String(openDetails.mobile).toLowerCase() !== "null")
+                                                                ? <a href={`tel:${openDetails.mobile}`} className="hover:underline">{openDetails.mobile}</a>
+                                                                : "-"}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                         </div>
 
-                                        {/* Footer */}
-                                        <div className="px-4 py-3 border-t border-white/10 flex justify-end gap-2">
-                                            <button
-                                                className="px-4 py-2 rounded-md bg-yellow-500/90 hover:bg-yellow-500 text-black font-semibold"
-                                                onClick={() => handleDownloadCard(openDetails)}
-                                            >
-                                                Download
-                                            </button>
-                                            <button
-                                                className="px-4 py-2 rounded-md bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
-                                                onClick={() => setOpenDetails(null)}
-                                            >
-                                                Close
-                                            </button>
+                                        {/* Footer actions */}
+                                        <div className="px-5 py-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                                            <div className="text-yellow-300 text-xs">
+                                                🔴 All rights reserved | EA Arena | +91-9547652702 🧨
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    className="px-4 py-2 rounded-md bg-yellow-500/90 hover:bg-yellow-500 text-black font-semibold"
+                                                    onClick={() => handleDownloadProfileCard(openDetails)}
+                                                >
+                                                    Download PNG
+                                                </button>
+
+                                                <button
+                                                    className="px-4 py-2 rounded-md bg-purple-500/90 hover:bg-purple-500 text-white font-semibold"
+                                                    onClick={handleDownloadAllProfileCards}
+                                                >
+                                                    Download All (ZIP)
+                                                </button>
+
+                                                <button
+                                                    className="px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white font-semibold"
+                                                    onClick={() => setOpenDetails(null)}
+                                                >
+                                                    Close
+                                                </button>
+                                            </div>
                                         </div>
-
-                                    </div>
-                                    {/* EA Arena Branding */}
-                                    <div className="absolute top-0 left-0 right-0 bg-black/40 flex items-center justify-between px-4 py-2">
-                                        <img
-                                            src="/AuctionArena2.png"
-                                            alt="EA Arena Logo"
-                                            className="h-8 md:h-10 object-contain"
-                                        />
-                                        <span className="text-yellow-400 font-bold text-xs md:text-sm tracking-wide">
-                                            Powered by Auction Arena
-                                        </span>
-                                    </div>
-
-                                    {/* Branded footer inside modal */}
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-center text-yellow-300 text-xs py-2">
-                                        🔴 All rights reserved | EA Arena | +91-9547652702 🧨
                                     </div>
                                 </div>
                             )}
+
 
 
                             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">

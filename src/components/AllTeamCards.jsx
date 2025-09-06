@@ -143,7 +143,7 @@ const AllTeamCards = () => {
                     <div className="flex items-center justify-center mx-8 my-8">
                         {tournamentLogo && (
                             <img
-                                src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
+                                src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}`}
                                 alt="Tournament Logo"
                                 className="w-28 h-28 object-contain"
                             />
@@ -160,7 +160,7 @@ const AllTeamCards = () => {
                                     <Listbox.Button className="relative w-full cursor-pointer rounded-lg bg-white py-2 pl-3 pr-10 text-left border border-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-500 flex items-center gap-2">
                                         {selectedTeam?.logo && (
                                             <img
-                                                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${selectedTeam.logo}`}
+                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${selectedTeam.logo}`}
                                                 alt={selectedTeam.name}
                                                 className="w-6 h-6 object-contain"
                                             />
@@ -186,7 +186,7 @@ const AllTeamCards = () => {
                                                 {({ selected }) => (
                                                     <>
                                                         <img
-                                                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                             alt={team.name}
                                                             className="w-6 h-6 object-contain absolute left-2 top-2"
                                                         />
@@ -232,7 +232,7 @@ const AllTeamCards = () => {
                         <div className="text-center text-lg font-bold text-yellow-300 my-2 flex justify-center items-center gap-2">
                             {selectedTeam.logo && (
                                 <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${selectedTeam.logo}`}
+                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${selectedTeam.logo}`}
                                     alt={selectedTeam.name}
                                     className="w-10 h-10 object-contain"
                                 />
@@ -271,12 +271,12 @@ const AllTeamCards = () => {
 
                                                 {/* Player image */}
                                                 <img
-                                                    src={`https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
+                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-85,e-sharpen,f-webp`}
                                                     alt={player.name}
                                                     className="absolute inset-0 w-full h-full object-cover object-[center_22%] md:object-[center_15%] drop-shadow-[0_8px_18px_rgba(0,0,0,0.35)] pointer-events-auto cursor-zoom-in z-20"
                                                     onClick={() =>
                                                         setOpenImage(
-                                                            `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
+                                                            `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-1600,q-95`
                                                         )
                                                     }
                                                     onError={(e) => {

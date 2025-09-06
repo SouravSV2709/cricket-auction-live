@@ -64,7 +64,7 @@ const PlayerCard = ({
                                 <img
                                     src={player.profile_image?.startsWith("http")
                                         ? player.profile_image
-                                        : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-300,h-300,fo-face`}
+                                        : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-300,h-300,fo-face`}
                                     alt={player.name}
                                     className="w-full h-full object-cover"
                                     onError={(e) => (e.target.src = "/no-image-found.png")}
@@ -94,7 +94,7 @@ const PlayerCard = ({
                         <div className="flex items-center gap-3 bg-gradient-to-r from-green-900 to-green-600 rounded-lg px-4 py-2 shadow-md">
                             {player.team_logo && (
                                 <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${player.team_logo}?tr=w-40,h-40`}
+                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${player.team_logo}?tr=w-40,h-40`}
                                     alt="Sold To"
                                     className="w-10 h-10 object-contain rounded-full border border-white"
                                 />
@@ -111,7 +111,7 @@ const PlayerCard = ({
                         <div className="flex items-center gap-3 bg-gradient-to-r from-purple-900 to-purple-600 rounded-lg px-4 py-2 shadow-md">
                             {biddingTeamLogo && (
                                 <img
-                                    src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${biddingTeamLogo}?tr=w-40,h-40`}
+                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${biddingTeamLogo}?tr=w-40,h-40`}
                                     alt={biddingTeam}
                                     className="w-10 h-10 object-contain rounded-full border border-white"
                                 />

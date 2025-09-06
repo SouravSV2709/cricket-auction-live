@@ -894,10 +894,10 @@ app.get('/api/players/:id', async (req, res) => {
 
   const formatProfileImage = (filename) => {
     if (!filename) {
-      return "https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg";
+      return "https://ik.imagekit.io/auctionarena2/uploads/players/profiles/default.jpg";
     }
     if (filename.startsWith("http")) return filename;
-    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
+    return `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${filename}?tr=w-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
   try {
@@ -1193,10 +1193,10 @@ app.get('/api/players/by-serial/:serial', async (req, res) => {
 
   const formatProfileImage = (filename) => {
     if (!filename) {
-      return "https://ik.imagekit.io/auctionarena/uploads/players/profiles/default.jpg";
+      return "https://ik.imagekit.io/auctionarena2/uploads/players/profiles/default.jpg";
     }
     if (filename.startsWith("http")) return filename;
-    return `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${filename}?tr=w-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
+    return `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${filename}?tr=w-600,fo-face,z-0.4,q-95,e-sharpen,f-webp`;
   };
 
   try {

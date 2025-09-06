@@ -208,7 +208,7 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
             const data = await res.json();
             setTournamentName(data.title || "AUCTION ARENA LIVE");
             if (data.logo) {
-                setTournamentLogo(`https://ik.imagekit.io/auctionarena/uploads/tournaments/${data.logo}?tr=h-300,w-300,fo-face,z-0.4`);
+                setTournamentLogo(`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=h-300,w-300,fo-face,z-0.4`);
             }
         } catch {
             setTournamentName("AUCTION ARENA LIVE");

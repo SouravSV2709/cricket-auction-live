@@ -1603,7 +1603,7 @@ const AdminPanel = () => {
                                     >
                                         {team.logo && (
                                             <img
-                                                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`}
+                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                 alt={team.name}
                                                 className="w-5 h-5 rounded-full"
                                             />

@@ -51,7 +51,7 @@ const PlayerCard = ({
           src={
             player.profile_image?.startsWith("http")
               ? player.profile_image
-              : `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`
+              : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-240,h-240,fo-face,z-1`
           }
           alt={player.name}
           className="w-36 h-36 object-contain rounded-full shadow-md"
@@ -74,7 +74,7 @@ const PlayerCard = ({
           <div className="flex items-center gap-3 bg-green-100 px-4 py-2 rounded-lg shadow-md">
             {player.team_logo && (
               <img
-                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${player.team_logo}?tr=w-40,h-40`}
+                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${player.team_logo}?tr=w-40,h-40`}
                 alt="Team"
                 className="w-10 h-10 object-contain rounded-full border border-white"
               />
@@ -89,7 +89,7 @@ const PlayerCard = ({
           <div className="flex items-center gap-3 bg-green-100 px-4 py-2 rounded-lg shadow-md">
             {biddingTeamLogo && (
               <img
-                src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${biddingTeamLogo}?tr=w-40,h-40`}
+                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${biddingTeamLogo}?tr=w-40,h-40`}
                 alt="Team"
                 className="w-10 h-10 object-contain rounded-full border border-white"
               />

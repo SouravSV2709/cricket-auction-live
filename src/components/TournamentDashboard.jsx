@@ -50,7 +50,7 @@ const getTeamFlagSrc = (teamName, teamLogo) => {
   const byName = TEAM_FLAG_MAP[teamName?.trim?.()];
   if (byName) return byName;
   return teamLogo
-    ? `https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamLogo}?tr=w-900,h-900,q-50,bl-6`
+    ? `https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogo}?tr=w-900,h-900,q-50,bl-6`
     : "/no-team-logo.png";
 };
 
@@ -198,7 +198,7 @@ const TournamentDashboard = () => {
         <div className="flex flex-col items-center justify-center mt-10">
           {tournamentLogo && (
             <img
-              src={`https://ik.imagekit.io/auctionarena/uploads/tournaments/${tournamentLogo}`}
+              src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}`}
               alt="Tournament Logo"
               className="w-36 h-36 object-contain animate-pulse"
             />
@@ -230,7 +230,7 @@ const TournamentDashboard = () => {
                   return (
                     <div key={team.id} className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-base font-semibold shadow-sm">
                       <div className="flex items-center gap-2 truncate">
-                        <img src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`} alt={team.name} className="w-6 h-6 rounded-full border border-white hidden md:block" />
+                        <img src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`} alt={team.name} className="w-6 h-6 rounded-full border border-white hidden md:block" />
                         <span className="truncate">{team.name}</span>
                       </div>
                       <div className="text-center text-yellow-600">{formatCurrency(remainingPurse)}</div>
@@ -261,7 +261,7 @@ const TournamentDashboard = () => {
                     return (
                       <div key={team.id} className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-base font-semibold shadow-sm">
                         <div className="flex items-center gap-2 truncate">
-                          <img src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${team.logo}`} alt={team.name} className="w-6 h-6 rounded-full border border-white hidden md:block" />
+                          <img src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`} alt={team.name} className="w-6 h-6 rounded-full border border-white hidden md:block" />
                           <span className="truncate">{team.name}</span>
                         </div>
                         <div className="text-center text-yellow-600">{formatCurrency(remainingPurse)}</div>
@@ -360,7 +360,7 @@ const TournamentDashboard = () => {
                         {/* Header: logo + name + overall purse + team count */}
                         <header className="flex items-center justify-between mb-3 gap-3">                      <div className="flex items-center gap-2 min-w-0">
                           <img
-                            src={`https://ik.imagekit.io/auctionarena/uploads/teams/logos/${teamMeta?.logo || ''}`}
+                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamMeta?.logo || ''}`}
                             alt={t.teamName}
                             className="w-8 h-8 md:w-16 md:h-16 rounded-full border border-white/60"
                           />
