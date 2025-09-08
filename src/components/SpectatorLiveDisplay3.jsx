@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import useWindowSize from "react-use/lib/useWindowSize";
@@ -33,7 +33,9 @@ const unsoldMedia = [
 
 const unsoldAudio = new Audio('/sounds/unsold4.mp3');
 
-const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
+const SpectatorLiveDisplay = () => {
+    const [highestBid, setHighestBid] = useState(0);
+    const [leadingTeam, setLeadingTeam] = useState("");
     const [player, setPlayer] = useState(null);
     const [teamSummaries, setTeamSummaries] = useState([]);
     const { width, height } = useWindowSize();
@@ -197,30 +199,108 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
     };
 
 
-   useEffect(() => {
-    if (!tournamentId) return;
+    useEffect(() => {
+        if (!tournamentId) return;
 
-    fetchPlayer();
-    fetchTeams();
-    fetchTournament();
-    fetchAllPlayers();
+        // Initial light fetches
+        fetchPlayer();
+        fetchTeams();
+        fetchTournament();
+        fetchAllPlayers();
 
-    const socket = io(API);
-    socket.on("playerSold", () => setTimeout(fetchPlayer, 100));
-    socket.on("playerChanged", () => setTimeout(fetchPlayer, 100));
-    socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
-    socket.on("secretBiddingToggled", () => {
-  fetch(`${API}/api/current-player`)
-    .then((res) => res.json())
-    .then((data) => {
-      if (data?.secret_bidding_enabled !== undefined) {
-        setSecretBidActive(data.secret_bidding_enabled === true);
-      }
-    });
-});
+        // One resilient, WebSocket-only connection (like Spectator4)
+        const socket = io(API, {
+            transports: ["websocket"],
+            upgrade: false,
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 500,
+        });
 
-    return () => socket.disconnect();
-}, [tournamentId]); // ✅ Wait for tournamentId
+        const fastRefresh = () => {
+            // Only cheap aggregates; no need to block UI
+            fetchAllPlayers();
+            fetchTeams();
+        };
+
+        // 🔴 Live bid updates (optimistic)
+        const onBidUpdated = ({ bid_amount, team_name }) => {
+            setHighestBid(Number(bid_amount) || 0);
+            setLeadingTeam(team_name || "");
+        };
+        socket.on("bidUpdated", onBidUpdated);
+
+        // ✅ SOLD committed (optimistic apply to the *visible* player)
+        const onSaleCommitted = (payload) => {
+            setPlayer(prev =>
+                prev && Number(prev.id) === Number(payload?.player_id)
+                    ? {
+                        ...prev,
+                        sold_status: "TRUE",
+                        sold_price: payload?.sold_price ?? prev.sold_price,
+                        team_id: payload?.team_id ?? prev.team_id,
+                        sold_pool: payload?.sold_pool ?? prev.sold_pool,
+                    }
+                    : prev
+            );
+            setHighestBid(Number(payload?.sold_price) || 0);
+            fastRefresh();
+        };
+        socket.on("saleCommitted", onSaleCommitted);
+
+        // 🟠 If your Admin emits "playerSold" immediately (it does), mirror the same optimistic update
+        const onPlayerSold = (payload) => onSaleCommitted(payload);
+        socket.on("playerSold", onPlayerSold);
+
+        // 🚫 UNSOLD (optimistic: clear team & sold_price locally)
+        const onPlayerUnsold = ({ player_id, sold_pool }) => {
+            setPlayer(prev =>
+                prev && Number(prev.id) === Number(player_id)
+                    ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
+                    : prev
+            );
+            setHighestBid(0);
+            setLeadingTeam("");
+            fastRefresh();
+        };
+        socket.on("playerUnsold", onPlayerUnsold);
+
+        // ⏭️ Next player / player change (paint first, then light refreshes)
+        const onPlayerChanged = (payload) => {
+            setPlayer(prev => ({ ...(prev || {}), ...payload }));
+            setHighestBid(0);
+            setLeadingTeam("");
+            fastRefresh();
+        };
+        socket.on("playerChanged", onPlayerChanged);
+
+        // Theme + custom message + secret-bid toggle
+        socket.on("themeUpdate", (newTheme) => setTheme(newTheme || "default"));
+        socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
+        socket.on("secretBiddingToggled", () => {
+            fetch(`${API}/api/current-player`)
+                .then((res) => res.json())
+                .then((data) => {
+                    if (data?.secret_bidding_enabled !== undefined) {
+                        setSecretBidActive(data.secret_bidding_enabled === true);
+                    }
+                })
+                .catch(() => { });
+        });
+
+        return () => {
+            socket.off("bidUpdated", onBidUpdated);
+            socket.off("saleCommitted", onSaleCommitted);
+            socket.off("playerSold", onPlayerSold);
+            socket.off("playerUnsold", onPlayerUnsold);
+            socket.off("playerChanged", onPlayerChanged);
+            socket.off("themeUpdate");
+            socket.off("customMessageUpdate");
+            socket.off("secretBiddingToggled");
+            socket.disconnect();
+        };
+    }, [tournamentId]);
+
 
     const team = Array.isArray(teamSummaries)
         ? teamSummaries.find(t => t.id === Number(player?.team_id))
@@ -232,7 +312,15 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
         <div className="relative w-screen h-screen">
             {player && player.profile_image && (
                 <PlayerCard2
-                    player={player}
+                    player={{
+                        ...player,
+                        team_name:
+                            player?.team_name ||
+                            team?.name ||
+                            team?.display_name ||
+                            (team?.team_number ? `Team #${team.team_number}` : ""),
+                        team_logo: player?.team_logo || team?.logo,
+                    }}
                     isSold={isSold}
                     isUnsold={isUnsold}
                     soldPrice={player?.sold_price}
@@ -243,10 +331,10 @@ const SpectatorLiveDisplay = ({ highestBid, leadingTeam }) => {
                             ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
                             : undefined
                     }
-
-                    secretBidActive={secretBidActive} // ✅ new prop
+                    secretBidActive={secretBidActive}
                 />
             )}
+
 
         </div>
     );
