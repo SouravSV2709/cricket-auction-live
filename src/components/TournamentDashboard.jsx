@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import CONFIG from "../components/config";
@@ -143,6 +143,22 @@ const TournamentDashboard = () => {
     }
   };
 
+  // Generates a random gradient background if no flag
+  const getRandomBg = () => {
+    const gradients = [
+      "linear-gradient(135deg, #1e3c72, #2a5298)",
+      "linear-gradient(135deg, #42275a, #734b6d)",
+      "linear-gradient(135deg, #134e5e, #71b280)",
+      "linear-gradient(135deg, #ff512f, #dd2476)",
+      "linear-gradient(135deg, #373b44, #4286f4)",
+      "linear-gradient(135deg, #141e30, #243b55)",
+      "linear-gradient(135deg, #3a1c71, #d76d77, #ffaf7b)",
+    ];
+    const idx = Math.floor(Math.random() * gradients.length);
+    return gradients[idx];
+  };
+
+
 
 
   useEffect(() => {
@@ -177,6 +193,93 @@ const TournamentDashboard = () => {
 
   const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString()}`;
 
+  const [sortKey, setSortKey] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sortKey") || "alphabetical";
+    }
+    return "alphabetical";
+  });
+
+  const [sortOrder, setSortOrder] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sortOrder") || "asc";
+    }
+    return "asc";
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("sortKey", sortKey);
+      localStorage.setItem("sortOrder", sortOrder);
+    } catch (err) {
+      console.warn("⚠️ Could not persist sort settings:", err);
+    }
+  }, [sortKey, sortOrder]);
+
+
+  // Precompute per-team metrics
+  const enrichedTeams = useMemo(() => {
+    return (teams || []).map((team) => {
+      const teamPlayers = players.filter(
+        (p) => Number(p.team_id) === Number(team.id)
+      );
+      const totalSpent = teamPlayers.reduce(
+        (sum, p) => sum + (Number(p.sold_price) || 0),
+        0
+      );
+      const budget = Number(team?.budget) || 0;
+      const remainingPurse = Math.max(0, budget - totalSpent);
+      const slotsTotal = totalPlayersToBuy || 14;
+      const bought = Number(team?.bought_count || 0);
+      const slotsRemaining = Math.max(0, slotsTotal - bought);
+      const maxBid = Number(team?.max_bid_allowed || 0);
+
+      return {
+        ...team,
+        _calc: {
+          budget,
+          totalSpent,
+          remainingPurse,
+          slotsTotal,
+          bought,
+          slotsRemaining,
+          maxBid,
+          spentPct:
+            budget > 0
+              ? Math.min(100, Math.round((totalSpent / budget) * 100))
+              : 0,
+        },
+      };
+    });
+  }, [teams, players, totalPlayersToBuy]);
+
+  // Apply sorting
+  const sortedTeams = useMemo(() => {
+    const arr = [...enrichedTeams];
+    const direction = sortOrder === "asc" ? 1 : -1;
+
+    switch (sortKey) {
+      case "maxBid":
+        arr.sort((a, b) => (a._calc.maxBid - b._calc.maxBid) * direction);
+        break;
+      case "balance":
+        arr.sort((a, b) => (a._calc.remainingPurse - b._calc.remainingPurse) * direction);
+        break;
+      case "slots":
+        arr.sort((a, b) => (a._calc.slotsRemaining - b._calc.slotsRemaining) * direction);
+        break;
+      case "alphabetical":
+      default:
+        arr.sort((a, b) =>
+          String(a.name || "").localeCompare(String(b.name || "")) * direction
+        );
+        break;
+    }
+    return arr;
+  }, [enrichedTeams, sortKey, sortOrder]);
+
+
+
   return (
     // <div className="min-h-screen bg-gradient-to-br from-yellow-100 to-black text-black pt-16 pb-0">
 
@@ -207,74 +310,179 @@ const TournamentDashboard = () => {
           <p className="text-xs font-bold text-yellow-600 mt-1 animate-pulse">🔴 LIVE || Last updated: {getTimeAgo()}</p>
         </div>
 
-        {/* ======= TEAMS SECTION (hidden for KCPL) ======= */}
-        {tournamentSlug !== 'kcpl' && (
-          <div className="flex flex-wrap justify-center gap-4 mt-6 px-4">
-            {teams.length <= 8 ? (
-              // Single block
-              <div className="w-full bg-white/10 border border-white/10 rounded-2xl px-4 py-6 backdrop-blur-sm shadow-xl space-y-2">
-                {/* Header */}
-                <div className="grid grid-cols-4 gap-2 px-3 py-2 font-bold text-sm bg-gray-800 rounded-lg text-yellow-300 text-center">
-                  <div>TEAM</div>
-                  <div>PURSE</div>
-                  <div>MAX BID</div>
-                  <div>SLOTS</div>
-                </div>
+        {/* ======= TEAMS SECTION (hidden for KCPL) — Redesigned + Sorting ======= */}
+        {tournamentSlug !== "kcpl" && (
+          <section className="px-4 mt-8">
+            {/* Header + sort control */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+              <h2 className="text-yellow-300 text-lg md:text-xl font-extrabold tracking-wide uppercase">
+                Teams Overview
+              </h2>
 
-                {teams.map((team) => {
-                  const teamPlayers = players.filter(p => Number(p.team_id) === Number(team.id));
-                  const totalSpent = teamPlayers.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
-                  const remainingPurse = Math.max((team.budget - totalSpent) || 0);
-                  const playersLeftToBuy = (totalPlayersToBuy || 14) - (team.bought_count || 0);
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-yellow-200/80 uppercase tracking-wide">
+                  Sort by
+                </label>
+                <select
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value)}
+                  className="bg-black/40 text-yellow-200 border border-white/20 rounded-md text-xs md:text-sm px-3 py-2 outline-none focus:border-yellow-400"
+                  title="Sort teams"
+                >
+                  <option value="alphabetical">Alphabetical</option>
+                  <option value="maxBid">Max Bid</option>
+                  <option value="balance">Available Balance</option>
+                  <option value="slots">Slots Remaining</option>
+                </select>
 
-                  return (
-                    <div key={team.id} className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-base font-semibold shadow-sm">
-                      <div className="flex items-center gap-2 truncate">
-                        <img src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`} alt={team.name} className="w-6 h-6 rounded-full border border-white hidden md:block" />
-                        <span className="truncate">{team.name}</span>
-                      </div>
-                      <div className="text-center text-yellow-600">{formatCurrency(remainingPurse)}</div>
-                      <div className="text-center text-yellow-600">{formatCurrency(team.max_bid_allowed)}</div>
-                      <div className="text-center text-yellow-600">{playersLeftToBuy} / {totalPlayersToBuy}</div>
-                    </div>
-                  );
-                })}
+                {/* ASC/DESC toggle button */}
+                <button
+                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                  className="px-2 py-1 rounded-md border border-white/20 bg-black/40 text-yellow-200 text-xs hover:bg-white/10 transition"
+                  title={`Switch to ${sortOrder === "asc" ? "Descending" : "Ascending"} order`}
+                >
+                  {sortOrder === "asc" ? "↑ ASC" : "↓ DESC"}
+                </button>
               </div>
-            ) : (
-              // Two blocks (8 + rest)
-              [teams.slice(0, 8), teams.slice(8)].map((group, groupIdx) => (
-                <div key={groupIdx} className="w-full md:w-[48%] bg-white/10 border border-white/10 rounded-2xl px-4 py-6 backdrop-blur-sm shadow-xl space-y-2">
-                  {/* Header */}
-                  <div className="grid grid-cols-4 gap-2 px-3 py-2 font-bold text-sm bg-gray-800 rounded-lg text-yellow-300 text-center">
-                    <div>TEAM</div>
-                    <div>PURSE</div>
-                    <div>MAX BID</div>
-                    <div>SLOTS</div>
-                  </div>
 
-                  {group.map((team) => {
-                    const teamPlayers = players.filter(p => Number(p.team_id) === Number(team.id));
-                    const totalSpent = teamPlayers.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
-                    const remainingPurse = Math.max((team.budget - totalSpent) || 0);
-                    const playersLeftToBuy = (totalPlayersToBuy || 14) - (team.bought_count || 0);
+            </div>
 
-                    return (
-                      <div key={team.id} className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-base font-semibold shadow-sm">
-                        <div className="flex items-center gap-2 truncate">
-                          <img src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`} alt={team.name} className="w-6 h-6 rounded-full border border-white hidden md:block" />
-                          <span className="truncate">{team.name}</span>
-                        </div>
-                        <div className="text-center text-yellow-600">{formatCurrency(remainingPurse)}</div>
-                        <div className="text-center text-yellow-600">{formatCurrency(team.max_bid_allowed)}</div>
-                        <div className="text-center text-yellow-600">{playersLeftToBuy} / {totalPlayersToBuy}</div>
+            {/* Cards grid */}
+            {/* Cards grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              {sortedTeams.map((team, idx) => {
+                const {
+                  budget,
+                  totalSpent,
+                  remainingPurse,
+                  slotsTotal,
+                  bought,
+                  slotsRemaining,
+                  maxBid,
+                  spentPct,
+                } = team._calc;
+
+                const flagSrc = getTeamFlagSrc(team?.name, team?.logo);
+
+                return (
+                  <React.Fragment key={team.id}>
+                    <article
+                      className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg backdrop-blur-md transition-transform duration-300 hover:scale-[1.02] hover:shadow-xl"
+                    >
+                      {/* Watermark background (flag or gradient fallback) */}
+                      <div className="absolute inset-0 pointer-events-none select-none z-0">
+                        <div
+                          className="absolute inset-0 bg-center bg-cover"
+                          style={{
+                            backgroundImage: `url(${flagSrc})`,
+                            filter:
+                              "grayscale(55%) brightness(0.55) contrast(1.1) blur(1px)",
+                            transform: "scale(1.1)",
+                            transformOrigin: "center",
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background:
+                              "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
+                          }}
+                        />
                       </div>
-                    );
-                  })}
-                </div>
-              ))
-            )}
-          </div>
+
+                      {/* Content */}
+                      <div className="relative z-10">
+                        {/* Header */}
+                        <header className="flex items-center justify-between gap-3 mb-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <img
+                              src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
+                              alt={team.name}
+                              className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/60 bg-black/20 object-contain"
+                            />
+                            <h3 className="font-bold text-white text-base md:text-xl truncate">
+                              {team.name}
+                            </h3>
+                          </div>
+
+                          {/* Available balance quick badge */}
+                          <span className="px-2 py-1 rounded bg-white/10 text-yellow-200 text-xs md:text-sm whitespace-nowrap">
+                            Purse:{" "}
+                            <span className="font-bold text-white">
+                              {formatLakhs(remainingPurse)}
+                            </span>
+                          </span>
+                        </header>
+
+                        {/* Quick stats */}
+                        <div className="grid grid-cols-3 gap-2 md:gap-3 text-[12px] md:text-sm text-yellow-300">
+                          <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
+                            <div className="opacity-70">BUDGET</div>
+                            <div className="font-extrabold text-white text-xs md:text-base">
+                              {formatLakhs(budget)}
+                            </div>
+                          </div>
+                          <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
+                            <div className="opacity-70">MAX BID</div>
+                            <div className="font-extrabold text-white text-xs md:text-base">
+                              {formatLakhs(maxBid)}
+                            </div>
+                          </div>
+                          <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
+                            <div className="opacity-70">SLOTS</div>
+                            <div className="font-extrabold text-white text-xs md:text-base">
+                              {bought} / {slotsTotal}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Purse progress */}
+                        <div className="mt-3">
+                          <div className="h-2 w-full bg-white/10 rounded">
+                            <div
+                              className="h-2 rounded bg-yellow-400 transition-all"
+                              style={{ width: `${spentPct}%` }}
+                              title={`Spent: ${formatLakhs(
+                                totalSpent
+                              )} / Cap: ${formatLakhs(budget)} (${spentPct}%)`}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-1 flex justify-between text-[11px] md:text-sm text-yellow-200">
+                          <span>Spent: {formatLakhs(totalSpent)}</span>
+                          <span>
+                            Remaining:{" "}
+                            <span className="font-semibold text-white">
+                              {formatLakhs(remainingPurse)}
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* Secondary line */}
+                        <div className="mt-1 text-[11px] md:text-sm text-yellow-200">
+                          Players to buy:{" "}
+                          <span className="font-semibold text-white">
+                            {slotsRemaining}
+                          </span>
+                        </div>
+                      </div>
+                    </article>
+
+                    {/* MOBILE-ONLY separator (hidden at >=640px where grid has 2+ columns) */}
+                    {idx !== sortedTeams.length - 1 && (
+                      <div className="sm:hidden h-px mx-1 -mt-2 mb-3 bg-white/40" />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+          </section>
         )}
+
+
+
 
 
         {/* ===== KCPL FULL-PAGE POOL DASHBOARD ===== */}
