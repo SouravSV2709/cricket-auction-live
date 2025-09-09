@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import useWindowSize from "react-use/lib/useWindowSize";
@@ -58,6 +58,21 @@ const SpectatorLiveDisplay = () => {
     const [animClass, setAnimClass] = useState("");     // 'pop-out' or 'pop-in'
     const [animTick, setAnimTick] = useState(0); // bumps to force remount+animation
     const confettiRafRef = useRef(null);
+
+    const soldMarqueeItems = useMemo(() => {
+        if (!Array.isArray(playerList) || !Array.isArray(teamSummaries)) return [];
+        return playerList
+            .filter(p => ["TRUE", "true", true].includes(p?.sold_status))
+            .map(p => {
+                const t = teamSummaries.find(tt => Number(tt.id) === Number(p.team_id));
+                const teamName =
+                    p?.team_name ||
+                    t?.name ||
+                    t?.display_name ||
+                    (t?.team_number ? `Team #${t.team_number}` : "");
+                return { name: p?.name || "-", team: teamName || "-" };
+            });
+    }, [playerList, teamSummaries]);
 
 
 
@@ -434,6 +449,7 @@ const SpectatorLiveDisplay = () => {
                         tournamentLogo={tournamentLogo}
                         brandLogo="/AuctionArena2.png"
                         brandText="AUCTION ARENA LIVE"
+                        soldMarqueeItems={soldMarqueeItems}
                     />
                 </div>
             )}
