@@ -962,97 +962,142 @@ const AdminPanel = () => {
 
 
     const handleTeamClick = async (team) => {
-        // If you're in Squad View, just show that team and return (unchanged behavior)
-        if (isTeamViewActive) {
-            setSelectedTeam(team.name);
+  // Squad view: unchanged
+  if (isTeamViewActive) {
+    setSelectedTeam(team.name);
 
-            await fetch(`${API}/api/show-team`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ team_id: team.id }),
-            });
+    await fetch(`${API}/api/show-team`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ team_id: team.id }),
+    });
 
-            socketRef.current?.emit("showTeam", {
-                team_id: team.id,
-                empty: team.players?.length === 0,
-            });
+    socketRef.current?.emit("showTeam", {
+      team_id: team.id,
+      empty: team.players?.length === 0,
+    });
 
-            return;
+    return;
+  }
+
+  // Live auction guard
+  if (!isLiveAuctionActive || !currentPlayer) return;
+
+  setSelectedTeam(team.name);
+
+  const currentBid =
+    typeof bidAmount === "number" ? bidAmount : (parseInt(bidAmount, 10) || 0);
+
+  // --- MANUAL MODE: lock for this click only, then revert to auto ---
+  if (isBidManual) {
+    const amt = currentBid;
+
+    // Validate against max-allowed
+    if (kcplMode) {
+      const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
+      const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
+      if (Number.isFinite(maxAllowed) && amt > maxAllowed) {
+        alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
+        return;
+      }
+      queueLightweightTeamSnapshot(team.id);
+    } else {
+      try {
+        const teamData = await fetch(`${API}/api/teams/${team.id}`).then((r) => r.json());
+        if (teamData?.max_bid_allowed != null && amt > teamData.max_bid_allowed) {
+          alert(
+            `❌ Bid blocked: Cannot bid ₹${amt.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
+          );
+          return;
         }
+      } catch (e) {
+        console.error("Max bid validation failed", e);
+        alert("❌ Could not validate max bid. Try again.");
+        return;
+      }
+    }
 
-        // Normal live auction flow
-        if (!isLiveAuctionActive || !currentPlayer) return;
+    // Broadcast & persist without changing amount
+    socketRef.current?.emit("bidUpdated", {
+      bid_amount: amt,
+      team_name: team.name,
+      active_pool: activePool,
+    });
 
-        // Always treat team-click as auto-increment flow
-        setSelectedTeam(team.name);
-        setIsBidManual(false);
+    await fetch(`${API}/api/current-bid`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bid_amount: amt,
+        team_name: team.name,
+        active_pool: activePool,
+      }),
+    });
 
-        // Base price (KCPL-aware when ON; otherwise tournament/base/component)
-        const poolBase = (kcplMode && activePool)
-            ? (KCPL_RULES.pools?.[activePool]?.base
-                ?? currentPlayer?.base_price
-                ?? computeBasePrice(currentPlayer))
-            : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
-        const base = Number(poolBase) || 0;
+    // 🔁 IMPORTANT: consume manual mode so the NEXT click auto-flows
+    setIsBidManual(false);
+    return;
+  }
 
-        // Current bid as number
-        const currentBid = (typeof bidAmount === "number")
-            ? bidAmount
-            : (parseInt(bidAmount, 10) || 0);
+  // --- AUTO MODE ---
+  setIsBidManual(false); // keep auto mode
 
-        // First click → base; subsequent clicks → + dynamic increment
-        const newBid = (currentBid <= 0)
-            ? base
-            : currentBid + getDynamicBidIncrement(currentBid);
+  // Compute base (KCPL-aware if on)
+  const poolBase =
+    kcplMode && activePool
+      ? KCPL_RULES.pools?.[activePool]?.base ??
+        currentPlayer?.base_price ??
+        computeBasePrice(currentPlayer)
+      : currentPlayer?.base_price ?? computeBasePrice(currentPlayer);
 
-        // KCPL validation (when ON)
-        if (kcplMode) {
-            const st = kcplTeamStates.find(t => Number(t.teamId) === Number(team.id));
-            const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
-            if (Number.isFinite(maxAllowed) && newBid > maxAllowed) {
-                alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
-                return;
-            }
-            queueLightweightTeamSnapshot(team.id);
-        } else {
-            // Non-KCPL validation against team's max bid
-            try {
-                const teamData = await fetch(`${API}/api/teams/${team.id}`).then(r => r.json());
-                if (teamData?.max_bid_allowed != null && newBid > teamData.max_bid_allowed) {
-                    alert(
-                        `❌ Bid blocked: Cannot bid ₹${newBid.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
-                    );
-                    return;
-                }
-            } catch (e) {
-                console.error("Max bid validation failed", e);
-                alert("❌ Could not validate max bid. Try again.");
-                return;
-            }
-        }
+  const base = Number(poolBase) || 0;
+  const newBid =
+    currentBid <= 0 ? base : currentBid + getDynamicBidIncrement(currentBid);
 
-        // Apply and broadcast
-        setBidAmount(newBid);
+  // Validate newBid
+  if (kcplMode) {
+    const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
+    const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
+    if (Number.isFinite(maxAllowed) && newBid > maxAllowed) {
+      alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
+      return;
+    }
+    queueLightweightTeamSnapshot(team.id);
+  } else {
+    try {
+      const teamData = await fetch(`${API}/api/teams/${team.id}`).then((r) => r.json());
+      if (teamData?.max_bid_allowed != null && newBid > teamData.max_bid_allowed) {
+        alert(
+          `❌ Bid blocked: Cannot bid ₹${newBid.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
+        );
+        return;
+      }
+    } catch (e) {
+      console.error("Max bid validation failed", e);
+      alert("❌ Could not validate max bid. Try again.");
+      return;
+    }
+  }
 
-        // 1) PUSH to spectators immediately
-        socketRef.current?.emit("bidUpdated", {
-            bid_amount: newBid,
-            team_name: team.name,
-            active_pool: activePool,
-        });
+  setBidAmount(newBid);
 
-        // 2) THEN persist on the server (non-blocking for UI)
-        await fetch(`${API}/api/current-bid`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                bid_amount: newBid,
-                team_name: team.name,
-                active_pool: activePool,
-            }),
-        });
+  socketRef.current?.emit("bidUpdated", {
+    bid_amount: newBid,
+    team_name: team.name,
+    active_pool: activePool,
+  });
 
-    };
+  await fetch(`${API}/api/current-bid`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bid_amount: newBid,
+      team_name: team.name,
+      active_pool: activePool,
+    }),
+  });
+};
+
 
 
 

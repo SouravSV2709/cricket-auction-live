@@ -55,199 +55,199 @@ const formatLakhs = (amt) => {
 };
 
 const BannerSlide = ({ icon, title, subtitle }) => (
-  <div className="mx-16 md:mx-24">
-    <div className="flex items-center gap-4 px-6 py-3 rounded-full
+    <div className="mx-16 md:mx-24">
+        <div className="flex items-center gap-4 px-6 py-3 rounded-full
                     bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
                     border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
                     backdrop-blur">
-      <span className="text-2xl md:text-3xl">{icon}</span>
-      <div className="flex flex-col">
-        <span className="text-amber-300 font-extrabold uppercase tracking-widest
+            <span className="text-2xl md:text-3xl">{icon}</span>
+            <div className="flex flex-col">
+                <span className="text-amber-300 font-extrabold uppercase tracking-widest
                          text-lg md:text-2xl leading-none">
-          {title}
-        </span>
-        {subtitle && (
-          <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
-            {subtitle}
-          </span>
-        )}
-      </div>
+                    {title}
+                </span>
+                {subtitle && (
+                    <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                        {subtitle}
+                    </span>
+                )}
+            </div>
+        </div>
     </div>
-  </div>
 );
 
 
 // ===== Bottom marquee (Top-5 SOLD players) + unified footer =====
 const BottomMarquee = ({ items, teamPurseChunks = [] }) => {
-  // Hooks first
-  const viewportRef = React.useRef(null);
-  const trackRef = React.useRef(null);
-  const [duration, setDuration] = React.useState(30);
-  const [vars, setVars] = React.useState({ from: "0px", to: "0px" });
+    // Hooks first
+    const viewportRef = React.useRef(null);
+    const trackRef = React.useRef(null);
+    const [duration, setDuration] = React.useState(30);
+    const [vars, setVars] = React.useState({ from: "0px", to: "0px" });
 
-  const recompute = React.useCallback(() => {
-    if (!viewportRef.current || !trackRef.current) return;
+    const recompute = React.useCallback(() => {
+        if (!viewportRef.current || !trackRef.current) return;
 
-    const contentWidth = trackRef.current.scrollWidth;      // total track width
-    const viewportWidth = viewportRef.current.offsetWidth;  // visible area
-    const distance = contentWidth + viewportWidth;
+        const contentWidth = trackRef.current.scrollWidth;      // total track width
+        const viewportWidth = viewportRef.current.offsetWidth;  // visible area
+        const distance = contentWidth + viewportWidth;
 
-    // Speed target (px/sec). Keep ≥30s overall by taking max below.
-    const SPEED_PX_PER_SEC = 180;
-    const time = Math.max(30, distance / SPEED_PX_PER_SEC);
+        // Speed target (px/sec). Keep ≥30s overall by taking max below.
+        const SPEED_PX_PER_SEC = 180;
+        const time = Math.max(30, distance / SPEED_PX_PER_SEC);
 
-    setVars({ from: `${viewportWidth}px`, to: `-${contentWidth}px` });
-    setDuration(time);
-  }, []);
+        setVars({ from: `${viewportWidth}px`, to: `-${contentWidth}px` });
+        setDuration(time);
+    }, []);
 
-  // Measure after paint so banners/players/team-chunks are laid out
-  React.useEffect(() => {
-    const id = requestAnimationFrame(recompute);
-    return () => cancelAnimationFrame(id);
-  }, [recompute, items, teamPurseChunks]);
+    // Measure after paint so banners/players/team-chunks are laid out
+    React.useEffect(() => {
+        const id = requestAnimationFrame(recompute);
+        return () => cancelAnimationFrame(id);
+    }, [recompute, items, teamPurseChunks]);
 
-  // Recompute on size/content changes (fonts/images/resizes)
-  React.useEffect(() => {
-    const ro = new ResizeObserver(recompute);
-    if (trackRef.current) ro.observe(trackRef.current);
-    if (viewportRef.current) ro.observe(viewportRef.current);
+    // Recompute on size/content changes (fonts/images/resizes)
+    React.useEffect(() => {
+        const ro = new ResizeObserver(recompute);
+        if (trackRef.current) ro.observe(trackRef.current);
+        if (viewportRef.current) ro.observe(viewportRef.current);
 
-    window.addEventListener("load", recompute);
-    window.addEventListener("resize", recompute);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("load", recompute);
-      window.removeEventListener("resize", recompute);
+        window.addEventListener("load", recompute);
+        window.addEventListener("resize", recompute);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("load", recompute);
+            window.removeEventListener("resize", recompute);
+        };
+    }, [recompute]);
+
+    if (!items || items.length === 0) return null;
+
+    // Build slides
+    const bannerTop5 = {
+        icon: "🏆",
+        title: "Top 5 Most Expensive Players",
+        subtitle: "Highest sold prices this auction",
     };
-  }, [recompute]);
 
-  if (!items || items.length === 0) return null;
+    const bannerTeams = {
+        icon: "💰",
+        title: "Team Purse Remaining",
+        subtitle: "Sorted high → low",
+    };
+    const teamSlides = (Array.isArray(teamPurseChunks) ? teamPurseChunks : []).map((chunk, i) => ({
+        type: "team-chunk",
+        chunk,
+        key: `tc-${i}`,
+    }));
 
-  // Build slides
-  const bannerTop5 = {
-  icon: "🏆",
-  title: "Top 5 Most Expensive Players",
-  subtitle: "Highest sold prices this auction",
-};
-
-const bannerTeams = {
-  icon: "💰",
-  title: "Team Purse Remaining",
-  subtitle: "Sorted high → low",
-};
-  const teamSlides = (Array.isArray(teamPurseChunks) ? teamPurseChunks : []).map((chunk, i) => ({
-    type: "team-chunk",
-    chunk,
-    key: `tc-${i}`,
-  }));
-
-  const displayItems = [
-  { type: "banner", data: bannerTop5 },
-  ...items.map((p) => ({ type: "player", ...p })),
-  { type: "banner", data: bannerTop5 },
-  { type: "banner", data: bannerTeams },
-  ...teamSlides, // your existing team-chunk slides
-  { type: "banner", data: bannerTeams },
-];
+    const displayItems = [
+        { type: "banner", data: bannerTop5 },
+        ...items.map((p) => ({ type: "player", ...p })),
+        // { type: "banner", data: bannerTop5 },
+        { type: "banner", data: bannerTeams },
+        ...teamSlides, // your existing team-chunk slides
+        // { type: "banner", data: bannerTeams },
+    ];
 
 
-  return (
-    <div
-      ref={viewportRef}
-      className="relative overflow-hidden w-full h-40 bg-gradient-to-r from-black via-gray-900 to-black backdrop-blur-sm border-t-4 border-purple-600 shadow-inner"
-    >
-      {/* Scrolling track */}
-      <div
-        ref={trackRef}
-        className="absolute inset-x-0 top-0 bottom-10 whitespace-nowrap will-change-transform flex items-center"
-        style={{
-          animation: `aa-marquee-once ${duration}s linear infinite`,
-          // pixel-based travel
-          "--from": vars.from,
-          "--to": vars.to,
-        }}
-      >
-        {displayItems.map((it, idx) => {
-          if (it.type === "banner") {
-  return (
-    <BannerSlide
-      key={`bn-${idx}`}
-      icon={it.data.icon}
-      title={it.data.title}
-      subtitle={it.data.subtitle}
-    />
-  );
-}
-
-
-          if (it.type === "team-chunk") {
-            const chunk = Array.isArray(it.chunk) ? it.chunk : [];
-            if (chunk.length === 0) return null;
-
-            return (
-              <div
-                key={it.key || `tc-${idx}`}
-                className="mx-12 inline-flex items-center px-8 py-4 bg-white/10 rounded-3xl shadow-xl min-w-[720px]"
-              >
-                {chunk.map((t, j) => (
-                  <div key={j} className="flex items-center w-[240px] md:w-[280px]">
-                    <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
-                      {t?.name ?? "Unknown"}
-                    </span>
-                    <span className="ml-3 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
-                      {typeof formatLakhs === "function" ? formatLakhs(t?.purse ?? 0) : (t?.purse ?? 0)}
-                    </span>
-                    {j < chunk.length - 1 && <span className="mx-4 h-6 w-px bg-white/20" />}
-                  </div>
-                ))}
-              </div>
-            );
-          }
-
-          // Top-5 player card
-          return (
+    return (
+        <div
+            ref={viewportRef}
+            className="relative overflow-hidden w-full h-40 bg-gradient-to-r from-black via-gray-900 to-black backdrop-blur-sm border-t-4 border-purple-600 shadow-inner"
+        >
+            {/* Scrolling track */}
             <div
-              key={`pl-${it.id ?? idx}`}
-              className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
+                ref={trackRef}
+                className="absolute inset-x-0 top-0 bottom-10 whitespace-nowrap will-change-transform flex items-center"
+                style={{
+                    animation: `aa-marquee-once ${duration}s linear infinite`,
+                    // pixel-based travel
+                    "--from": vars.from,
+                    "--to": vars.to,
+                }}
             >
-              <img
-                src={it.image_url}
-                alt={it.name}
-                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
-                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
-                  {it.name}
-                </div>
-                <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
-                  {it.teamName}
-                </div>
-              </div>
-              <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
-                {it.priceText}
-              </div>
+                {displayItems.map((it, idx) => {
+                    if (it.type === "banner") {
+                        return (
+                            <BannerSlide
+                                key={`bn-${idx}`}
+                                icon={it.data.icon}
+                                title={it.data.title}
+                                subtitle={it.data.subtitle}
+                            />
+                        );
+                    }
+
+
+                    if (it.type === "team-chunk") {
+                        const chunk = Array.isArray(it.chunk) ? it.chunk : [];
+                        if (chunk.length === 0) return null;
+
+                        return (
+                            <div
+                                key={it.key || `tc-${idx}`}
+                                className="mx-12 inline-flex items-center px-8 py-4 bg-white/10 rounded-3xl shadow-xl min-w-[720px]"
+                            >
+                                {chunk.map((t, j) => (
+                                    <div key={j} className="flex items-center w-[240px] md:w-[280px]">
+                                        <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
+                                            {t?.name ?? "Unknown"}
+                                        </span>
+                                        <span className="ml-3 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
+                                            {typeof formatLakhs === "function" ? formatLakhs(t?.purse ?? 0) : (t?.purse ?? 0)}
+                                        </span>
+                                        {j < chunk.length - 1 && <span className="mx-4 h-6 w-px bg-white/20" />}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    }
+
+                    // Top-5 player card
+                    return (
+                        <div
+                            key={`pl-${it.id ?? idx}`}
+                            className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
+                        >
+                            <img
+                                src={it.image_url}
+                                alt={it.name}
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
+                                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                                <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
+                                    {it.name}
+                                </div>
+                                <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
+                                    {it.teamName}
+                                </div>
+                            </div>
+                            <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
+                                {it.priceText}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
-          );
-        })}
-      </div>
 
-      {/* Copyright inside */}
-      <div className="absolute bottom-2 right-4 pointer-events-none">
-        <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-xs md:text-sm text-white/80 tracking-wider">
-          🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
-        </div>
-      </div>
+            {/* Copyright inside */}
+            <div className="absolute bottom-2 right-4 pointer-events-none">
+                <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-xs md:text-sm text-white/80 tracking-wider">
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
+                </div>
+            </div>
 
-      {/* KEYFRAMES: pixel-based, no pause */}
-      <style>{`
+            {/* KEYFRAMES: pixel-based, no pause */}
+            <style>{`
         @keyframes aa-marquee-once {
           0%   { transform: translateX(var(--from)); }
           100% { transform: translateX(var(--to)); }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 };
 
 
@@ -257,9 +257,9 @@ const bannerTeams = {
 
 
 const renderFooter = (items, teamPurseChunks) => (
-  <div className="fixed bottom-0 left-0 w-full z-[60]">
-    <BottomMarquee items={items} teamPurseChunks={teamPurseChunks} />
-  </div>
+    <div className="fixed bottom-0 left-0 w-full z-[60]">
+        <BottomMarquee items={items} teamPurseChunks={teamPurseChunks} />
+    </div>
 );
 
 // ===== End marquee/footer helpers =====
@@ -584,79 +584,79 @@ const SpectatorLiveDisplay = () => {
     };
 
     const top5SoldPlayers = useMemo(() => {
-  // pick SOLD only, order by sold_price desc, keep top 5
-  const sold = (playerList || [])
-    .filter(p => p?.sold_status === true || p?.sold_status === "TRUE")
-    .sort((a, b) => (Number(b.sold_price) || 0) - (Number(a.sold_price) || 0))
-    .slice(0, 5);
+        // pick SOLD only, order by sold_price desc, keep top 5
+        const sold = (playerList || [])
+            .filter(p => p?.sold_status === true || p?.sold_status === "TRUE")
+            .sort((a, b) => (Number(b.sold_price) || 0) - (Number(a.sold_price) || 0))
+            .slice(0, 5);
 
-  return sold.map(p => {
-    const team = Array.isArray(teamSummaries)
-      ? teamSummaries.find(t => Number(t.id) === Number(p.team_id))
-      : null;
+        return sold.map(p => {
+            const team = Array.isArray(teamSummaries)
+                ? teamSummaries.find(t => Number(t.id) === Number(p.team_id))
+                : null;
 
-    // Build a safe image URL:
-    // - If profile_image is absolute (starts with http), use as-is
-    // - Else, use ImageKit path with light face crop + sharpen
-    const img =
-      p?.profile_image
-        ? (String(p.profile_image).startsWith("http")
-            ? p.profile_image
-            : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`)
-        : "/no-image-found.png";
+            // Build a safe image URL:
+            // - If profile_image is absolute (starts with http), use as-is
+            // - Else, use ImageKit path with light face crop + sharpen
+            const img =
+                p?.profile_image
+                    ? (String(p.profile_image).startsWith("http")
+                        ? p.profile_image
+                        : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`)
+                    : "/no-image-found.png";
 
-    return {
-      id: p.id,
-      name: p.name,
-      priceText: formatLakhs(p.sold_price),
-      teamName: team?.name || "Unknown",
-      image_url: img,
-    };
-  });
-}, [playerList, teamSummaries]);
+            return {
+                id: p.id,
+                name: p.name,
+                priceText: formatLakhs(p.sold_price),
+                teamName: team?.name || "Unknown",
+                image_url: img,
+            };
+        });
+    }, [playerList, teamSummaries]);
 
-const totalPurseRemaining = useMemo(() => {
-  if (!Array.isArray(teamSummaries)) return 0;
-  return teamSummaries.reduce(
-    (sum, t) => sum + (Number(t.remaining_purse) || 0),
-    0
-  );
-}, [teamSummaries]);
+    const totalPurseRemaining = useMemo(() => {
+        if (!Array.isArray(teamSummaries)) return 0;
+        return teamSummaries.reduce(
+            (sum, t) => sum + (Number(t.remaining_purse) || 0),
+            0
+        );
+    }, [teamSummaries]);
 
-const teamPurseChunks = useMemo(() => {
-  if (!Array.isArray(teamSummaries) || !Array.isArray(playerList)) return [];
+    const teamPurseChunks = useMemo(() => {
+        if (!Array.isArray(teamSummaries) || !Array.isArray(playerList)) return [];
 
-  const arr = teamSummaries.map((team) => {
-    const teamPlayers = playerList.filter(
-      (p) =>
-        Number(p.team_id) === Number(team.id) &&
-        (p.sold_status === true || p.sold_status === "TRUE")
-    );
+        const arr = teamSummaries.map((team) => {
+            const teamPlayers = playerList.filter(
+                (p) =>
+                    Number(p.team_id) === Number(team.id) &&
+                    (p.sold_status === true || p.sold_status === "TRUE")
+            );
 
-    const spent = teamPlayers.reduce((sum, p) => {
-      const price = Number(p.sold_price);
-      return sum + (isNaN(price) ? 0 : price);
-    }, 0);
+            const spent = teamPlayers.reduce((sum, p) => {
+                const price = Number(p.sold_price);
+                return sum + (isNaN(price) ? 0 : price);
+            }, 0);
 
-    const purse = Math.max(Number(team.budget || 0) - spent, 0);
+            const purse = Math.max(Number(team.budget || 0) - spent, 0);
 
-    return {
-      name: team?.name ?? "Unknown",
-      purse,
-    };
-  });
+            return {
+                name: team?.name ?? "Unknown",
+                purse,
+            };
+        });
 
-  // Sort high → low
-  arr.sort((a, b) => b.purse - a.purse);
+        // Sort high → low
+        arr.sort((a, b) => b.purse - a.purse);
 
-  // Break into chunks (3 teams per pill)
-  const size = 3;
-  const chunks = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}, [teamSummaries, playerList]);
+        // Break into chunks (3 teams per pill)
+        const size = 3;
+        const chunks = [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+    }, [teamSummaries, playerList]);
 
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
@@ -666,7 +666,7 @@ const teamPurseChunks = useMemo(() => {
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
 
-    
+
 
 
 
@@ -908,7 +908,7 @@ const teamPurseChunks = useMemo(() => {
             } else {
                 setCustomMessage(msg); setCustomView(null);
             }
-            });
+        });
 
         socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
             try {
@@ -2398,10 +2398,7 @@ const teamPurseChunks = useMemo(() => {
                     </div>
 
                     {/* ——— Auction Snapshot (fills the blank area neatly) ——— */}
-                    <div
-                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20
-               bg-white/5 backdrop-blur-md"
-                    >
+                    <div className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 bg-white/5 backdrop-blur-md">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {/* Base Price */}
                             <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
@@ -2418,6 +2415,10 @@ const teamPurseChunks = useMemo(() => {
                                         <div className="text-xl tracking-widest text-white/70 uppercase">Status</div>
                                         <div className="text-3xl font-extrabold text-red-400 mt-1">Unsold</div>
                                     </>
+
+
+
+
                                 ) : ["TRUE", "true", true].includes(player?.sold_status) ? (
                                     <>
                                         <div className="text-xl tracking-widest text-white/70 uppercase">Sold Amount</div>
@@ -2488,8 +2489,8 @@ const teamPurseChunks = useMemo(() => {
                 />
             )}
 
-            
-{marqueeEnabled && renderFooter(top5SoldPlayers, teamPurseChunks)}
+
+            {marqueeEnabled && renderFooter(top5SoldPlayers, teamPurseChunks)}
 
         </div>
 
