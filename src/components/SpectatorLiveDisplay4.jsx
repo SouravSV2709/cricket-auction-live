@@ -78,158 +78,329 @@ const BannerSlide = ({ icon, title, subtitle }) => (
 
 
 // ===== Bottom marquee (Top-5 SOLD players) + unified footer =====
-const BottomMarquee = ({ items, teamPurseChunks = [] }) => {
-    // Hooks first
+const BottomMarquee = ({
+    items,
+    teamPurseChunks = [],
+    teamSummaries = [],
+    playerList = [],
+    formatLakhs,
+}) => {
+    // Phase 0 = Expensive Players segment, Phase 1 = Team Purse segment
+    const [phase, setPhase] = React.useState(0);
+    const [runId, setRunId] = React.useState(0); // force re-measure/re-anim
     const viewportRef = React.useRef(null);
     const trackRef = React.useRef(null);
-    const [duration, setDuration] = React.useState(30);
-    const [vars, setVars] = React.useState({ from: "0px", to: "0px" });
 
-    const recompute = React.useCallback(() => {
-        if (!viewportRef.current || !trackRef.current) return;
+    const SPEED_PX_PER_SEC = 150; // adjust speed
+    const GAP_PX = 1;           // spacer on both ends
 
-        const contentWidth = trackRef.current.scrollWidth;      // total track width
-        const viewportWidth = viewportRef.current.offsetWidth;  // visible area
-        const distance = contentWidth + viewportWidth;
+    // Build segment A: Most Expensive players (banner + player pills)
+    const expensiveNodes = React.useMemo(() => {
+        if (!Array.isArray(items) || items.length === 0) return [];
+        const banner = (
+            <div className="mx-16 md:mx-24 inline-block">
+                <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                        bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                        border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                        backdrop-blur">
+                    <span className="text-2xl md:text-3xl">🏆</span>
+                    <div className="flex flex-col">
+                        <span className="text-amber-300 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
+                            Top 5 Most Expensive Players
+                        </span>
+                        <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                            Highest sold prices this auction
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
 
-        // Speed target (px/sec). Keep ≥30s overall by taking max below.
-        const SPEED_PX_PER_SEC = 180;
-        const time = Math.max(30, distance / SPEED_PX_PER_SEC);
+        const pills = items.map((it, idx) => (
+            <div
+                key={`pl-${it.id ?? idx}`}
+                className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
+            >
+                <img
+                    src={it.image_url}
+                    alt={it.name}
+                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                    <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
+                        {it.name}
+                    </div>
+                    <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
+                        {it.teamName}
+                    </div>
+                </div>
+                <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
+                    {it.priceText}
+                </div>
+            </div>
+        ));
 
-        setVars({ from: `${viewportWidth}px`, to: `-${contentWidth}px` });
-        setDuration(time);
+        return [banner, ...pills];
+    }, [items]);
+
+    // Build segment B: Team purse (banner + chunk pills)
+    const teamNodes = React.useMemo(() => {
+        if (!Array.isArray(teamPurseChunks) || teamPurseChunks.length === 0) return [];
+
+        // 1) Banner
+        const banner = (
+            <div className="mx-16 md:mx-24 inline-block">
+                <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                      bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                      border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                      backdrop-blur">
+                    <span className="text-2xl md:text-3xl">💰</span>
+                    <div className="flex flex-col">
+                        <span className="text-amber-300 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
+                            Team Purse Remaining
+                        </span>
+                        <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                            Sorted high → low
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // 2) Flatten any incoming structure to a flat team list
+        const flatTeams = teamPurseChunks.flatMap((c) =>
+            Array.isArray(c) ? c : [c]
+        );
+
+        // 3) Chunk into groups of exactly 4 per pill
+        const groupsOf4 = [];
+        for (let i = 0; i < flatTeams.length; i += 4) {
+            groupsOf4.push(flatTeams.slice(i, i + 4));
+        }
+
+        // 4) Render each group as a single "pill" with 4 teams side-by-side
+        const pills = groupsOf4.map((group, i) => (
+            <div
+                key={`tpill-${i}`}
+                className="mx-12 inline-flex items-stretch gap-6 px-8 py-4 bg-white/10 rounded-3xl shadow-xl"
+                style={{ minWidth: "960px" }} // ensures pill is wide enough for 4 items
+            >
+                {group.map((t, j) => (
+                    <div
+                        key={j}
+                        className="flex items-center gap-3 px-2"
+                        style={{ width: "220px" }} // ~4 * 220 + gaps ≈ 960px
+                    >
+                        {/* Team name */}
+                        <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
+                            {t?.name ?? "Unknown"}
+                        </span>
+
+                        {/* Purse */}
+                        <span className="ml-2 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
+                            {typeof formatLakhs === "function" ? formatLakhs(t?.purse ?? 0) : (t?.purse ?? 0)}
+                        </span>
+
+                        {/* Divider between team cells */}
+                        {j < group.length - 1 && <span className="mx-3 h-6 w-px bg-white/20" />}
+                    </div>
+                ))}
+            </div>
+        ));
+
+        return [banner, ...pills];
+    }, [teamPurseChunks]);
+
+    // Keep player image selection consistent with the rest of the app
+    const resolvePlayerImg = (p, size = 90) => {
+        if (p?.profile_image) {
+            return String(p.profile_image).startsWith("http")
+                ? p.profile_image
+                : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-${size},h-${size},fo-face,z-0.4,q-95,e-sharpen`;
+        }
+        if (p?.image_url) return p.image_url;
+        if (p?.photo_url) return p.photo_url;
+        return "/no-image-found.png";
+    };
+
+
+    // Build segments C...Z: Team Squads (one team per segment in the marquee)
+    const squadSegments = React.useMemo(() => {
+        if (!Array.isArray(teamSummaries) || teamSummaries.length === 0) return [];
+
+        const getTeamPlayers = (teamId) =>
+            (playerList || [])
+                .filter(
+                    (p) =>
+                        Number(p.team_id) === Number(teamId) &&
+                        (p.sold_status === true || p.sold_status === "TRUE")
+                )
+                .sort(
+                    (a, b) =>
+                        // Order by role then name for stable reading; tweak if you prefer price
+                        String(a.role || a.base_category || "").localeCompare(
+                            String(b.role || b.base_category || "")
+                        ) ||
+                        String(a.fullname || a.name || "").localeCompare(
+                            String(b.fullname || b.name || "")
+                        )
+                );
+
+        const MAX_PLAYERS_PER_TEAM = 24; // safeguard to keep the pill length manageable
+
+        return teamSummaries.map((team) => {
+            const players = getTeamPlayers(team.id).slice(0, MAX_PLAYERS_PER_TEAM);
+
+            // Banner chip for the team
+            const banner = (
+                <div className="mx-16 md:mx-24 inline-block" key={`squad-banner-${team.id}`}>
+                    <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                        bg-gradient-to-r from-sky-600/25 via-cyan-600/20 to-emerald-600/25
+                        border border-white/15 shadow-[0_0_20px_rgba(34,197,94,0.25)]
+                        backdrop-blur">
+                        <img
+                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
+                            alt={team.name}
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-full object-contain bg-white/90 border border-white/40"
+                        />
+                        <div className="flex flex-col">
+                            <span className="text-emerald-200 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
+                                Team Squad: {team.name}
+                            </span>
+                            <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                                Bought players (role • name • price)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // Player chips for this team
+            const chips = players.map((p, idx) => {
+                const img = resolvePlayerImg(p, 90);
+                const role = String(p.role || p.base_category || "PL").toUpperCase();
+                const price = Number(p.sold_price || 0);
+                return (
+                    <span
+                        key={`squad-${team.id}-${p.id ?? idx}`}
+                        className="mx-6 inline-flex items-center gap-2 pl-2 pr-3 py-2 rounded-full bg-white/10 border border-white/10"
+                    >
+                        <img
+                            src={img}
+                            alt={p.fullname || p.name}
+                            onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = "/no-image-found.png";
+                            }}
+                            className="w-8 h-8 md:w-9 md:h-9 rounded-full object-cover border-2 border-white/50"
+                        />
+                        <span className="text-xs md:text-sm px-2 py-0.5 rounded bg-black/40 border border-white/10 tracking-wider">
+                            {role}
+                        </span>
+                        <span className="font-semibold text-base md:text-lg truncate max-w-[220px] md:max-w-[320px]">
+                            {p.fullname || p.name}
+                        </span>
+                        <span className="opacity-80">•</span>
+                        <span className="tabular-nums text-emerald-300 font-bold text-lg md:text-xl">
+                            {typeof formatLakhs === "function" ? formatLakhs(price) : price}
+                        </span>
+                    </span>
+                );
+            });
+
+            // Each team forms ONE marquee segment (banner + chips)
+            return (
+                <div
+                    key={`squad-seg-${team.id}`}
+                    className="inline-flex items-center gap-8 text-white/95 text-lg md:text-2xl"
+                >
+                    {banner}
+                    {chips.length ? chips : (
+                        <span className="mx-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+                            <span className="text-white/80">No players bought yet</span>
+                        </span>
+                    )}
+                </div>
+            );
+        });
+    }, [teamSummaries, playerList, formatLakhs]);
+
+
+
+    // Decide which segment to render now
+    const segmentList = React.useMemo(() => {
+        const list = [];
+        if (expensiveNodes.length) list.push(expensiveNodes); // Segment 1
+        if (teamNodes.length) list.push(teamNodes);           // Segment 2
+
+        // Segments 3..N: one squad segment per team
+        if (squadSegments.length) {
+            squadSegments.forEach((node) => list.push([node]));
+        }
+
+        return list.length ? list : [[]];
+    }, [expensiveNodes, teamNodes, squadSegments]);
+
+
+    const currentNodes = segmentList[phase % segmentList.length];
+
+    // Measure and compute animation duration based on content + viewport widths
+    const [animVars, setAnimVars] = React.useState({ from: "0px", to: "0px", duration: 30 });
+
+    const measure = React.useCallback(() => {
+        const vw = viewportRef.current?.offsetWidth || 0;
+        const cw = trackRef.current?.scrollWidth || 0;
+        const distance = vw + cw + GAP_PX * 2;
+        const dur = Math.max(10, distance / SPEED_PX_PER_SEC); // never too short
+        setAnimVars({ from: `${vw + GAP_PX}px`, to: `-${cw + GAP_PX}px`, duration: dur });
     }, []);
 
-    // Measure after paint so banners/players/team-chunks are laid out
+    // Remeasure on phase/runId and when DOM paints
     React.useEffect(() => {
-        const id = requestAnimationFrame(recompute);
+        const id = requestAnimationFrame(measure);
         return () => cancelAnimationFrame(id);
-    }, [recompute, items, teamPurseChunks]);
+    }, [phase, runId, measure, currentNodes]);
 
-    // Recompute on size/content changes (fonts/images/resizes)
+    // Respond to resizes
     React.useEffect(() => {
-        const ro = new ResizeObserver(recompute);
-        if (trackRef.current) ro.observe(trackRef.current);
+        const ro = new ResizeObserver(() => setRunId(r => r + 1));
         if (viewportRef.current) ro.observe(viewportRef.current);
+        return () => ro.disconnect();
+    }, []);
 
-        window.addEventListener("load", recompute);
-        window.addEventListener("resize", recompute);
-        return () => {
-            ro.disconnect();
-            window.removeEventListener("load", recompute);
-            window.removeEventListener("resize", recompute);
-        };
-    }, [recompute]);
+    const handleEnd = React.useCallback(() => {
+        // Advance to next segment; loop
+        setTimeout(() => {
+            setPhase(p => (p + 1) % segmentList.length);
+            setRunId(r => r + 1);
+        }, 600); // small pause between segments
+    }, [segmentList.length]);
 
-    if (!items || items.length === 0) return null;
-
-    // Build slides
-    const bannerTop5 = {
-        icon: "🏆",
-        title: "Top 5 Most Expensive Players",
-        subtitle: "Highest sold prices this auction",
-    };
-
-    const bannerTeams = {
-        icon: "💰",
-        title: "Team Purse Remaining",
-        subtitle: "Sorted high → low",
-    };
-    const teamSlides = (Array.isArray(teamPurseChunks) ? teamPurseChunks : []).map((chunk, i) => ({
-        type: "team-chunk",
-        chunk,
-        key: `tc-${i}`,
-    }));
-
-    const displayItems = [
-        { type: "banner", data: bannerTop5 },
-        ...items.map((p) => ({ type: "player", ...p })),
-        // { type: "banner", data: bannerTop5 },
-        { type: "banner", data: bannerTeams },
-        ...teamSlides, // your existing team-chunk slides
-        // { type: "banner", data: bannerTeams },
-    ];
-
+    if (!currentNodes.length) return null;
 
     return (
         <div
             ref={viewportRef}
             className="relative overflow-hidden w-full h-40 bg-gradient-to-r from-black via-gray-900 to-black backdrop-blur-sm border-t-4 border-purple-600 shadow-inner"
         >
-            {/* Scrolling track */}
+            {/* Scrolling track for CURRENT segment only */}
             <div
+                key={`phase-${phase}-${runId}`}
                 ref={trackRef}
                 className="absolute inset-x-0 top-0 bottom-10 whitespace-nowrap will-change-transform flex items-center"
                 style={{
-                    animation: `aa-marquee-once ${duration}s linear infinite`,
-                    // pixel-based travel
-                    "--from": vars.from,
-                    "--to": vars.to,
+                    animation: `aa-marquee-seq ${animVars.duration}s linear 0s 1 both`,
+                    "--from": animVars.from,
+                    "--to": animVars.to,
                 }}
+                onAnimationEnd={handleEnd}
             >
-                {displayItems.map((it, idx) => {
-                    if (it.type === "banner") {
-                        return (
-                            <BannerSlide
-                                key={`bn-${idx}`}
-                                icon={it.data.icon}
-                                title={it.data.title}
-                                subtitle={it.data.subtitle}
-                            />
-                        );
-                    }
-
-
-                    if (it.type === "team-chunk") {
-                        const chunk = Array.isArray(it.chunk) ? it.chunk : [];
-                        if (chunk.length === 0) return null;
-
-                        return (
-                            <div
-                                key={it.key || `tc-${idx}`}
-                                className="mx-12 inline-flex items-center px-8 py-4 bg-white/10 rounded-3xl shadow-xl min-w-[720px]"
-                            >
-                                {chunk.map((t, j) => (
-                                    <div key={j} className="flex items-center w-[240px] md:w-[280px]">
-                                        <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
-                                            {t?.name ?? "Unknown"}
-                                        </span>
-                                        <span className="ml-3 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
-                                            {typeof formatLakhs === "function" ? formatLakhs(t?.purse ?? 0) : (t?.purse ?? 0)}
-                                        </span>
-                                        {j < chunk.length - 1 && <span className="mx-4 h-6 w-px bg-white/20" />}
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    }
-
-                    // Top-5 player card
-                    return (
-                        <div
-                            key={`pl-${it.id ?? idx}`}
-                            className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
-                        >
-                            <img
-                                src={it.image_url}
-                                alt={it.name}
-                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
-                                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                                <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
-                                    {it.name}
-                                </div>
-                                <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
-                                    {it.teamName}
-                                </div>
-                            </div>
-                            <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
-                                {it.priceText}
-                            </div>
-                        </div>
-                    );
-                })}
+                {/* Head gap */}
+                <span style={{ display: "inline-block", width: GAP_PX }} />
+                {currentNodes}
+                {/* Tail gap */}
+                <span style={{ display: "inline-block", width: GAP_PX }} />
             </div>
 
             {/* Copyright inside */}
@@ -239,9 +410,9 @@ const BottomMarquee = ({ items, teamPurseChunks = [] }) => {
                 </div>
             </div>
 
-            {/* KEYFRAMES: pixel-based, no pause */}
+            {/* KEYFRAMES */}
             <style>{`
-        @keyframes aa-marquee-once {
+        @keyframes aa-marquee-seq {
           0%   { transform: translateX(var(--from)); }
           100% { transform: translateX(var(--to)); }
         }
@@ -250,17 +421,6 @@ const BottomMarquee = ({ items, teamPurseChunks = [] }) => {
     );
 };
 
-
-
-
-
-
-
-const renderFooter = (items, teamPurseChunks) => (
-    <div className="fixed bottom-0 left-0 w-full z-[60]">
-        <BottomMarquee items={items} teamPurseChunks={teamPurseChunks} />
-    </div>
-);
 
 // ===== End marquee/footer helpers =====
 
@@ -322,6 +482,20 @@ const SpectatorLiveDisplay = () => {
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
     const [marqueeEnabled, setMarqueeEnabled] = useState(true);
+
+    // put this inside SpectatorLiveDisplay component, after the useState hooks
+    const renderFooter = (items, teamPurseChunks) => (
+        <div className="fixed bottom-0 left-0 w-full z-[60]">
+            <BottomMarquee
+                items={items}
+                teamPurseChunks={teamPurseChunks}
+                teamSummaries={teamSummaries}
+                playerList={playerList}
+                formatLakhs={formatLakhs}
+            />
+        </div>
+    );
+
 
 
     useEffect(() => {
@@ -1572,7 +1746,6 @@ const SpectatorLiveDisplay = () => {
 
 
 
-
     // Show Team Stats
 
     if (customView === "team-stats") {
@@ -1592,8 +1765,20 @@ const SpectatorLiveDisplay = () => {
 
         const formatCurrency = (amt) => formatLakhs(amt);
 
+        // Determine a sensible minimum base price:
+        // 1) If KCPL rules define pool bases, use the smallest pool base
+        // 2) Else default to ₹1700
+        const poolBases = KCPL_RULES?.pools
+            ? Object.values(KCPL_RULES.pools)
+                .map((p) => Number(p?.base) || Infinity)
+                .filter((n) => Number.isFinite(n))
+            : [];
+        const MIN_BASE_PRICE = poolBases.length > 0 ? Math.min(...poolBases) : 1700;
+
         return (
-            <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
+            <div
+                className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}
+            >
                 {/* <BackgroundEffect theme={theme} /> */}
 
                 <div className="flex flex-row items-center justify-center mt-2 mb-4">
@@ -1609,24 +1794,24 @@ const SpectatorLiveDisplay = () => {
 
                 <h2 className="text-3xl text-center py-5 text-white">📊 Team Statistics</h2>
 
-                <div className="flex gap-2 items-start justify-center">
+                <div className="flex gap-3 items-start justify-center px-2">
                     {groups.map((grp, grpIdx) => (
                         <div
                             key={grpIdx}
-                            className={`flex flex-col ${groups.length === 1 ? "w-[85%] max-w-[1100px]" : "w-auto max-w-[48%]"
-                                } overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-xl`}
+                            className={`flex flex-col ${groups.length === 1 ? "w-[88%] max-w-[1200px]" : "w-auto max-w-[48%]"
+                                } overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-6 md:px-10 py-6 backdrop-blur-sm shadow-2xl`}
                         >
-                            {/* Header (now 4 columns) */}
-                            <div className="grid grid-cols-4 gap-2 px-3 py-2 text-xl bg-gray-800 rounded-lg text-white">
-                                <div>TEAM NAME</div>
-                                <div className="text-center">PURSE REMAINING</div>
-                                <div className="text-center">BOUGHT (A/B/C/D)</div>
-                                <div className="text-center">SLOTS LEFT</div>
+                            {/* Header (TEAM | PURSE | MAX BID | SLOTS LEFT) */}
+                            <div className="grid grid-cols-4 gap-2 md:gap-4 px-3 py-3 text-base md:text-xl bg-white/10 rounded-xl text-white/90 border border-white/10">
+                                <div className="tracking-wider">TEAM NAME</div>
+                                <div className="text-center tracking-wider">PURSE REMAINING</div>
+                                <div className="text-center tracking-wider">MAX BID ALLOWED</div>
+                                <div className="text-center tracking-wider">SLOTS LEFT</div>
                             </div>
 
                             {/* Rows */}
-                            <div className="overflow-y-auto max-h-[calc(100vh-300px)] mt-2 space-y-2 pr-1">
-                                {grp.map((team) => {
+                            <div className="overflow-y-auto max-h-[calc(100vh-300px)] mt-3 space-y-2 pr-1">
+                                {grp.map((team, idx) => {
                                     const teamPlayers = getTeamPlayers(team.id);
 
                                     const spent = teamPlayers.reduce((sum, p) => {
@@ -1635,45 +1820,59 @@ const SpectatorLiveDisplay = () => {
                                     }, 0);
 
                                     const purse = Math.max(Number(team.budget || 0) - spent, 0);
-                                    const leftSlots = (totalPlayersToBuy || 14) - (team.bought_count || 0);
+                                    const leftSlots = Math.max(
+                                        (totalPlayersToBuy || 14) - (team.bought_count || 0),
+                                        0
+                                    );
 
-                                    // Pool counts A/B/C/D
-                                    const poolCounts = { A: 0, B: 0, C: 0, D: 0 };
-                                    teamPlayers.forEach((p) => {
-                                        const pool = p?.sold_pool;
-                                        if (poolCounts[pool] !== undefined) poolCounts[pool] += 1;
-                                    });
+                                    // Prefer backend-provided max if available; else compute via rule
+                                    const computedMax =
+                                        purse - Math.max(leftSlots - 1, 0) * MIN_BASE_PRICE;
+                                    const maxBidAllowed = Math.max(
+                                        Number.isFinite(Number(team.max_bid_allowed))
+                                            ? Number(team.max_bid_allowed)
+                                            : computedMax,
+                                        0
+                                    );
 
                                     return (
                                         <div
                                             key={team.id}
-                                            className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-3xl font-semibold shadow-sm"
+                                            className={`grid grid-cols-4 gap-2 md:gap-4 items-center px-3 py-3 rounded-xl 
+                                bg-gradient-to-r from-slate-900/70 to-indigo-900/50 text-2xl md:text-3xl font-semibold 
+                                border border-white/10 shadow-sm hover:shadow-xl transition-shadow ${idx % 2 ? "backdrop-blur-[2px]" : "backdrop-blur-sm"
+                                                }`}
                                         >
                                             {/* Team */}
-                                            <div className="flex items-center gap-2 truncate">
+                                            <div className="flex items-center gap-3 min-w-0">
                                                 <img
                                                     src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                     alt={team.name}
-                                                    className="w-6 h-6 rounded-full border border-white"
+                                                    className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/50 bg-white/80 object-contain"
                                                 />
-                                                <span className="truncate">{team.name}</span>
+                                                <span className="truncate text-white">{team.name}</span>
                                             </div>
 
                                             {/* Purse */}
-                                            <div className="text-center">{formatCurrency(purse)}</div>
-
-                                            {/* Bought by Pool (compact chips in one cell) */}
                                             <div className="text-center">
-                                                <div className="inline-flex items-center gap-1 text-xl">
-                                                    <span className="px-1.5 py-0.5 rounded bg-rose-600/80">A:{poolCounts.A}</span>
-                                                    <span className="px-1.5 py-0.5 rounded bg-amber-600/80">B:{poolCounts.B}</span>
-                                                    <span className="px-1.5 py-0.5 rounded bg-emerald-600/80">C:{poolCounts.C}</span>
-                                                    <span className="px-1.5 py-0.5 rounded bg-indigo-600/80">D:{poolCounts.D}</span>
-                                                </div>
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-600/25 border border-emerald-300/30 text-emerald-200 tabular-nums">
+                                                    {formatCurrency(purse)}
+                                                </span>
+                                            </div>
+
+                                            {/* Max Bid Allowed */}
+                                            <div className="text-center">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-600/25 border border-amber-300/30 text-amber-200 tabular-nums">
+                                                    {formatCurrency(maxBidAllowed)}
+                                                </span>
                                             </div>
 
                                             {/* Slots Left */}
-                                            <div className="text-center">{leftSlots}</div>
+                                            <div className="text-center">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-cyan-600/25 border border-cyan-300/30 text-cyan-200 tabular-nums">
+                                                    {leftSlots}
+                                                </span>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -1688,6 +1887,7 @@ const SpectatorLiveDisplay = () => {
             </div>
         );
     }
+
 
 
 
@@ -2391,8 +2591,12 @@ const SpectatorLiveDisplay = () => {
                                 <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
                                 <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div>
 
-                                <div className="px-3 py-2 tracking-wider uppercase">Location</div>
-                                <div className="px-3 py-2">{player?.location || "-"}</div>
+                                {player?.location && (
+                                    <>
+                                        <div className="px-3 py-2 tracking-wider uppercase">Location</div>
+                                        <div className="px-3 py-2">{player.location}</div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
