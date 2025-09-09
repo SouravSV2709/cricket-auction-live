@@ -213,7 +213,7 @@ const BottomMarquee = ({
     }, [teamPurseChunks]);
 
     // Keep player image selection consistent with the rest of the app
-    const resolvePlayerImg = (p, size = 90) => {
+    const resolvePlayerImg = (p, size = 200) => {
         if (p?.profile_image) {
             return String(p.profile_image).startsWith("http")
                 ? p.profile_image
@@ -284,7 +284,7 @@ const BottomMarquee = ({
                 return (
                     <span
                         key={`squad-${team.id}-${p.id ?? idx}`}
-                        className="mx-6 inline-flex items-center gap-2 pl-2 pr-3 py-2 rounded-full bg-white/10 border border-white/10"
+                        className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px] border border-white/10"
                     >
                         <img
                             src={img}
@@ -293,7 +293,7 @@ const BottomMarquee = ({
                                 e.currentTarget.onerror = null;
                                 e.currentTarget.src = "/no-image-found.png";
                             }}
-                            className="w-8 h-8 md:w-9 md:h-9 rounded-full object-cover border-2 border-white/50"
+                            className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
                         />
                         <span className="text-xs md:text-sm px-2 py-0.5 rounded bg-black/40 border border-white/10 tracking-wider">
                             {role}
