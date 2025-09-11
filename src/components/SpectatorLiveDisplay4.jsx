@@ -2418,7 +2418,9 @@ const SpectatorLiveDisplay = () => {
                         </p>
                     </div>
 
-                    {["TRUE", "true", true].includes(player?.sold_status) && (() => {
+                    {["TRUE", "true", true].includes(player?.sold_status) &&
+                    !["FALSE", "false", false].includes(player?.sold_status) &&
+                    !unsoldOverlayActive && (() => {   
                         const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
                         const isPoolX = poolCode === "X";
                         const soldAmt = Number(player?.sold_price) || 0;
