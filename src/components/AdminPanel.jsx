@@ -177,6 +177,160 @@ const AdminPanel = () => {
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
     };
 
+    // -- Helpers for smart, range-aware quick suggestions --
+
+    // ===== SMART SUGGESTIONS (increment + "nice" boundary aware) =====
+
+    const getPoolBaseForCurrent = React.useCallback(() => {
+        const base =
+            kcplMode && activePool
+                ? (KCPL_RULES.pools?.[activePool]?.base ??
+                    currentPlayer?.base_price ??
+                    computeBasePrice(currentPlayer))
+                : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
+        return Number(base) || 0;
+    }, [kcplMode, activePool, currentPlayer]);
+
+    // is value aligned to increment grid starting at min
+    const isAligned = (value, inc, min = 0) => {
+        if (!inc || inc <= 0) return true;
+        const diff = value - (min ?? 0);
+        return diff % inc === 0;
+    };
+
+    // next aligned value >= value
+    const nextAlignedUp = (value, inc, min = 0) => {
+        if (!inc || inc <= 0) return value;
+        const diff = value - (min ?? 0);
+        const steps = Math.ceil(diff / inc);
+        return (min ?? 0) + Math.max(0, steps) * inc;
+    };
+
+    // choose a "nice" boundary to jump to (for human-friendly chips)
+    // - for small steps (<=200), prefer 500-multiples
+    // - for mid steps (250–600), prefer 1000-multiples
+    // - else: stick to aligned-up
+    const niceBoundaryUp = (value, inc) => {
+        const toMultiple = (v, m) => Math.ceil(v / m) * m;
+        if (inc <= 200) return toMultiple(value, 500);
+        if (inc <= 600) return toMultiple(value, 1000);
+        return value;
+    };
+
+    const normalizeRanges = (ranges = []) =>
+        [...ranges]
+            .filter(r => Number.isFinite(r?.min_value) || r?.min_value === 0)
+            .sort((a, b) => (a.min_value ?? 0) - (b.min_value ?? 0));
+
+    const findRangeIndex = (ranges, amount) =>
+        ranges.findIndex(r => {
+            const min = r.min_value ?? 0;
+            const max = r.max_value; // null => ∞
+            if (max == null) return amount >= min;
+            return amount >= min && amount <= max; // inclusive
+        });
+
+    /**
+     * Build ~N intelligent suggestions considering:
+     *   • Current amount may be off-grid (e.g., 2300 in +200 range)
+     *   • Jump first to a "nice" boundary (e.g., 2500), then step coarsely
+     *   • Step multiplier: for small increments we skip every other step for speed
+     *   • Cross into next ranges and continue
+     */
+
+    const computeSmartSuggestions = (currentBid, base, ranges, maxCount = 10) => {
+        const out = [];
+        const rs = normalizeRanges(ranges);
+        if (rs.length === 0) return out;
+
+        // Start from what's typed (or base)
+        let amt = Math.max(Number(currentBid) || 0, base);
+
+        // Find the range that contains 'amt' (or the first range after it)
+        let idx = findRangeIndex(rs, amt);
+        if (idx === -1) {
+            // If below the very first range min, start at that min
+            idx = 0;
+            amt = Math.max(amt, rs[0].min_value ?? 0, base);
+        }
+
+        const pushVal = (v) => {
+            const x = Math.max(v, base);
+            if (out.length === 0 || x > out[out.length - 1]) out.push(x);
+        };
+
+        // Walk ranges forward, always stepping by that range's increment
+        while (out.length < maxCount && idx < rs.length) {
+            const r = rs[idx];
+            const rMin = Math.max(r.min_value ?? 0, base);
+            const rMax = r.max_value;          // null => ∞
+            const inc = Math.max(1, Number(r.increment) || 1);
+
+            // Ensure we are at least at the range min
+            if (amt < rMin) amt = rMin;
+
+            // First suggestion inside this range:
+            //  - If user typed inside range, go to "next step from what they typed" (even if off-grid)
+            //  - Else (we landed exactly on the min), use that min
+            let first = amt;
+            if (first < rMin) first = rMin;
+
+            // If we're *already* at/over the finite max, push the max and move to next range
+            if (rMax != null && first >= rMax) {
+                pushVal(rMax);
+                idx += 1;
+                amt = rMax + 1; // nudge into next range
+                continue;
+            }
+
+            // If the amount is equal to the min boundary, that's a valid first chip;
+            // otherwise, for off-grid amounts we *advance by inc from the current value*.
+            // Example: amt=2300 in +500 range => first=2300+500 = 2800
+            if (first > rMin) first = first + inc;
+
+            // Emit steps in this range
+            let cursor = first;
+            while (out.length < maxCount) {
+                if (rMax != null && cursor > rMax) {
+                    // include the exact max boundary before leaving the range
+                    if (out[out.length - 1] !== rMax) pushVal(rMax);
+                    break;
+                }
+                pushVal(cursor);
+                cursor += inc;
+            }
+
+            // Move to next range
+            idx += 1;
+
+            // Prepare amt for the next range:
+            if (rMax != null) {
+                amt = Math.max(out[out.length - 1] ?? rMax, rMax) + 1; // just above this max
+            } else {
+                // Infinite range handled above already; we would have filled maxCount by now
+                break;
+            }
+        }
+
+        // If we still need more and there is an infinite tail, continue with it
+        if (out.length < maxCount) {
+            const inf = rs.find(r => r.max_value == null);
+            if (inf) {
+                const iMin = Math.max(inf.min_value ?? 0, base);
+                const inc = Math.max(1, Number(inf.increment) || 1);
+                let cursor = Math.max(out[out.length - 1] ?? iMin, iMin) + inc;
+                while (out.length < maxCount) {
+                    pushVal(cursor);
+                    cursor += inc;
+                }
+            }
+        }
+
+        return out.slice(0, maxCount);
+    };
+
+
+
 
 
 
@@ -2182,7 +2336,7 @@ const AdminPanel = () => {
 
                         </div>
 
-                        {/* 💰 Bid Amount Input */}
+                        {/* 💰 Bid Amount Input + Smart Quick Buttons */}
                         <div>
                             <label className="block mb-1 text-white">Bid Amount (₹)</label>
                             <input
@@ -2194,17 +2348,60 @@ const AdminPanel = () => {
                                     setBidAmount(value);
                                     setIsBidManual(true);
                                 }}
+                                onKeyDown={(e) => {
+                                    // Press Enter to broadcast immediately (if a team is selected)
+                                    if (e.key === "Enter" && selectedTeam) {
+                                        updateCurrentBid();
+                                    }
+                                }}
                                 disabled={isTeamViewActive}
                             />
-                            <div className={`text-sm mt-1 ${isTeamViewActive ? 'text-gray-600' : 'text-gray-400'}`}>
-                                Bid Increments:
-                                {bidIncrements.map((r, i) => (
-                                    <div key={i}>
-                                        ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
+
+                            {/* Dynamic chips based on configured ranges */}
+                            {(() => {
+                                const base = getPoolBaseForCurrent();
+                                const suggestions = computeSmartSuggestions(bidAmount, base, bidIncrements, 10);
+
+                                return (
+                                    <div className="mt-2">
+                                        <div className="text-xs text-gray-300 mb-1">
+                                            Suggestions (based on increment rules)
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {suggestions.map((val) => (
+                                                <button
+                                                    key={val}
+                                                    className={`px-3 py-1 rounded text-sm font-semibold transition
+                ${Number(bidAmount) === Number(val)
+                                                            ? "bg-green-700 text-white"
+                                                            : "bg-gray-700 text-gray-200 hover:bg-indigo-600 hover:text-white"}`}
+                                                    onClick={() => {
+                                                        setBidAmount(val);
+                                                        setIsBidManual(true);
+                                                        // Optionally auto-broadcast when a team is selected:
+                                                        // if (selectedTeam) updateCurrentBid();
+                                                    }}
+                                                    title="Click to set this amount"
+                                                >
+                                                    ₹{val.toLocaleString()}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* (Optional) small legend of rules */}
+                                        <div className={`text-sm mt-2 ${isTeamViewActive ? 'text-gray-600' : 'text-gray-400'}`}>
+                                            Bid Increments:
+                                            {bidIncrements.map((r, i) => (
+                                                <div key={i}>
+                                                    ₹{r.min_value} – {r.max_value ? `₹${r.max_value}` : '∞'} → +₹{r.increment}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
+                                );
+                            })()}
                         </div>
+
 
 
 
