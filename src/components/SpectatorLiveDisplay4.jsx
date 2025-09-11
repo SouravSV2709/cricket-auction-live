@@ -496,6 +496,10 @@ const SpectatorLiveDisplay = () => {
         p.team_id !== null &&
         p.team_id !== "";
 
+    const isUnsold = (p) =>
+        p && (p.sold_status === false || p.sold_status === "FALSE");
+
+
 
 
     // put this inside SpectatorLiveDisplay component, after the useState hooks
@@ -2243,9 +2247,11 @@ const SpectatorLiveDisplay = () => {
 
 
     const isWaitingForBid =
-        !["TRUE", "true", true].includes(player?.sold_status) &&
+        !isValidSold(player) &&
+        !isUnsold(player) &&
         (!highestBid || Number(highestBid) === 0) &&
         !player?.secret_bidding_enabled;
+
 
 
 
@@ -2506,10 +2512,10 @@ const SpectatorLiveDisplay = () => {
 
 
 
-                            {!isValidSold(player) && (
-                            isWaitingForBid && !unsoldOverlayActive ? (
-                                // ⛔ Shown only when actively waiting AND NOT UNSOLD
-                                <div className="text-center items-center justify-center">
+                    {!isValidSold(player) && !isUnsold(player) && (
+                        isWaitingForBid && !unsoldOverlayActive ? (
+                            // ⛔ shown only when actively waiting, not UNSOLD, not overlay
+                            <div className="text-center items-center justify-center">
                                 <img
                                     src="/bidding.gif"
                                     alt="Waiting for a Bid"
@@ -2518,8 +2524,8 @@ const SpectatorLiveDisplay = () => {
                                 <p className="text-3xl text-yellow-300 animate-pulse">
                                     Waiting for a Bid.
                                 </p>
-                                </div>
-                            ) : (
+                            </div>
+                        ) : (
                             <>
                                 {(() => {
                                     const leadingTeamObj = Array.isArray(teamSummaries)
