@@ -2487,79 +2487,71 @@ const SpectatorLiveDisplay = () => {
 
 
                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
-                        isWaitingForBid ? (
-                            <div className="text-center items-center justify-center">
-                                <img
-                                    src="/bidding.gif"
-                                    alt="Waiting for a Bid"
-                                    className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
-                                />
-                                <p className="text-3xl text-yellow-300  animate-pulse">
-                                    Waiting for a Bid...
-                                </p>
-                            </div>
-                        ) : (
-                            <>
+    (isWaitingForBid &&
+     !(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status))) ? (
+        // ⛔ Shown only when actively waiting AND NOT UNSOLD
+        <div className="text-center items-center justify-center">
+            <img
+                src="/bidding.gif"
+                alt="Waiting for a Bid"
+                className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
+            />
+            <p className="text-3xl text-yellow-300  animate-pulse">
+                Waiting for a Bid.
+            </p>
+        </div>
+    ) : (
+        <>
+            {(() => {
+                const leadingTeamObj = Array.isArray(teamSummaries)
+                    ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
+                    : null;
 
-                                {(() => {
-                                    const leadingTeamObj = Array.isArray(teamSummaries)
-                                        ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
-                                        : null;
+                const leadingTeamLogo = leadingTeamObj?.logo;
+                const leadingTeamName = leadingTeamObj?.name;
 
-                                    const leadingTeamLogo = leadingTeamObj?.logo;
-                                    const leadingTeamName = leadingTeamObj?.name;
+                return (
+                    <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
+                        {leadingTeamLogo && (
+                            <img
+                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
+                                alt={leadingTeamName}
+                                className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
+                            />
+                        )}
+                    </div>
+                );
+            })()}
 
+            {!unsoldOverlayActive && (
+                <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
+                    <div className="items-center py-3 px-3 bg-black/40">
+                        <p className="text-lg uppercase text-green-bold">Base Price</p>
+                        <p className="text-4xl tracking-wider uppercase">
+                            {formatLakhs(getDisplayBasePrice(player, activePool))}
+                        </p>
+                    </div>
+                    <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
+                        <p className="text-lg uppercase text-green-bold">Current Bid</p>
+                        <p className="text-4xl uppercase text-green-bold">
+                            {formatLakhs(highestBid)}
+                        </p>
+                    </div>
+                </div>
+            )}
 
-
-                                    return (
-                                        <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
-                                            {/* <p className="text-3xl mb-4 uppercase tracking-wider  drop-shadow-sm">Leading Team</p> */}
-
-                                            {leadingTeamLogo && (
-                                                <img
-                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
-                                                    alt={leadingTeamName}
-                                                    className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
-                                                />
-                                            )}
-
-                                            {/* <div className="text-4xl uppercase text-green-bold">
-                                                {leadingTeamName || "—"}
-                                            </div> */}
-
-                                        </div>
-                                    );
-                                })()}
-
-                                {!unsoldOverlayActive && (
-                                    <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
-                                        <div className="items-center py-3 px-3 bg-black/40">
-                                            <p className="text-lg uppercase text-green-bold">Base Price</p>
-
-                                            <p className="text-4xl tracking-wider uppercase">{formatLakhs(getDisplayBasePrice(player, activePool))}</p>                                    </div>
-                                        <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
-                                            <p className="text-lg uppercase text-green-bold">Current Bid</p>
-                                            <p className="text-4xl uppercase text-green-bold">
-                                                {formatLakhs(highestBid)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-
-                                <div>
-                                    {/* 👇 Secret Bidding Flag Message */}
-                                    {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
-                                        player?.secret_bidding_enabled && (
-                                            <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
-                                                Secret Bidding In Progress...
-                                            </p>
-                                        )}
-                                </div>
-
-                            </>
-                        )
+            <div>
+                {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
+                    player?.secret_bidding_enabled && (
+                        <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
+                            Secret Bidding In Progress.
+                        </p>
                     )}
+            </div>
+        </>
+    )
+)}
+
 
 
                     {(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status)) && unsoldClip && (
