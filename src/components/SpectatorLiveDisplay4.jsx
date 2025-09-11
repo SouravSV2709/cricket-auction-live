@@ -488,6 +488,15 @@ const SpectatorLiveDisplay = () => {
     const lastUnsoldAtRef = useRef(0);
     const lastUnsoldPlayerIdRef = useRef(null);
 
+    // Treat as SOLD only when status is TRUE AND we have a non-zero price AND a real team_id
+    const isValidSold = (p) =>
+        p &&
+        (p.sold_status === true || p.sold_status === "TRUE") &&
+        Number(p.sold_price) > 0 &&
+        p.team_id !== null &&
+        p.team_id !== "";
+
+
 
     // put this inside SpectatorLiveDisplay component, after the useState hooks
     const renderFooter = (items, teamPurseChunks) => (
@@ -575,8 +584,7 @@ const SpectatorLiveDisplay = () => {
         // do not confetti while UNSOLD is transitioning
         if (unsoldLockRef.current) return;
 
-        if (!isLoading && ["TRUE", "true", true].includes(playerData?.sold_status)) {
-            // stop any prior SOLD audio
+        if (!isLoading && isValidSold(playerData)) {
             if (currentSoldAudio) {
                 currentSoldAudio.pause();
                 currentSoldAudio.currentTime = 0;
@@ -586,7 +594,6 @@ const SpectatorLiveDisplay = () => {
             currentSoldAudio.volume = 1.0;
             currentSoldAudio.play().catch(() => { });
 
-            // confetti burst (unchanged)
             setTimeout(() => {
                 const duration = 3000;
                 const end = Date.now() + duration;
@@ -601,6 +608,7 @@ const SpectatorLiveDisplay = () => {
             }, 100);
         }
     };
+
 
 
     const lastPlayerId = useRef(null);
@@ -971,26 +979,36 @@ const SpectatorLiveDisplay = () => {
         socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
 
         socket.on("saleCommitted", (payload) => {
+            // Ignore during UNSOLD overlay or when payload is not a valid SOLD update
+            const price = Number(payload?.sold_price) || 0;
+            const hasTeam = payload?.team_id !== null && payload?.team_id !== "";
+
+            if (unsoldOverlayActive || price <= 0 || !hasTeam) {
+                return; // 🔒 don't paint an invalid SOLD state
+            }
+
             // ① update the visible player instantly (no network)
-            setPlayer(prev =>
+            setPlayer((prev) =>
                 prev && Number(prev.id) === Number(payload?.player_id)
                     ? {
                         ...prev,
                         sold_status: "TRUE",
-                        sold_price: payload?.sold_price ?? prev.sold_price,
-                        team_id: payload?.team_id ?? prev.team_id,
+                        sold_price: payload?.sold_price,
+                        team_id: payload?.team_id,
                         sold_pool: payload?.sold_pool ?? prev.sold_pool,
                     }
                     : prev
             );
+
             // keep the banner in sync so "Waiting for Bid" never shows
-            setHighestBid(Number(payload?.sold_price) || 0);
+            setHighestBid(price);
 
             // ② refresh only aggregates; don't refetch the player yet
             fetchAllPlayers();
             fetchTeams();
             fetchKcplTeamStates();
         });
+
 
         // optimistic UNSOLD — immediately reflect UNSOLD on the card
         // UNSOLD: show overlay + audio, but DO NOT mutate local player/bid.
@@ -2345,7 +2363,7 @@ const SpectatorLiveDisplay = () => {
                             </div>
 
                             {/* SOLD image (only if NOT Pool X) */}
-                            {["TRUE", "true", true].includes(player?.sold_status) && poolCode !== "X" && (
+                            {isValidSold(player) && poolCode !== "X" && (
                                 <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
                                     <img src="/SOLD.png" alt="SOLD" className="w-28 h-auto drop-shadow-xl animate-pulse" />
                                 </div>
@@ -2418,141 +2436,141 @@ const SpectatorLiveDisplay = () => {
                         </p>
                     </div>
 
-                    {["TRUE", "true", true].includes(player?.sold_status) &&
-                    !["FALSE", "false", false].includes(player?.sold_status) &&
-                    !unsoldOverlayActive && (() => {   
-                        const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
-                        const isPoolX = poolCode === "X";
-                        const soldAmt = Number(player?.sold_price) || 0;
-                        const xLabel = isPoolX
-                            ? (soldAmt === 400000 ? "Owner" : soldAmt === 1000000 ? "ICON" : "Pool X")
-                            : null;
+                    {isValidSold(player) &&
+                        !["FALSE", "false", false].includes(player?.sold_status) &&
+                        !unsoldOverlayActive && (() => {
+                            const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
+                            const isPoolX = poolCode === "X";
+                            const soldAmt = Number(player?.sold_price) || 0;
+                            const xLabel = isPoolX
+                                ? (soldAmt === 400000 ? "Owner" : soldAmt === 1000000 ? "ICON" : "Pool X")
+                                : null;
 
-                        return (
-                            <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
-                                {/* Team Logo */}
-                                <div className="flex justify-center">
-                                    <img
-                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId}?`}
-                                        alt={teamName}
-                                        className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
-                                    />
-                                </div>
-
-                                {/* Team Name */}
-                                <p className="text-3xl text-center mt-2 text-white uppercase tracking-wide">
-                                    {teamName}
-                                </p>
-
-                                {/* Sold Amount — HIDE when Pool X */}
-                                {!isPoolX && (
-                                    <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                        <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
-                                            🎉 Sold Amount: {formatLakhs(player?.sold_price || 0)}
-                                        </p>
+                            return (
+                                <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
+                                    {/* Team Logo */}
+                                    <div className="flex justify-center">
+                                        <img
+                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId}?`}
+                                            alt={teamName}
+                                            className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
+                                        />
                                     </div>
-                                )}
 
-                                {/* Players Bought & Base Price / Owner / ICON */}
-                                {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
-                                    <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
-                                        <div className="flex flex-col items-center py-3 bg-black/40">
-                                            <p className="text-xl text-yellow-400 uppercase tracking-wider">Players Bought</p>
-                                            <p className="text-xl text-white">
-                                                🧑‍🤝‍🧑 {team.bought_count} / {totalPlayersToBuy || 17}
+                                    {/* Team Name */}
+                                    <p className="text-3xl text-center mt-2 text-white uppercase tracking-wide">
+                                        {teamName}
+                                    </p>
+
+                                    {/* Sold Amount — HIDE when Pool X */}
+                                    {!isPoolX && (
+                                        <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
+                                            <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
+                                                🎉 Sold Amount: {formatLakhs(player?.sold_price || 0)}
                                             </p>
                                         </div>
+                                    )}
 
-                                        <div className="flex flex-col items-center py-3 bg-black/40">
-                                            {isPoolX ? (
-                                                <>
-                                                    <p className="text-xl text-yellow-400 uppercase tracking-wider">Category</p>
-                                                    <p className="text-xl text-white tracking-wider uppercase">
-                                                        {xLabel}
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <p className="text-xl text-yellow-400 uppercase tracking-wider">Base Price</p>
-                                                    <p className="tracking-wider uppercase">
-                                                        {formatLakhs(getDisplayBasePrice(player, activePool))}
-                                                    </p>
-                                                </>
-                                            )}
+                                    {/* Players Bought & Base Price / Owner / ICON */}
+                                    {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
+                                        <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
+                                            <div className="flex flex-col items-center py-3 bg-black/40">
+                                                <p className="text-xl text-yellow-400 uppercase tracking-wider">Players Bought</p>
+                                                <p className="text-xl text-white">
+                                                    🧑‍🤝‍🧑 {team.bought_count} / {totalPlayersToBuy || 17}
+                                                </p>
+                                            </div>
+
+                                            <div className="flex flex-col items-center py-3 bg-black/40">
+                                                {isPoolX ? (
+                                                    <>
+                                                        <p className="text-xl text-yellow-400 uppercase tracking-wider">Category</p>
+                                                        <p className="text-xl text-white tracking-wider uppercase">
+                                                            {xLabel}
+                                                        </p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-xl text-yellow-400 uppercase tracking-wider">Base Price</p>
+                                                        <p className="tracking-wider uppercase">
+                                                            {formatLakhs(getDisplayBasePrice(player, activePool))}
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+                                    )}
+                                </div>
+                            );
+                        })()}
 
 
 
                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
-    (isWaitingForBid &&
-     !(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status))) ? (
-        // ⛔ Shown only when actively waiting AND NOT UNSOLD
-        <div className="text-center items-center justify-center">
-            <img
-                src="/bidding.gif"
-                alt="Waiting for a Bid"
-                className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
-            />
-            <p className="text-3xl text-yellow-300  animate-pulse">
-                Waiting for a Bid.
-            </p>
-        </div>
-    ) : (
-        <>
-            {(() => {
-                const leadingTeamObj = Array.isArray(teamSummaries)
-                    ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
-                    : null;
+                        (isWaitingForBid &&
+                            !(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status))) ? (
+                            // ⛔ Shown only when actively waiting AND NOT UNSOLD
+                            <div className="text-center items-center justify-center">
+                                <img
+                                    src="/bidding.gif"
+                                    alt="Waiting for a Bid"
+                                    className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
+                                />
+                                <p className="text-3xl text-yellow-300  animate-pulse">
+                                    Waiting for a Bid.
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {(() => {
+                                    const leadingTeamObj = Array.isArray(teamSummaries)
+                                        ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
+                                        : null;
 
-                const leadingTeamLogo = leadingTeamObj?.logo;
-                const leadingTeamName = leadingTeamObj?.name;
+                                    const leadingTeamLogo = leadingTeamObj?.logo;
+                                    const leadingTeamName = leadingTeamObj?.name;
 
-                return (
-                    <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
-                        {leadingTeamLogo && (
-                            <img
-                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
-                                alt={leadingTeamName}
-                                className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
-                            />
-                        )}
-                    </div>
-                );
-            })()}
+                                    return (
+                                        <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
+                                            {leadingTeamLogo && (
+                                                <img
+                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
+                                                    alt={leadingTeamName}
+                                                    className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })()}
 
-            {!unsoldOverlayActive && (
-                <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
-                    <div className="items-center py-3 px-3 bg-black/40">
-                        <p className="text-lg uppercase text-green-bold">Base Price</p>
-                        <p className="text-4xl tracking-wider uppercase">
-                            {formatLakhs(getDisplayBasePrice(player, activePool))}
-                        </p>
-                    </div>
-                    <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
-                        <p className="text-lg uppercase text-green-bold">Current Bid</p>
-                        <p className="text-4xl uppercase text-green-bold">
-                            {formatLakhs(highestBid)}
-                        </p>
-                    </div>
-                </div>
-            )}
+                                {!unsoldOverlayActive && (
+                                    <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
+                                        <div className="items-center py-3 px-3 bg-black/40">
+                                            <p className="text-lg uppercase text-green-bold">Base Price</p>
+                                            <p className="text-4xl tracking-wider uppercase">
+                                                {formatLakhs(getDisplayBasePrice(player, activePool))}
+                                            </p>
+                                        </div>
+                                        <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
+                                            <p className="text-lg uppercase text-green-bold">Current Bid</p>
+                                            <p className="text-4xl uppercase text-green-bold">
+                                                {formatLakhs(highestBid)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
-            <div>
-                {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
-                    player?.secret_bidding_enabled && (
-                        <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
-                            Secret Bidding In Progress.
-                        </p>
+                                <div>
+                                    {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
+                                        player?.secret_bidding_enabled && (
+                                            <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
+                                                Secret Bidding In Progress.
+                                            </p>
+                                        )}
+                                </div>
+                            </>
+                        )
                     )}
-            </div>
-        </>
-    )
-)}
 
 
 
