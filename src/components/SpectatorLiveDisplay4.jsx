@@ -995,34 +995,38 @@ const SpectatorLiveDisplay = () => {
         // optimistic UNSOLD — immediately reflect UNSOLD on the card
         // UNSOLD: show overlay + audio, but DO NOT mutate local player/bid.
         // Let DB/Admin own the truth; we’ll refresh after overlay completes.
-        // inside the socket setup effect in SpectatorLiveDisplay4.jsx
-const onPlayerUnsold = async ({ player_id }) => {
-  // start a short guard window to block any late SOLD effects
-  if (unsoldLockTimerRef.current) clearTimeout(unsoldLockTimerRef.current);
-  unsoldLockRef.current = true;
-  lastUnsoldAtRef.current = Date.now();
-  lastUnsoldPlayerIdRef.current = Number(player_id);
+        const onPlayerUnsold = ({ player_id }) => {
+            // start a short guard window to block any late SOLD effects
+            if (unsoldLockTimerRef.current) clearTimeout(unsoldLockTimerRef.current);
+            unsoldLockRef.current = true;
+            lastUnsoldAtRef.current = Date.now();
+            lastUnsoldPlayerIdRef.current = Number(player_id);
 
-  // overlay + audio
-  setUnsoldOverlayActive(true);
-  setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
-  try {
-    if (currentSoldAudio) {
-      currentSoldAudio.pause();
-      currentSoldAudio.currentTime = 0;
-    }
-    unsoldAudio.currentTime = 0;
-    unsoldAudio.play().catch(() => {});
-  } catch {}
+            // overlay + audio
+            setUnsoldOverlayActive(true);
+            setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
+            try {
+                if (currentSoldAudio) {
+                    currentSoldAudio.pause();
+                    currentSoldAudio.currentTime = 0;
+                }
+                unsoldAudio.currentTime = 0;
+                unsoldAudio.play();
+            } catch { }
 
-  // ✅ Let the overlay play, then pull fresh state so the card shows UNSOLD (not SOLD 0)
-  unsoldLockTimerRef.current = setTimeout(async () => {
-    await fetchPlayer();              // get sold_status: "FALSE" from DB
-    setUnsoldOverlayActive(false);    // overlay goes away; UNSOLD block remains
-    setTimeout(() => { unsoldLockRef.current = false; }, 300);
-  }, 1200);
-};
+            // ⛔️ DO NOT do any of these on spectator:
+            // setPlayer(... sold_status: "FALSE", team_id: null, sold_price: 0 ...)
+            // setHighestBid(0);
+            // setLeadingTeam("");
 
+            // after overlay, refetch fresh state from server
+            unsoldLockTimerRef.current = setTimeout(() => {
+                setUnsoldOverlayActive(false);
+                // fetchAllPlayers();     // your existing light refresh
+                // release guard a moment later
+                setTimeout(() => { unsoldLockRef.current = false; }, 300);
+            }, 1200);
+        };
 
 
 
