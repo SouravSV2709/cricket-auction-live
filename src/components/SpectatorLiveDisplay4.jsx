@@ -482,6 +482,10 @@ const SpectatorLiveDisplay = () => {
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
     const [marqueeEnabled, setMarqueeEnabled] = useState(true);
+    // guards for UNSOLD transition
+    const unsoldLockRef = useRef(false);
+    const unsoldLockTimerRef = useRef(null);
+
 
     // put this inside SpectatorLiveDisplay component, after the useState hooks
     const renderFooter = (items, teamPurseChunks) => (
@@ -566,30 +570,24 @@ const SpectatorLiveDisplay = () => {
 
 
     const triggerConfettiIfSold = (playerData) => {
-        if (!isLoading && ["TRUE", "true", true].includes(playerData?.sold_status)) {
-            console.log("🎉 Confetti fired for SOLD player:", playerData.name);
+        // do not confetti while UNSOLD is transitioning
+        if (unsoldLockRef.current) return;
 
-            //  ✅ Sold Play sound
-            // Stop previous audio if still playing
+        if (!isLoading && ["TRUE", "true", true].includes(playerData?.sold_status)) {
+            // stop any prior SOLD audio
             if (currentSoldAudio) {
                 currentSoldAudio.pause();
                 currentSoldAudio.currentTime = 0;
             }
-
             const selectedSrc = getRandomSoldAudio();
-            console.log("🔊 Playing audio:", selectedSrc);
-
             currentSoldAudio = new Audio(selectedSrc);
             currentSoldAudio.volume = 1.0;
-            currentSoldAudio.play().catch(err => {
-                console.warn("Autoplay prevented:", err);
-            });
+            currentSoldAudio.play().catch(() => { });
 
-            // Confetti Animatiom
+            // confetti burst (unchanged)
             setTimeout(() => {
                 const duration = 3000;
                 const end = Date.now() + duration;
-
                 const frame = () => {
                     confetti({ particleCount: 10, angle: 60, spread: 200, origin: { x: 0 } });
                     confetti({ particleCount: 10, angle: 120, spread: 200, origin: { x: 1 } });
@@ -597,11 +595,11 @@ const SpectatorLiveDisplay = () => {
                     confetti({ particleCount: 10, angle: 90, spread: 200, origin: { y: 1 } });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 };
-
                 frame();
-            }, 100); // ⏱️ delay to ensure DOM settles
+            }, 100);
         }
     };
+
 
     const lastPlayerId = useRef(null);
 
@@ -887,6 +885,8 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         if (!player || !["TRUE", "true", true].includes(player.sold_status)) return;
 
+        if (unsoldLockRef.current) return;
+
         if (player.id === lastPlayerId.current) {
             console.log("⏭️ Skipping confetti - player already shown as SOLD:", player.name);
             return;
@@ -988,27 +988,49 @@ const SpectatorLiveDisplay = () => {
             fetchKcplTeamStates();
         });
 
-        // optimistic UNSOLD — do not refetch the player
+        // optimistic UNSOLD — immediately reflect UNSOLD on the card
         const onPlayerUnsold = ({ player_id, sold_pool }) => {
-            // ① Show the overlay immediately
+            // block confetti/audio during this transition
+            if (unsoldLockTimerRef.current) clearTimeout(unsoldLockTimerRef.current);
+            unsoldLockRef.current = true;
+
+            // ① Show the overlay + play unsold media/audio
             setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
-            try { unsoldAudio.currentTime = 0; unsoldAudio.play(); } catch { }
+            try {
+                // stop any SOLD audio that might be playing
+                if (currentSoldAudio) {
+                    currentSoldAudio.pause();
+                    currentSoldAudio.currentTime = 0;
+                }
+                unsoldAudio.currentTime = 0;
+                unsoldAudio.play();
+            } catch { }
 
-            // ② After a short delay, *then* apply the state reset
-            if (unsoldOverlayTimerRef.current) clearTimeout(unsoldOverlayTimerRef.current);
-            unsoldOverlayTimerRef.current = setTimeout(() => {
+            // ② Immediately set the player as UNSOLD (no flash of SOLD)
+            setPlayer(prev =>
+                prev && Number(prev.id) === Number(player_id)
+                    ? {
+                        ...prev,
+                        sold_status: "FALSE",
+                        team_id: null,
+                        sold_price: 0,
+                        sold_pool: sold_pool ?? prev?.sold_pool,
+                    }
+                    : prev
+            );
+            setHighestBid(0);
+            setLeadingTeam("");
+
+            // ③ After a short delay, hide overlay and refresh light aggregates
+            unsoldLockTimerRef.current = setTimeout(() => {
                 setUnsoldOverlayActive(false);
-                setPlayer(prev =>
-                    prev && Number(prev.id) === Number(player_id)
-                        ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
-                        : prev
-                );
-                setHighestBid(0);
-                setLeadingTeam("");
                 fetchAllPlayers();
-            }, 1200); // ~1.2s feels snappy; adjust if your clip is longer
+                // release the confetti lock a moment after overlay
+                setTimeout(() => (unsoldLockRef.current = false), 300);
+            }, 1200); // keep similar to your GIF length
         };
+
 
 
         socket.on("playerUnsold", onPlayerUnsold);
