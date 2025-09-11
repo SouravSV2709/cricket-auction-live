@@ -485,6 +485,8 @@ const SpectatorLiveDisplay = () => {
     // guards for UNSOLD transition
     const unsoldLockRef = useRef(false);
     const unsoldLockTimerRef = useRef(null);
+    const lastUnsoldAtRef = useRef(0);
+    const lastUnsoldPlayerIdRef = useRef(null);
 
 
     // put this inside SpectatorLiveDisplay component, after the useState hooks
@@ -885,10 +887,12 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         if (!player || !["TRUE", "true", true].includes(player.sold_status)) return;
 
-        if (unsoldLockRef.current) return;
-
-        if (player.id === lastPlayerId.current) {
-            console.log("⏭️ Skipping confetti - player already shown as SOLD:", player.name);
+        // ⛔ ignore SOLD flashes for the same player right after UNSOLD
+        if (
+            unsoldLockRef.current &&
+            Number(player.id) === Number(lastUnsoldPlayerIdRef.current) &&
+            Date.now() - lastUnsoldAtRef.current < 3000
+        ) {
             return;
         }
 
@@ -989,16 +993,19 @@ const SpectatorLiveDisplay = () => {
         });
 
         // optimistic UNSOLD — immediately reflect UNSOLD on the card
-        const onPlayerUnsold = ({ player_id, sold_pool }) => {
-            // block confetti/audio during this transition
+        // UNSOLD: show overlay + audio, but DO NOT mutate local player/bid.
+        // Let DB/Admin own the truth; we’ll refresh after overlay completes.
+        const onPlayerUnsold = ({ player_id }) => {
+            // start a short guard window to block any late SOLD effects
             if (unsoldLockTimerRef.current) clearTimeout(unsoldLockTimerRef.current);
             unsoldLockRef.current = true;
+            lastUnsoldAtRef.current = Date.now();
+            lastUnsoldPlayerIdRef.current = Number(player_id);
 
-            // ① Show the overlay + play unsold media/audio
+            // overlay + audio
             setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
             try {
-                // stop any SOLD audio that might be playing
                 if (currentSoldAudio) {
                     currentSoldAudio.pause();
                     currentSoldAudio.currentTime = 0;
@@ -1007,29 +1014,20 @@ const SpectatorLiveDisplay = () => {
                 unsoldAudio.play();
             } catch { }
 
-            // ② Immediately set the player as UNSOLD (no flash of SOLD)
-            setPlayer(prev =>
-                prev && Number(prev.id) === Number(player_id)
-                    ? {
-                        ...prev,
-                        sold_status: "FALSE",
-                        team_id: null,
-                        sold_price: 0,
-                        sold_pool: sold_pool ?? prev?.sold_pool,
-                    }
-                    : prev
-            );
-            setHighestBid(0);
-            setLeadingTeam("");
+            // ⛔️ DO NOT do any of these on spectator:
+            // setPlayer(... sold_status: "FALSE", team_id: null, sold_price: 0 ...)
+            // setHighestBid(0);
+            // setLeadingTeam("");
 
-            // ③ After a short delay, hide overlay and refresh light aggregates
+            // after overlay, refetch fresh state from server
             unsoldLockTimerRef.current = setTimeout(() => {
                 setUnsoldOverlayActive(false);
-                fetchAllPlayers();
-                // release the confetti lock a moment after overlay
-                setTimeout(() => (unsoldLockRef.current = false), 300);
-            }, 1200); // keep similar to your GIF length
+                // fetchAllPlayers();     // your existing light refresh
+                // release guard a moment later
+                setTimeout(() => { unsoldLockRef.current = false; }, 300);
+            }, 1200);
         };
+
 
 
 
@@ -1037,31 +1035,45 @@ const SpectatorLiveDisplay = () => {
 
 
         socket.on("playerChanged", (payload) => {
-            // ① paint the new player immediately – no network
-            setIsLoading(true);
-            setPlayer(prev => ({ ...(prev || {}), ...payload }));
-            setHighestBid(0);
-            setLeadingTeam("");
+  const samePlayer =
+    payload?.id != null && player?.id != null &&
+    Number(payload.id) === Number(player.id);
 
-            // ② lazily refresh light aggregates (optional)
-            fetchAllPlayers();
-            fetchKcplTeamStates();
+  // If this is the SAME player and we just handled UNSOLD,
+  // treat it as a soft refresh (no transition loader / no reset).
+  if (
+    samePlayer &&
+    unsoldLockRef.current // set by onPlayerUnsold
+  ) {
+    setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
+    // keep current highestBid/leadingTeam; do not set isLoading
+    return;
+  }
 
-            // ③ fetch teams only if we need them and don't have them
-            if ((!teamSummaries || teamSummaries.length === 0) && payload?.tournament_id) {
-                fetchTeams();
-            }
+  // Normal path for actual player switches:
+  setIsLoading(true);
+  setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
+  setHighestBid(0);
+  setLeadingTeam("");
 
-            // ④ optional: fetch stats asynchronously if present
-            if (payload?.cricheroes_id) {
-                fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
-                    .then(r => r.json())
-                    .then(setCricheroesStats)
-                    .catch(() => setCricheroesStats(null));
-            }
+  // light aggregates
+  fetchAllPlayers();
+  fetchKcplTeamStates();
 
-            setTimeout(() => setIsLoading(false), 150);
-        });
+  if ((!teamSummaries || teamSummaries.length === 0) && payload?.tournament_id) {
+    fetchTeams();
+  }
+
+  if (payload?.cricheroes_id) {
+    fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
+      .then(r => r.json())
+      .then(setCricheroesStats)
+      .catch(() => setCricheroesStats(null));
+  }
+
+  setTimeout(() => setIsLoading(false), 150);
+});
+
 
         socket.on("secretBiddingToggled", fastRefresh);
 
