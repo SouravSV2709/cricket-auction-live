@@ -742,16 +742,16 @@ const AdminPanel = () => {
         setSelectedTeam("");
 
         // Reset current bid immediately + broadcast
-        fetch(`${API}/api/current-bid`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bid_amount: 0, team_name: "" }),
-        });
-        socketRef.current?.emit("bidUpdated", {
-            bid_amount: 0,
-            team_name: "",
-            active_pool: activePool,
-        });
+        // Reset current bid on the server silently (no broadcast)
+        // Optional: delay to let spectators finish the UNSOLD overlay
+        setTimeout(() => {
+            fetch(`${API}/api/current-bid`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+            });
+        }, 1200);
+
 
         // Fast KCPL summary refresh (optional)
         try {
