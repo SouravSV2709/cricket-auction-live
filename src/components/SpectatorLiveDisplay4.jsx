@@ -85,20 +85,98 @@ const BottomMarquee = ({
     playerList = [],
     formatLakhs,
 }) => {
-    // Phase 0 = Expensive Players segment, Phase 1 = Team Purse segment
-    const [phase, setPhase] = React.useState(0);
-    const [runId, setRunId] = React.useState(0); // force re-measure/re-anim
+    const STORAGE_KEY = "aa_marquee_phase_v1";
+
+    // ---- Buffered snapshot so marquee doesn't restart mid-run on SOLD/UNSOLD ----
+    const [stable, setStable] = React.useState({
+        items,
+        teamPurseChunks,
+        teamSummaries,
+        playerList,
+    });
+    const pendingRef = React.useRef(stable);
+    const hasPendingRef = React.useRef(false);
+
+    React.useEffect(() => {
+        pendingRef.current = { items, teamPurseChunks, teamSummaries, playerList };
+        hasPendingRef.current = true; // mark that fresh data arrived
+    }, [items, teamPurseChunks, teamSummaries, playerList]);
+
+    // ---- Animation + layout refs/state ----
     const viewportRef = React.useRef(null);
     const trackRef = React.useRef(null);
 
-    const SPEED_PX_PER_SEC = 150; // adjust speed
-    const GAP_PX = 1;           // spacer on both ends
+    const [phase, setPhase] = React.useState(0);  // which segment to show
+    const [runId, setRunId] = React.useState(0);  // force re-measure when content changes intentionally
+    const [hydrated, setHydrated] = React.useState(false); // prevent initial flash before restoring phase
 
-    // Build segment A: Most Expensive players (banner + player pills)
+    // Restore last phase on mount so we don't start from segment 0 every time
+    React.useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (typeof parsed?.phase === "number") {
+                    setPhase(parsed.phase);
+                }
+            }
+        } catch { }
+        setHydrated(true);
+    }, []);
+
+    const SPEED_PX_PER_SEC = 150; // tune speed
+    const GAP_PX = 1; // head/tail spacer px
+
+    const [animVars, setAnimVars] = React.useState({
+        from: "0px",
+        to: "0px",
+        duration: 30,
+    });
+
+    const measure = React.useCallback(() => {
+        const vw = viewportRef.current?.offsetWidth || 0;
+        const cw = trackRef.current?.scrollWidth || 0;
+        const distance = vw + cw + GAP_PX * 2;
+        const dur = Math.max(10, distance / SPEED_PX_PER_SEC); // never too short
+        setAnimVars({
+            from: `${vw + GAP_PX}px`,
+            to: `-${cw + GAP_PX}px`,
+            duration: dur,
+        });
+    }, []);
+
+    // Re-measure ONLY when we intentionally change phase or bump runId
+    React.useEffect(() => {
+        const id = requestAnimationFrame(measure);
+        return () => cancelAnimationFrame(id);
+    }, [phase, runId, measure]);
+
+    // Respond to container resizes without restarting on data changes
+    React.useEffect(() => {
+        const ro = new ResizeObserver(() => setRunId((r) => r + 1));
+        if (viewportRef.current) ro.observe(viewportRef.current);
+        return () => ro.disconnect();
+    }, []);
+
+    // ---- Helpers ----
+    const resolvePlayerImg = React.useCallback((p, size = 200) => {
+        if (p?.profile_image) {
+            return String(p.profile_image).startsWith("http")
+                ? p.profile_image
+                : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-${size},h-${size},fo-face,z-0.4,q-95,e-sharpen`;
+        }
+        if (p?.image_url) return p.image_url;
+        if (p?.photo_url) return p.photo_url;
+        return "/no-image-found.png";
+    }, []);
+
+    // ---- Segment A: Top-5 most expensive players ----
     const expensiveNodes = React.useMemo(() => {
-        if (!Array.isArray(items) || items.length === 0) return [];
+        const list = stable.items;
+        if (!Array.isArray(list) || list.length === 0) return [];
+
         const banner = (
-            <div className="mx-16 md:mx-24 inline-block">
+            <div className="mx-16 md:mx-24 inline-block" key="exp-banner">
                 <div className="flex items-center gap-4 px-6 py-3 rounded-full
                         bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
                         border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
@@ -116,45 +194,48 @@ const BottomMarquee = ({
             </div>
         );
 
-        const pills = items.map((it, idx) => (
+        const pills = list.map((p, idx) => (
             <div
-                key={`pl-${it.id ?? idx}`}
+                key={`pl-${p.id ?? idx}`}
                 className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
             >
                 <img
-                    src={it.image_url}
-                    alt={it.name}
-                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
+                    src={p.image_url}
+                    alt={p.name}
+                    onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "/no-image-found.png";
+                    }}
                     className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                     <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
-                        {it.name}
+                        {p.name}
                     </div>
                     <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
-                        {it.teamName}
+                        {p.teamName}
                     </div>
                 </div>
                 <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
-                    {it.priceText}
+                    {p.priceText}
                 </div>
             </div>
         ));
 
         return [banner, ...pills];
-    }, [items]);
+    }, [stable.items]);
 
-    // Build segment B: Team purse (banner + chunk pills)
+    // ---- Segment B: Team purse remaining (grouped) ----
     const teamNodes = React.useMemo(() => {
-        if (!Array.isArray(teamPurseChunks) || teamPurseChunks.length === 0) return [];
+        const chunks = stable.teamPurseChunks;
+        if (!Array.isArray(chunks) || chunks.length === 0) return [];
 
-        // 1) Banner
         const banner = (
-            <div className="mx-16 md:mx-24 inline-block">
+            <div className="mx-16 md:mx-24 inline-block" key="purse-banner">
                 <div className="flex items-center gap-4 px-6 py-3 rounded-full
-                      bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
-                      border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
-                      backdrop-blur">
+                        bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                        border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                        backdrop-blur">
                     <span className="text-2xl md:text-3xl">💰</span>
                     <div className="flex flex-col">
                         <span className="text-amber-300 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
@@ -168,69 +249,51 @@ const BottomMarquee = ({
             </div>
         );
 
-        // 2) Flatten any incoming structure to a flat team list
-        const flatTeams = teamPurseChunks.flatMap((c) =>
-            Array.isArray(c) ? c : [c]
-        );
-
-        // 3) Chunk into groups of exactly 4 per pill
+        const flatTeams = chunks.flatMap((c) => (Array.isArray(c) ? c : [c]));
         const groupsOf4 = [];
         for (let i = 0; i < flatTeams.length; i += 4) {
             groupsOf4.push(flatTeams.slice(i, i + 4));
         }
 
-        // 4) Render each group as a single "pill" with 4 teams side-by-side
         const pills = groupsOf4.map((group, i) => (
             <div
                 key={`tpill-${i}`}
                 className="mx-12 inline-flex items-stretch gap-6 px-8 py-4 bg-white/10 rounded-3xl shadow-xl"
-                style={{ minWidth: "960px" }} // ensures pill is wide enough for 4 items
+                style={{ minWidth: "960px" }}
             >
                 {group.map((t, j) => (
                     <div
                         key={j}
                         className="flex items-center gap-3 px-2"
-                        style={{ width: "220px" }} // ~4 * 220 + gaps ≈ 960px
+                        style={{ width: "220px" }}
                     >
-                        {/* Team name */}
                         <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
                             {t?.name ?? "Unknown"}
                         </span>
-
-                        {/* Purse */}
                         <span className="ml-2 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
-                            {typeof formatLakhs === "function" ? formatLakhs(t?.purse ?? 0) : (t?.purse ?? 0)}
+                            {typeof formatLakhs === "function"
+                                ? formatLakhs(t?.purse ?? 0)
+                                : t?.purse ?? 0}
                         </span>
-
-                        {/* Divider between team cells */}
-                        {j < group.length - 1 && <span className="mx-3 h-6 w-px bg-white/20" />}
+                        {j < group.length - 1 && (
+                            <span className="mx-3 h-6 w-px bg-white/20" />
+                        )}
                     </div>
                 ))}
             </div>
         ));
 
         return [banner, ...pills];
-    }, [teamPurseChunks]);
+    }, [stable.teamPurseChunks, formatLakhs]);
 
-    // Keep player image selection consistent with the rest of the app
-    const resolvePlayerImg = (p, size = 200) => {
-        if (p?.profile_image) {
-            return String(p.profile_image).startsWith("http")
-                ? p.profile_image
-                : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-${size},h-${size},fo-face,z-0.4,q-95,e-sharpen`;
-        }
-        if (p?.image_url) return p.image_url;
-        if (p?.photo_url) return p.photo_url;
-        return "/no-image-found.png";
-    };
-
-
-    // Build segments C...Z: Team Squads (one team per segment in the marquee)
+    // ---- Segments C..Z: Team squads (one segment per team) ----
     const squadSegments = React.useMemo(() => {
-        if (!Array.isArray(teamSummaries) || teamSummaries.length === 0) return [];
+        const ts = stable.teamSummaries;
+        const plist = stable.playerList;
+        if (!Array.isArray(ts) || ts.length === 0) return [];
 
         const getTeamPlayers = (teamId) =>
-            (playerList || [])
+            (plist || [])
                 .filter(
                     (p) =>
                         Number(p.team_id) === Number(teamId) &&
@@ -238,7 +301,6 @@ const BottomMarquee = ({
                 )
                 .sort(
                     (a, b) =>
-                        // Order by role then name for stable reading; tweak if you prefer price
                         String(a.role || a.base_category || "").localeCompare(
                             String(b.role || b.base_category || "")
                         ) ||
@@ -247,18 +309,20 @@ const BottomMarquee = ({
                         )
                 );
 
-        const MAX_PLAYERS_PER_TEAM = 24; // safeguard to keep the pill length manageable
+        const MAX_PLAYERS_PER_TEAM = 24;
 
-        return teamSummaries.map((team) => {
+        return ts.map((team) => {
             const players = getTeamPlayers(team.id).slice(0, MAX_PLAYERS_PER_TEAM);
 
-            // Banner chip for the team
             const banner = (
-                <div className="mx-16 md:mx-24 inline-block" key={`squad-banner-${team.id}`}>
+                <div
+                    className="mx-16 md:mx-24 inline-block"
+                    key={`squad-banner-${team.id}`}
+                >
                     <div className="flex items-center gap-4 px-6 py-3 rounded-full
-                        bg-gradient-to-r from-sky-600/25 via-cyan-600/20 to-emerald-600/25
-                        border border-white/15 shadow-[0_0_20px_rgba(34,197,94,0.25)]
-                        backdrop-blur">
+                          bg-gradient-to-r from-sky-600/25 via-cyan-600/20 to-emerald-600/25
+                          border border-white/15 shadow-[0_0_20px_rgba(34,197,94,0.25)]
+                          backdrop-blur">
                         <img
                             src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                             alt={team.name}
@@ -276,7 +340,6 @@ const BottomMarquee = ({
                 </div>
             );
 
-            // Player chips for this team
             const chips = players.map((p, idx) => {
                 const img = resolvePlayerImg(p, 90);
                 const role = String(p.role || p.base_category || "PL").toUpperCase();
@@ -309,14 +372,15 @@ const BottomMarquee = ({
                 );
             });
 
-            // Each team forms ONE marquee segment (banner + chips)
             return (
                 <div
                     key={`squad-seg-${team.id}`}
                     className="inline-flex items-center gap-8 text-white/95 text-lg md:text-2xl"
                 >
                     {banner}
-                    {chips.length ? chips : (
+                    {chips.length ? (
+                        chips
+                    ) : (
                         <span className="mx-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
                             <span className="text-white/80">No players bought yet</span>
                         </span>
@@ -324,60 +388,58 @@ const BottomMarquee = ({
                 </div>
             );
         });
-    }, [teamSummaries, playerList, formatLakhs]);
+    }, [stable.teamSummaries, stable.playerList, resolvePlayerImg, formatLakhs]);
 
-
-
-    // Decide which segment to render now
+    // ---- Build the full segment list in order ----
     const segmentList = React.useMemo(() => {
         const list = [];
-        if (expensiveNodes.length) list.push(expensiveNodes); // Segment 1
-        if (teamNodes.length) list.push(teamNodes);           // Segment 2
-
-        // Segments 3..N: one squad segment per team
+        if (expensiveNodes.length) list.push(expensiveNodes); // segment 0
+        if (teamNodes.length) list.push(teamNodes); // segment 1
         if (squadSegments.length) {
-            squadSegments.forEach((node) => list.push([node]));
+            squadSegments.forEach((node) => list.push([node])); // segments 2..N
         }
-
         return list.length ? list : [[]];
     }, [expensiveNodes, teamNodes, squadSegments]);
 
-
-    const currentNodes = segmentList[phase % segmentList.length];
-
-    // Measure and compute animation duration based on content + viewport widths
-    const [animVars, setAnimVars] = React.useState({ from: "0px", to: "0px", duration: 30 });
-
-    const measure = React.useCallback(() => {
-        const vw = viewportRef.current?.offsetWidth || 0;
-        const cw = trackRef.current?.scrollWidth || 0;
-        const distance = vw + cw + GAP_PX * 2;
-        const dur = Math.max(10, distance / SPEED_PX_PER_SEC); // never too short
-        setAnimVars({ from: `${vw + GAP_PX}px`, to: `-${cw + GAP_PX}px`, duration: dur });
-    }, []);
-
-    // Remeasure on phase/runId and when DOM paints
+    // If segment count shrinks/expands, keep phase in range and persist it
     React.useEffect(() => {
-        const id = requestAnimationFrame(measure);
-        return () => cancelAnimationFrame(id);
-    }, [phase, runId, measure, currentNodes]);
-
-    // Respond to resizes
-    React.useEffect(() => {
-        const ro = new ResizeObserver(() => setRunId(r => r + 1));
-        if (viewportRef.current) ro.observe(viewportRef.current);
-        return () => ro.disconnect();
-    }, []);
-
-    const handleEnd = React.useCallback(() => {
-        // Advance to next segment; loop
-        setTimeout(() => {
-            setPhase(p => (p + 1) % segmentList.length);
-            setRunId(r => r + 1);
-        }, 600); // small pause between segments
+        setPhase((p) => {
+            const np = segmentList.length ? p % segmentList.length : 0;
+            try {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ phase: np }));
+            } catch { }
+            return np;
+        });
     }, [segmentList.length]);
 
-    if (!currentNodes.length) return null;
+    const currentNodes = segmentList.length
+        ? segmentList[phase % segmentList.length]
+        : [];
+
+    const handleEnd = React.useCallback(() => {
+        setTimeout(() => {
+            // advance to next segment
+            setPhase((p) => {
+                const np = (p + 1) % (segmentList.length || 1);
+                try {
+                    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ phase: np }));
+                } catch { }
+                return np;
+            });
+
+            // apply any pending updates exactly at segment boundary
+            if (hasPendingRef.current) {
+                setStable(pendingRef.current);
+                hasPendingRef.current = false;
+                setRunId((r) => r + 1); // re-measure freshly applied content
+            } else {
+                setRunId((r) => r + 1);
+            }
+        }, 600); // small pause for readability
+    }, [segmentList.length]);
+
+    // Avoid initial flash (we restore phase first)
+    if (!hydrated || !currentNodes || !currentNodes.length) return null;
 
     return (
         <div
@@ -420,6 +482,8 @@ const BottomMarquee = ({
         </div>
     );
 };
+
+
 
 
 // ===== End marquee/footer helpers =====
