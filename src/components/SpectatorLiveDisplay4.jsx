@@ -1035,44 +1035,44 @@ const SpectatorLiveDisplay = () => {
 
 
         socket.on("playerChanged", (payload) => {
-  const samePlayer =
-    payload?.id != null && player?.id != null &&
-    Number(payload.id) === Number(player.id);
+            const samePlayer =
+                payload?.id != null && player?.id != null &&
+                Number(payload.id) === Number(player.id);
 
-  // If this is the SAME player and we just handled UNSOLD,
-  // treat it as a soft refresh (no transition loader / no reset).
-  if (
-    samePlayer &&
-    unsoldLockRef.current // set by onPlayerUnsold
-  ) {
-    setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
-    // keep current highestBid/leadingTeam; do not set isLoading
-    return;
-  }
+            // If this is the SAME player and we just handled UNSOLD,
+            // treat it as a soft refresh (no transition loader / no reset).
+            if (
+                samePlayer &&
+                unsoldLockRef.current // set by onPlayerUnsold
+            ) {
+                setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
+                // keep current highestBid/leadingTeam; do not set isLoading
+                return;
+            }
 
-  // Normal path for actual player switches:
-  setIsLoading(true);
-  setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
-  setHighestBid(0);
-  setLeadingTeam("");
+            // Normal path for actual player switches:
+            setIsLoading(true);
+            setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
+            setHighestBid(0);
+            setLeadingTeam("");
 
-  // light aggregates
-  fetchAllPlayers();
-  fetchKcplTeamStates();
+            // light aggregates
+            fetchAllPlayers();
+            fetchKcplTeamStates();
 
-  if ((!teamSummaries || teamSummaries.length === 0) && payload?.tournament_id) {
-    fetchTeams();
-  }
+            if ((!teamSummaries || teamSummaries.length === 0) && payload?.tournament_id) {
+                fetchTeams();
+            }
 
-  if (payload?.cricheroes_id) {
-    fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
-      .then(r => r.json())
-      .then(setCricheroesStats)
-      .catch(() => setCricheroesStats(null));
-  }
+            if (payload?.cricheroes_id) {
+                fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
+                    .then(r => r.json())
+                    .then(setCricheroesStats)
+                    .catch(() => setCricheroesStats(null));
+            }
 
-  setTimeout(() => setIsLoading(false), 150);
-});
+            setTimeout(() => setIsLoading(false), 150);
+        });
 
 
         socket.on("secretBiddingToggled", fastRefresh);

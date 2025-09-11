@@ -694,18 +694,19 @@ const AdminPanel = () => {
         // Save undo
         setUndoStack(prev => [...prev, { type: "unsold", player: currentPlayer }]);
 
-        // Prepare updated player (auction-ready UNSOLD)
+        // Prepare updated player (DB truth)
         const updatedPlayer = {
             ...currentPlayer,
             sold_status: "FALSE",
             team_id: null,
-            sold_price: 0,           // (ok to keep 0; you can use null if you prefer)
+            sold_price: 0,
             sold_pool: activePool,
         };
 
+        // Tell spectators to show the UNSOLD overlay (socket)
         socketRef.current?.emit("playerUnsold", {
             player_id: currentPlayer.id,
-            sold_pool: activePool
+            sold_pool: activePool,
         });
 
         // Persist to DB (current-player + players)
@@ -722,20 +723,25 @@ const AdminPanel = () => {
             }),
         ]);
 
-        // Notify spectators (non-blocking) — you already use this endpoint:contentReference[oaicite:1]{index=1}
+        // Notify spectators with a MINIMAL payload (prevents 0/null flicker)
+        const minimalUnsold = {
+            id: currentPlayer.id,
+            sold_status: "FALSE",
+            sold_pool: activePool,
+        };
         fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer),
+            body: JSON.stringify(minimalUnsold),
         });
 
-        // ✅ Optimistic UI (no heavy fetchPlayers/fetchCurrentPlayer):contentReference[oaicite:2]{index=2}
+        // Optimistic Admin UI
         if (window?.toast) window.toast.info("Player marked as UNSOLD.");
         setCurrentPlayer(updatedPlayer);
         setBidAmount(0);
         setSelectedTeam("");
 
-        // Reset current bid on server immediately + broadcast (no delay):contentReference[oaicite:3]{index=3}
+        // Reset current bid immediately + broadcast
         fetch(`${API}/api/current-bid`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -747,14 +753,14 @@ const AdminPanel = () => {
             active_pool: activePool,
         });
 
-        // 🔄 Refresh KCPL summary UI only (fast)
+        // Fast KCPL summary refresh (optional)
         try {
-            // If a team was previously shown in the side snapshot, refresh the table too
-            await refreshKcplTeamStates(); // the helper we added earlier
+            await refreshKcplTeamStates();
         } catch (e) {
             console.warn("KCPL table refresh failed:", e);
         }
     };
+
 
 
     const handleNextPlayer = async () => {
@@ -962,141 +968,141 @@ const AdminPanel = () => {
 
 
     const handleTeamClick = async (team) => {
-  // Squad view: unchanged
-  if (isTeamViewActive) {
-    setSelectedTeam(team.name);
+        // Squad view: unchanged
+        if (isTeamViewActive) {
+            setSelectedTeam(team.name);
 
-    await fetch(`${API}/api/show-team`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ team_id: team.id }),
-    });
+            await fetch(`${API}/api/show-team`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ team_id: team.id }),
+            });
 
-    socketRef.current?.emit("showTeam", {
-      team_id: team.id,
-      empty: team.players?.length === 0,
-    });
+            socketRef.current?.emit("showTeam", {
+                team_id: team.id,
+                empty: team.players?.length === 0,
+            });
 
-    return;
-  }
-
-  // Live auction guard
-  if (!isLiveAuctionActive || !currentPlayer) return;
-
-  setSelectedTeam(team.name);
-
-  const currentBid =
-    typeof bidAmount === "number" ? bidAmount : (parseInt(bidAmount, 10) || 0);
-
-  // --- MANUAL MODE: lock for this click only, then revert to auto ---
-  if (isBidManual) {
-    const amt = currentBid;
-
-    // Validate against max-allowed
-    if (kcplMode) {
-      const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
-      const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
-      if (Number.isFinite(maxAllowed) && amt > maxAllowed) {
-        alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
-        return;
-      }
-      queueLightweightTeamSnapshot(team.id);
-    } else {
-      try {
-        const teamData = await fetch(`${API}/api/teams/${team.id}`).then((r) => r.json());
-        if (teamData?.max_bid_allowed != null && amt > teamData.max_bid_allowed) {
-          alert(
-            `❌ Bid blocked: Cannot bid ₹${amt.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
-          );
-          return;
+            return;
         }
-      } catch (e) {
-        console.error("Max bid validation failed", e);
-        alert("❌ Could not validate max bid. Try again.");
-        return;
-      }
-    }
 
-    // Broadcast & persist without changing amount
-    socketRef.current?.emit("bidUpdated", {
-      bid_amount: amt,
-      team_name: team.name,
-      active_pool: activePool,
-    });
+        // Live auction guard
+        if (!isLiveAuctionActive || !currentPlayer) return;
 
-    await fetch(`${API}/api/current-bid`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bid_amount: amt,
-        team_name: team.name,
-        active_pool: activePool,
-      }),
-    });
+        setSelectedTeam(team.name);
 
-    // 🔁 IMPORTANT: consume manual mode so the NEXT click auto-flows
-    setIsBidManual(false);
-    return;
-  }
+        const currentBid =
+            typeof bidAmount === "number" ? bidAmount : (parseInt(bidAmount, 10) || 0);
 
-  // --- AUTO MODE ---
-  setIsBidManual(false); // keep auto mode
+        // --- MANUAL MODE: lock for this click only, then revert to auto ---
+        if (isBidManual) {
+            const amt = currentBid;
 
-  // Compute base (KCPL-aware if on)
-  const poolBase =
-    kcplMode && activePool
-      ? KCPL_RULES.pools?.[activePool]?.base ??
-        currentPlayer?.base_price ??
-        computeBasePrice(currentPlayer)
-      : currentPlayer?.base_price ?? computeBasePrice(currentPlayer);
+            // Validate against max-allowed
+            if (kcplMode) {
+                const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
+                const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
+                if (Number.isFinite(maxAllowed) && amt > maxAllowed) {
+                    alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
+                    return;
+                }
+                queueLightweightTeamSnapshot(team.id);
+            } else {
+                try {
+                    const teamData = await fetch(`${API}/api/teams/${team.id}`).then((r) => r.json());
+                    if (teamData?.max_bid_allowed != null && amt > teamData.max_bid_allowed) {
+                        alert(
+                            `❌ Bid blocked: Cannot bid ₹${amt.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
+                        );
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Max bid validation failed", e);
+                    alert("❌ Could not validate max bid. Try again.");
+                    return;
+                }
+            }
 
-  const base = Number(poolBase) || 0;
-  const newBid =
-    currentBid <= 0 ? base : currentBid + getDynamicBidIncrement(currentBid);
+            // Broadcast & persist without changing amount
+            socketRef.current?.emit("bidUpdated", {
+                bid_amount: amt,
+                team_name: team.name,
+                active_pool: activePool,
+            });
 
-  // Validate newBid
-  if (kcplMode) {
-    const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
-    const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
-    if (Number.isFinite(maxAllowed) && newBid > maxAllowed) {
-      alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
-      return;
-    }
-    queueLightweightTeamSnapshot(team.id);
-  } else {
-    try {
-      const teamData = await fetch(`${API}/api/teams/${team.id}`).then((r) => r.json());
-      if (teamData?.max_bid_allowed != null && newBid > teamData.max_bid_allowed) {
-        alert(
-          `❌ Bid blocked: Cannot bid ₹${newBid.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
-        );
-        return;
-      }
-    } catch (e) {
-      console.error("Max bid validation failed", e);
-      alert("❌ Could not validate max bid. Try again.");
-      return;
-    }
-  }
+            await fetch(`${API}/api/current-bid`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    bid_amount: amt,
+                    team_name: team.name,
+                    active_pool: activePool,
+                }),
+            });
 
-  setBidAmount(newBid);
+            // 🔁 IMPORTANT: consume manual mode so the NEXT click auto-flows
+            setIsBidManual(false);
+            return;
+        }
 
-  socketRef.current?.emit("bidUpdated", {
-    bid_amount: newBid,
-    team_name: team.name,
-    active_pool: activePool,
-  });
+        // --- AUTO MODE ---
+        setIsBidManual(false); // keep auto mode
 
-  await fetch(`${API}/api/current-bid`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      bid_amount: newBid,
-      team_name: team.name,
-      active_pool: activePool,
-    }),
-  });
-};
+        // Compute base (KCPL-aware if on)
+        const poolBase =
+            kcplMode && activePool
+                ? KCPL_RULES.pools?.[activePool]?.base ??
+                currentPlayer?.base_price ??
+                computeBasePrice(currentPlayer)
+                : currentPlayer?.base_price ?? computeBasePrice(currentPlayer);
+
+        const base = Number(poolBase) || 0;
+        const newBid =
+            currentBid <= 0 ? base : currentBid + getDynamicBidIncrement(currentBid);
+
+        // Validate newBid
+        if (kcplMode) {
+            const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
+            const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
+            if (Number.isFinite(maxAllowed) && newBid > maxAllowed) {
+                alert(`❌ Bid blocked. Max allowed is ₹${maxAllowed.toLocaleString()}`);
+                return;
+            }
+            queueLightweightTeamSnapshot(team.id);
+        } else {
+            try {
+                const teamData = await fetch(`${API}/api/teams/${team.id}`).then((r) => r.json());
+                if (teamData?.max_bid_allowed != null && newBid > teamData.max_bid_allowed) {
+                    alert(
+                        `❌ Bid blocked: Cannot bid ₹${newBid.toLocaleString()} as it exceeds the max allowed of ₹${teamData.max_bid_allowed.toLocaleString()}`
+                    );
+                    return;
+                }
+            } catch (e) {
+                console.error("Max bid validation failed", e);
+                alert("❌ Could not validate max bid. Try again.");
+                return;
+            }
+        }
+
+        setBidAmount(newBid);
+
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: newBid,
+            team_name: team.name,
+            active_pool: activePool,
+        });
+
+        await fetch(`${API}/api/current-bid`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                bid_amount: newBid,
+                team_name: team.name,
+                active_pool: activePool,
+            }),
+        });
+    };
 
 
 
@@ -1440,9 +1446,9 @@ const AdminPanel = () => {
                     defaultValue={"fireflies"}
                 >
                     {Object.keys(THEMES).map((key) => (
-                    <option key={key} value={key}>
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
-                    </option>
+                        <option key={key} value={key}>
+                            {key.charAt(0).toUpperCase() + key.slice(1)}
+                        </option>
                     ))}
                 </select>
             </div>
@@ -1747,25 +1753,25 @@ const AdminPanel = () => {
                                 </div>
                             </label>
                             <label className="flex items-center cursor-pointer space-x-2">
-  <span className="text-sm text-white">Bottom Marquee</span>
-  <input
-    type="checkbox"
-    className="sr-only"
-    checked={isMarqueeOn}
-    onChange={async () => {
-      const next = !isMarqueeOn;
-      setIsMarqueeOn(next);
-      await fetch(`${API}/api/custom-message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: next ? "__MARQUEE_ON__" : "__MARQUEE_OFF__" }),
-      });
-    }}
-  />
-  <div className={`w-10 h-5 rounded-full ${isMarqueeOn ? 'bg-green-500' : 'bg-red-400'} relative`}>
-    <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isMarqueeOn ? 'translate-x-5' : ''}`}></div>
-  </div>
-</label>
+                                <span className="text-sm text-white">Bottom Marquee</span>
+                                <input
+                                    type="checkbox"
+                                    className="sr-only"
+                                    checked={isMarqueeOn}
+                                    onChange={async () => {
+                                        const next = !isMarqueeOn;
+                                        setIsMarqueeOn(next);
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: next ? "__MARQUEE_ON__" : "__MARQUEE_OFF__" }),
+                                        });
+                                    }}
+                                />
+                                <div className={`w-10 h-5 rounded-full ${isMarqueeOn ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                    <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isMarqueeOn ? 'translate-x-5' : ''}`}></div>
+                                </div>
+                            </label>
 
                         </div>
 
