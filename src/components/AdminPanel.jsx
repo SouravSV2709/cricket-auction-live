@@ -59,6 +59,127 @@ const AdminPanel = () => {
     }, []);
 
 
+    // --- Quick-pick: Paid players (payment_success=true AND not deleted) ---
+    // ===== Quick-Pick UX: filter + search =====
+    const [serialView, setSerialView] = React.useState("paid"); // 'paid' | 'unpaid' | 'all'
+    const [serialQuery, setSerialQuery] = React.useState("");
+
+
+    // helpers
+    const isTrueish = (v) => v === true || String(v).toLowerCase() === "true";
+    const isFalseish = (v) => v === false || String(v).toLowerCase() === "false";
+    const notDeleted = (v) => v == null; // null or undefined
+
+    // map: serial -> player (for name/role lookups and status)
+    const serialToPlayer = React.useMemo(() => {
+        const m = new Map();
+        for (const p of players || []) {
+            const s = Number(p?.auction_serial);
+            if (Number.isFinite(s)) m.set(s, p);
+        }
+        return m;
+    }, [players]);
+
+    // build three lists (counts shown on tabs)
+    const paidSerials = React.useMemo(() => {
+        if (!Array.isArray(players)) return [];
+        return players
+            .filter(p => isTrueish(p?.payment_success) && notDeleted(p?.deleted_at))
+            .map(p => Number(p?.auction_serial))
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b);
+    }, [players]);
+
+
+    const allSerials = React.useMemo(() => {
+        if (!Array.isArray(players)) return [];
+        return players
+            .filter(p => notDeleted(p?.deleted_at))
+            .map(p => Number(p?.auction_serial))
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b);
+    }, [players]);
+
+    const soldSerials = React.useMemo(() => {
+        if (!Array.isArray(players)) return [];
+        return players
+            .filter(p => p?.sold_status === true && notDeleted(p?.deleted_at))
+            .map(p => Number(p?.auction_serial))
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b);
+    }, [players]);
+
+    const unsoldSerials = React.useMemo(() => {
+        if (!Array.isArray(players)) return [];
+        return players
+            .filter(p => p?.sold_status === false && notDeleted(p?.deleted_at))
+            .map(p => Number(p?.auction_serial))
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b);
+    }, [players]);
+
+    const notAuctionedSerials = React.useMemo(() => {
+        if (!Array.isArray(players)) return [];
+        return players
+            .filter(p => (p?.sold_status == null) && notDeleted(p?.deleted_at))
+            .map(p => Number(p?.auction_serial))
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b);
+    }, [players]);
+
+
+
+    // choose base list by tab
+    const serialsByView = React.useMemo(() => {
+        switch (serialView) {
+            case "sold": return soldSerials;
+            case "unsold": return unsoldSerials;
+            case "na": return notAuctionedSerials;
+            default: return allSerials;
+        }
+    }, [serialView, soldSerials, unsoldSerials, notAuctionedSerials, allSerials]);
+
+
+    // apply search (by serial or name/nickname)
+    const filteredSerials = React.useMemo(() => {
+        const q = serialQuery.trim().toLowerCase();
+        if (!q) return serialsByView;
+        return serialsByView.filter((s) => {
+            if (String(s).includes(q)) return true;
+            const p = serialToPlayer.get(s);
+            const name = String(p?.name || "").toLowerCase();
+            const nick = String(p?.nickname || "").toLowerCase();
+            return name.includes(q) || nick.includes(q);
+        });
+    }, [serialsByView, serialQuery, serialToPlayer]);
+
+    // generic color helper (Sold=Green, Unsold=Red, Ongoing=Yellow, Default=Gray)
+    const getSerialChipClass = (serial) => {
+        const base = "text-xs px-2 py-1 rounded-md transition-colors duration-150 border";
+        const isOngoing = Number(currentPlayer?.auction_serial) === Number(serial);
+        if (isOngoing) return `${base} bg-yellow-600/80 border-yellow-400 text-black font-semibold`;
+
+        const p = serialToPlayer.get(Number(serial));
+        const st = p?.sold_status;
+        if (st === true || String(st).toUpperCase() === "TRUE")
+            return `${base} bg-green-700/80 border-green-500 text-white`;   // SOLD
+        if (st === false || String(st).toUpperCase() === "FALSE")
+            return `${base} bg-red-700/80 border-red-500 text-white`;       // UNSOLD
+
+        return `${base} bg-gray-700/70 border-gray-600 text-white hover:bg-indigo-600 hover:border-indigo-400`; // default
+    };
+
+    // smooth scroll to current chip
+    const scrollToCurrentSerial = () => {
+        const s = Number(currentPlayer?.auction_serial);
+        if (!s) return;
+        const el = document.getElementById(`serial-chip-${s}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    };
+
+
+
+
     useEffect(() => {
         const fetchTournamentId = async () => {
             try {
@@ -244,29 +365,66 @@ const AdminPanel = () => {
         fetchBidIncrements();
     }, []);
 
+    // ✅ Socket listeners: recolour chips on all Admin screens (safe placement after refreshKcplTeamStates)
     useEffect(() => {
         if (!socketRef.current) return;
 
-        // When server announces a sale, refresh the summary panel
-        const onPlayerSold = (payload) => {
-            // Option A: refresh whole panel
-            refreshKcplTeamStates();
+        const onPlayerSold = (payload = {}) => {
+            const { player_id, team_id, sold_price, sold_pool } = payload;
 
-            // Option B (faster): also refresh just the affected team row if you enabled /team-state/:id
-            // if (payload?.team_id) {
-            //   fetch(`${API}/api/kcpl/team-state/${payload.team_id}`)
-            //     .then(r => r.json())
-            //     .then(snap => setTeamPoolState(snap))
-            //     .catch(() => {});
-            // }
+            // 1) Update local players[] -> triggers chip colour recompute
+            setPlayers(prev =>
+                Array.isArray(prev)
+                    ? prev.map(p =>
+                        Number(p.id) === Number(player_id)
+                            ? { ...p, sold_status: true, team_id, sold_price, sold_pool }
+                            : p
+                    )
+                    : prev
+            );
+
+            // 2) Keep current player in sync if it's the same one
+            setCurrentPlayer(prev =>
+                prev && Number(prev.id) === Number(player_id)
+                    ? { ...prev, sold_status: true, team_id, sold_price, sold_pool }
+                    : prev
+            );
+
+            // 3) (optional) KCPL summary refresh
+            refreshKcplTeamStates?.();
+        };
+
+        const onPlayerUnsold = (payload = {}) => {
+            const { player_id, sold_pool } = payload;
+
+            setPlayers(prev =>
+                Array.isArray(prev)
+                    ? prev.map(p =>
+                        Number(p.id) === Number(player_id)
+                            ? { ...p, sold_status: false, team_id: null, sold_price: 0, sold_pool }
+                            : p
+                    )
+                    : prev
+            );
+
+            setCurrentPlayer(prev =>
+                prev && Number(prev.id) === Number(player_id)
+                    ? { ...prev, sold_status: false, team_id: null, sold_price: 0, sold_pool }
+                    : prev
+            );
+
+            refreshKcplTeamStates?.();
         };
 
         socketRef.current.on("playerSold", onPlayerSold);
+        socketRef.current.on("playerUnsold", onPlayerUnsold);
 
         return () => {
-            socketRef.current.off("playerSold", onPlayerSold);
+            socketRef.current?.off("playerSold", onPlayerSold);
+            socketRef.current?.off("playerUnsold", onPlayerUnsold);
         };
-    }, [tournamentId, activePool, kcplMode]);
+    }, [kcplMode, tournamentId, activePool]); // note: not capturing refreshKcplTeamStates to avoid TDZ
+
 
 
 
@@ -656,6 +814,25 @@ const AdminPanel = () => {
         setBidAmount(0);
         setSelectedTeam("");
 
+        // 🔄 Keep local players[] in sync so quick-pick chip colours update instantly
+        setPlayers(prev =>
+            Array.isArray(prev)
+                ? prev.map(p =>
+                    Number(p.id) === Number(currentPlayer.id)
+                        ? {
+                            ...p,
+                            // we normalize to boolean locally (colour logic accepts both)
+                            sold_status: true,
+                            team_id: teamId,
+                            sold_price: bidAmount,
+                            sold_pool: activePool,
+                        }
+                        : p
+                )
+                : prev
+        );
+
+
         // ✅ Immediately reset the bid on server & broadcast (no 3s delay)
         fetch(`${API}/api/current-bid`, {
             method: "PUT",
@@ -740,6 +917,24 @@ const AdminPanel = () => {
         setCurrentPlayer(updatedPlayer);
         setBidAmount(0);
         setSelectedTeam("");
+
+        // 🔄 Keep local players[] in sync so quick-pick chip colours update instantly
+        setPlayers(prev =>
+            Array.isArray(prev)
+                ? prev.map(p =>
+                    Number(p.id) === Number(currentPlayer.id)
+                        ? {
+                            ...p,
+                            sold_status: false,
+                            team_id: null,
+                            sold_price: 0,
+                            sold_pool: activePool,
+                        }
+                        : p
+                )
+                : prev
+        );
+
 
         // Reset current bid immediately + broadcast
         // Reset current bid on the server silently (no broadcast)
@@ -869,11 +1064,25 @@ const AdminPanel = () => {
 
 
 
-
-    const handleSearchById = async () => {
+    // ---- Full replacement: resilient search by serial ----
+    const handleSearchById = async (idOverride) => {
         try {
+            // take from pill if provided, otherwise from the input
+            const raw = idOverride ?? searchId;
+            const idToFind = raw != null ? String(raw).trim() : "";
+            if (!idToFind) {
+                alert("Please enter or select a player serial.");
+                return;
+            }
+
+            // normalize to number when possible (handles "007", "  15 " etc.)
+            const n = Number(idToFind);
+            const serialParam = Number.isFinite(n) ? String(n) : idToFind;
+
             // 1) Find the player by serial
-            const res = await fetch(`${API}/api/players/by-serial/${searchId}?slug=${tournamentSlug}`);
+            const res = await fetch(
+                `${API}/api/players/by-serial/${encodeURIComponent(serialParam)}?slug=${tournamentSlug}`
+            );
             if (!res.ok) {
                 alert("❌ Player not found.");
                 return;
@@ -881,24 +1090,25 @@ const AdminPanel = () => {
             const basic = await res.json();
 
             // ✅ Validate tournament_id
-            if (basic.tournament_id !== tournamentId) {
+            if (Number(basic.tournament_id) !== Number(tournamentId)) {
                 alert("❌ Player not found in this tournament.");
                 return;
             }
 
-            // 2) Get full player (when KCPL is OFF, don't pass active_pool)
-            const detailUrl = (kcplMode && activePool)
-                ? `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
-                : `${API}/api/players/${basic.id}?slug=${tournamentSlug}`;
+            // 2) Get full player
+            const detailUrl =
+                kcplMode && activePool
+                    ? `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
+                    : `${API}/api/players/${basic.id}?slug=${tournamentSlug}`;
 
             const detailedRes = await fetch(detailUrl);
             if (!detailedRes.ok) {
                 alert("❌ Failed to load player details.");
                 return;
             }
-            const detailed = await detailedRes.json(); // ← define 'detailed'
+            const detailed = await detailedRes.json();
 
-            // 3) Update current player + reset bid (in parallel)
+            // 3) Update current player + reset bid
             await Promise.all([
                 fetch(`${API}/api/current-player`, {
                     method: "PUT",
@@ -922,7 +1132,8 @@ const AdminPanel = () => {
             // 5) Update Admin UI
             await fetchCurrentPlayer();
             setBidAmount(0);
-            setSelectedTeam('');
+            setSelectedTeam("");
+            setSearchId(serialParam); // keep the input synced (e.g., from pill click)
         } catch (err) {
             console.error("❌ Error in handleSearchById:", err);
             alert("❌ Failed to find player. Please try again.");
@@ -1427,7 +1638,7 @@ const AdminPanel = () => {
                 )}
             </div>
 
-            <div className="my-4">
+            {/* <div className="my-4">
                 <label htmlFor="themeSelect" className="text-sm font-bold mr-2 text-white">🎨 Theme:</label>
                 <select
                     id="themeSelect"
@@ -1451,7 +1662,7 @@ const AdminPanel = () => {
                         </option>
                     ))}
                 </select>
-            </div>
+            </div> */}
 
 
             {/* Set Bid increment */}
@@ -1607,6 +1818,202 @@ const AdminPanel = () => {
 
                         {/* 🟩 Team Selection */}
                         <div>
+                            {/* 🔍 Player Search Section */}
+                            <div>
+                                <h3 className="text-lg font-semibold mb-2 text-white">🔍 Search Player by ID:</h3>
+                                {/* ===== Quick Select (better UX) ===== */}
+                                <div className="mb-4 space-y-2">
+                                    {/* Toolbar */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {/* Tabs: Sold / Unsold / Not Auctioned / All */}
+                                        <div className="inline-flex rounded-md overflow-hidden border border-gray-700">
+                                            <button
+                                                type="button"
+                                                onClick={() => setSerialView("sold")}
+                                                className={`px-3 py-1.5 text-sm ${serialView === "sold" ? "bg-emerald-600 text-white" : "bg-gray-800 text-gray-200 hover:bg-gray-700"}`}
+                                            >
+                                                Sold ({soldSerials.length})
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSerialView("unsold")}
+                                                className={`px-3 py-1.5 text-sm border-l border-gray-700 ${serialView === "unsold" ? "bg-rose-600 text-white" : "bg-gray-800 text-gray-200 hover:bg-gray-700"}`}
+                                            >
+                                                Unsold ({unsoldSerials.length})
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSerialView("na")}
+                                                className={`px-3 py-1.5 text-sm border-l border-gray-700 ${serialView === "na" ? "bg-amber-600 text-black" : "bg-gray-800 text-gray-200 hover:bg-gray-700"}`}
+                                            >
+                                                Not Auctioned ({notAuctionedSerials.length})
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSerialView("all")}
+                                                className={`px-3 py-1.5 text-sm border-l border-gray-700 ${serialView === "all" ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-200 hover:bg-gray-700"}`}
+                                            >
+                                                All ({allSerials.length})
+                                            </button>
+                                        </div>
+
+                                        {/* Search */}
+                                        <input
+                                            value={serialQuery}
+                                            onChange={(e) => setSerialQuery(e.target.value)}
+                                            placeholder="Search serial or name…"
+                                            className="px-3 py-1.5 text-sm rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            style={{ minWidth: 220 }}
+                                        />
+
+                                        {/* Scroll to current */}
+                                        <button
+                                            type="button"
+                                            onClick={scrollToCurrentSerial}
+                                            className="ml-auto px-3 py-1.5 text-sm rounded-md bg-gray-800 text-gray-200 hover:bg-gray-700 border border-gray-700"
+                                            title="Scroll to current player"
+                                        >
+                                            ⤴ Scroll to Current
+                                        </button>
+                                    </div>
+
+
+                                    {/* Legend */}
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-300">
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="w-3 h-3 rounded-sm bg-green-700 border border-green-500"></span> Sold
+                                        </span>
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="w-3 h-3 rounded-sm bg-red-700 border border-red-500"></span> Unsold
+                                        </span>
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="w-3 h-3 rounded-sm bg-yellow-600 border border-yellow-400"></span> Ongoing
+                                        </span>
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="w-3 h-3 rounded-sm bg-gray-700 border border-gray-600"></span> Default
+                                        </span>
+                                    </div>
+
+                                    {/* Chips */}
+                                    <div className="max-h-50 overflow-y-auto bg-gray-900/70 border border-gray-700 rounded-lg p-2">
+                                        {filteredSerials.length === 0 ? (
+                                            <div className="text-xs text-gray-400 px-1 py-2">No players match your filter.</div>
+                                        ) : (
+                                            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 lg:grid-cols-16 gap-1">
+                                                {filteredSerials.map((s) => {
+                                                    const p = serialToPlayer.get(s);
+                                                    const isDisabled = Number(currentPlayer?.auction_serial) === Number(s) || isTeamViewActive;
+                                                    return (
+                                                        <button
+                                                            id={`serial-chip-${s}`}
+                                                            key={s}
+                                                            type="button"
+                                                            title={p ? `#${s} • ${p.name}${p?.nickname ? ` (${p.nickname})` : ""}` : `#${s}`}
+                                                            className={getSerialChipClass(s)}
+                                                            disabled={isDisabled}
+                                                            onClick={() => handleSearchById(s)}
+                                                        >
+                                                            #{s}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        className="p-2 rounded text-black w-full sm:w-1/3"
+                                        placeholder="Enter Serial"
+                                        value={searchId}
+                                        onChange={(e) => setSearchId(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") handleSearchById(); }}
+                                    />
+
+                                    <button
+                                        onClick={() => handleSearchById()}
+                                        className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold shadow"
+                                        disabled={isTeamViewActive}
+                                    >
+                                        🔍 Show Player
+                                    </button>
+                                    <button
+                                        className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
+                                        onClick={handleNextPlayer}
+                                        disabled={isTeamViewActive}
+                                    >
+                                        ➡️ Next Player
+                                    </button>
+                                    <button
+                                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
+                                        onClick={clearCurrentPlayer}
+                                        disabled={isTeamViewActive}
+                                    >
+                                        🚫 Clear Current Player
+                                    </button>
+                                </div>
+                            </div>
+
+
+                            {/* 👤 Current Player Details */}
+                            <div className="bg-gray-900 p-4 border border-gray-700 rounded-lg">
+                                <h3 className="text-lg font-semibold mb-2 text-white">🎯 Current Player:</h3>
+                                {currentPlayer ? (
+                                    <div className="text-sm space-y-1 text-white">
+                                        <p><strong>ID:</strong> {currentPlayer.id}</p>
+                                        <p><strong>Auction-serial:</strong> {currentPlayer.auction_serial}</p>
+                                        <p><strong>Player-category:</strong> {currentPlayer.base_category}</p>
+                                        <p><strong>Name:</strong> {currentPlayer.name}</p>
+                                        <p><strong>Role:</strong> {currentPlayer.role}</p>
+                                        <p><strong>Base Price:</strong> ₹{currentPlayer.base_price}</p>
+
+                                        <p className="text-yellow-300">
+                                            <strong>Sold Status:</strong> {String(currentPlayer.sold_status).toUpperCase()}
+                                        </p>
+
+                                        <p><strong>Secret Bididng:</strong> {String(currentPlayer.secret_bidding_enabled).toUpperCase()}</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-400">No current player selected.</p>
+                                )}
+                            </div>
+
+                            {kcplMode && kcplTeamStates.length > 0 && (
+                                <table className="mt-2 text-xs text-gray-300 w-full">
+                                    <thead>
+                                        <tr>
+                                            <th className="px-2 py-1 text-left">Team</th>
+                                            <th className="px-2 py-1 text-left">Limit</th>
+                                            <th className="px-2 py-1 text-left">Spent</th>
+                                            <th className="px-2 py-1 text-left">Bought</th>
+                                            <th className="px-2 py-1 text-left">Remaining</th>
+                                            <th className="px-2 py-1 text-left">Max Bid</th>
+                                            <th className="px-2 py-1 text-left">Max Players</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {kcplTeamStates.map((team, index) => (
+                                            <tr key={`${team?.teamId || team?.teamName || 'team'}-${index}`}>
+                                                <td>{team.teamName}</td>
+                                                <td>{team?.limitByPool?.[activePool] ?? 0}</td>
+                                                <td>{team?.spentByPool?.[activePool] ?? 0}</td>
+                                                <td>{team?.boughtByPool?.[activePool] ?? 0}</td>
+                                                <td>
+                                                    {(team?.limitByPool?.[activePool] ?? 0) -
+                                                        (team?.spentByPool?.[activePool] ?? 0)}
+                                                </td>
+                                                <td>{team?.poolStats?.[activePool]?.maxBid ?? 0}</td>
+                                                <td>{team?.poolStats?.[activePool]?.maxPlayers ?? 0}</td>
+
+
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+
+                            )}
                             <div className="flex justify-between items-center mb-2">
                                 <h3 className="text-base font-semibold text-white">Select Team:</h3>
                                 <label className="flex items-center cursor-pointer">
@@ -1799,98 +2206,7 @@ const AdminPanel = () => {
                             </div>
                         </div>
 
-                        {/* 🔍 Player Search Section */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-2 text-white">🔍 Search Player by ID:</h3>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    className="p-2 rounded text-black w-full sm:w-1/3"
-                                    placeholder="Enter Player ID"
-                                    onChange={(e) => setSearchId(e.target.value.trim())}
-                                />
-                                <button
-                                    onClick={handleSearchById}
-                                    className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold shadow"
-                                    disabled={isTeamViewActive}
-                                >
-                                    🔍 Show Player
-                                </button>
-                                <button
-                                    className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
-                                    onClick={handleNextPlayer}
-                                    disabled={isTeamViewActive}
-                                >
-                                    ➡️ Next Player
-                                </button>
-                                <button
-                                    className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-4 py-2 rounded shadow"
-                                    onClick={clearCurrentPlayer}
-                                    disabled={isTeamViewActive}
-                                >
-                                    🚫 Clear Current Player
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* 👤 Current Player Details */}
-                        <div className="bg-gray-900 p-4 border border-gray-700 rounded-lg">
-                            <h3 className="text-lg font-semibold mb-2 text-white">🎯 Current Player:</h3>
-                            {currentPlayer ? (
-                                <div className="text-sm space-y-1 text-white">
-                                    <p><strong>ID:</strong> {currentPlayer.id}</p>
-                                    <p><strong>Auction-serial:</strong> {currentPlayer.auction_serial}</p>
-                                    <p><strong>Player-category:</strong> {currentPlayer.base_category}</p>
-                                    <p><strong>Name:</strong> {currentPlayer.name}</p>
-                                    <p><strong>Role:</strong> {currentPlayer.role}</p>
-                                    <p><strong>Base Price:</strong> ₹{currentPlayer.base_price}</p>
-
-                                    <p className="text-yellow-300">
-                                        <strong>Sold Status:</strong> {String(currentPlayer.sold_status).toUpperCase()}
-                                    </p>
-
-                                    <p><strong>Secret Bididng:</strong> {String(currentPlayer.secret_bidding_enabled).toUpperCase()}</p>
-                                </div>
-                            ) : (
-                                <p className="text-gray-400">No current player selected.</p>
-                            )}
-                        </div>
-
-                        {kcplMode && kcplTeamStates.length > 0 && (
-                            <table className="mt-2 text-xs text-gray-300 w-full">
-                                <thead>
-                                    <tr>
-                                        <th className="px-2 py-1 text-left">Team</th>
-                                        <th className="px-2 py-1 text-left">Limit</th>
-                                        <th className="px-2 py-1 text-left">Spent</th>
-                                        <th className="px-2 py-1 text-left">Bought</th>
-                                        <th className="px-2 py-1 text-left">Remaining</th>
-                                        <th className="px-2 py-1 text-left">Max Bid</th>
-                                        <th className="px-2 py-1 text-left">Max Players</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {kcplTeamStates.map((team, index) => (
-                                        <tr key={`${team?.teamId || team?.teamName || 'team'}-${index}`}>
-                                            <td>{team.teamName}</td>
-                                            <td>{team?.limitByPool?.[activePool] ?? 0}</td>
-                                            <td>{team?.spentByPool?.[activePool] ?? 0}</td>
-                                            <td>{team?.boughtByPool?.[activePool] ?? 0}</td>
-                                            <td>
-                                                {(team?.limitByPool?.[activePool] ?? 0) -
-                                                    (team?.spentByPool?.[activePool] ?? 0)}
-                                            </td>
-                                            <td>{team?.poolStats?.[activePool]?.maxBid ?? 0}</td>
-                                            <td>{team?.poolStats?.[activePool]?.maxPlayers ?? 0}</td>
-
-
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-
-                        )}
 
 
                     </div>

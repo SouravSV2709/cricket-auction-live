@@ -58,6 +58,21 @@ const SpectatorLiveDisplay = () => {
     const [animClass, setAnimClass] = useState("");     // 'pop-out' or 'pop-in'
     const [animTick, setAnimTick] = useState(0); // bumps to force remount+animation
     const confettiRafRef = useRef(null);
+    const playerStatusRef = useRef(new Map()); // id -> "TRUE" | "FALSE"
+    const confettiBlockRef = useRef(false); // when true, refuse to start confetti
+
+
+
+    // Normalize SOLD/UNSOLD coming as "TRUE"/"true"/true/etc.
+    const normSoldFlag = (v) => {
+        if (typeof v === "string") return v.trim().toUpperCase();
+        if (v === true) return "TRUE";
+        if (v === false) return "FALSE";
+        return "";
+    };
+    const isSoldFlag = (v) => normSoldFlag(v) === "TRUE";
+    const isUnsoldFlag = (v) => normSoldFlag(v) === "FALSE";
+
 
     const soldMarqueeItems = useMemo(() => {
         if (!Array.isArray(playerList) || !Array.isArray(teamSummaries)) return [];
@@ -73,11 +88,6 @@ const SpectatorLiveDisplay = () => {
                 return { name: p?.name || "-", team: teamName || "-" };
             });
     }, [playerList, teamSummaries]);
-
-
-
-
-
 
 
     useEffect(() => {
@@ -155,26 +165,46 @@ const SpectatorLiveDisplay = () => {
     };
 
     const triggerConfettiIfSold = (playerData) => {
-        const isSold = ["TRUE", "true", true].includes(playerData?.sold_status);
-        if (!isSold) return;
+        const id = Number(playerData?.id);
+        const statusNow = normSoldFlag(playerData?.sold_status);
 
-        // prevent duplicate confetti for the same player
-        if (lastConfettiPlayerId.current === playerData?.id) return;
-        lastConfettiPlayerId.current = playerData?.id;
+        // Hard block (raised briefly on UNSOLD)
+        if (confettiBlockRef.current) return;
 
-        setTimeout(() => {
-            const duration = 3000;
-            const end = Date.now() + duration;
-            const frame = () => {
-                confetti({ particleCount: 12, angle: 60, spread: 100, origin: { x: 0 } });
-                confetti({ particleCount: 12, angle: 120, spread: 100, origin: { x: 1 } });
-                confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-                confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
-                if (Date.now() < end) if (Date.now() < end) confettiRafRef.current = requestAnimationFrame(frame);
-            };
-            frame();
-        }, 100);
+        // Only start if SOLD right now
+        if (statusNow !== "TRUE") return;
+
+        // If we’ve already marked this player UNSOLD, never start
+        if (normSoldFlag(playerStatusRef.current.get(id)) === "FALSE") return;
+
+        // Prevent duplicates
+        if (lastConfettiPlayerId.current === id) return;
+        lastConfettiPlayerId.current = id;
+
+        const duration = 3000;
+        const end = Date.now() + duration;
+
+        const frame = () => {
+            // Abort immediately if status flips or a block is raised
+            if (confettiBlockRef.current || normSoldFlag(playerStatusRef.current.get(id)) !== "TRUE") {
+                if (confettiRafRef.current) {
+                    cancelAnimationFrame(confettiRafRef.current);
+                    confettiRafRef.current = null;
+                }
+                return;
+            }
+
+            confetti({ particleCount: 12, angle: 60, spread: 100, origin: { x: 0 } });
+            confetti({ particleCount: 12, angle: 120, spread: 100, origin: { x: 1 } });
+            confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
+            confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
+
+            if (Date.now() < end) confettiRafRef.current = requestAnimationFrame(frame);
+        };
+
+        confettiRafRef.current = requestAnimationFrame(frame);
     };
+
 
 
     const fetchPlayer = async () => {
@@ -215,9 +245,9 @@ const SpectatorLiveDisplay = () => {
             }
 
             setPlayer(fullPlayer);
+            playerStatusRef.current.set(Number(fullPlayer.id), normSoldFlag(fullPlayer.sold_status));
             animatePlayerSwap(fullPlayer);
             setSecretBidActive(fullPlayer?.secret_bidding_enabled === true);
-            triggerConfettiIfSold(fullPlayer);
 
             // 🔹 Fetch Cricheroes stats if ID exists
             if (fullPlayer.cricheroes_id) {
@@ -332,7 +362,12 @@ const SpectatorLiveDisplay = () => {
                     : prev
             );
 
+
+
+            playerStatusRef.current.set(Number(payload?.player_id), "TRUE");
+            confettiBlockRef.current = false; // clear any leftover block
             triggerConfettiIfSold({ id: payload?.player_id, sold_status: "TRUE" });
+
 
             setHighestBid(Number(payload?.sold_price) || 0);
             setLeadingTeam(resolvedName || "");
@@ -347,23 +382,35 @@ const SpectatorLiveDisplay = () => {
 
         // 🚫 UNSOLD (optimistic: clear team & sold_price locally)
         const onPlayerUnsold = ({ player_id, sold_pool }) => {
-            // stop any ongoing confetti immediately
+            // Stop any ongoing confetti immediately
             if (confettiRafRef.current) {
                 cancelAnimationFrame(confettiRafRef.current);
                 confettiRafRef.current = null;
             }
-            // allow future SOLD events to trigger again
+            // Reset duplicate guard for future players
             lastConfettiPlayerId.current = null;
+
+            // Mark UNSOLD + short block to reject late SOLD races
+            playerStatusRef.current.set(Number(player_id), "FALSE");
+            confettiBlockRef.current = true;
+            setTimeout(() => { confettiBlockRef.current = false; }, 1200);
 
             setPlayer(prev =>
                 prev && Number(prev.id) === Number(player_id)
                     ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
                     : prev
             );
+
+            
             setHighestBid(0);
             setLeadingTeam("");
-            fastRefresh();
+
+            // cheap refreshes (your existing helpers)
+            fetchAllPlayers?.();
+            fetchTeams?.();
         };
+
+
 
         socket.on("playerUnsold", onPlayerUnsold);
 
@@ -417,8 +464,9 @@ const SpectatorLiveDisplay = () => {
     const team = Array.isArray(teamSummaries)
         ? teamSummaries.find(t => t.id === Number(vis?.team_id))
         : null;
-    const isSold = ["TRUE", "true", true].includes(vis?.sold_status);
-    const isUnsold = ["FALSE", "false", false].includes(vis?.sold_status);
+    const isSold = isSoldFlag(vis?.sold_status);
+    const isUnsold = isUnsoldFlag(vis?.sold_status);
+
 
 
     return (
