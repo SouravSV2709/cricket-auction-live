@@ -691,75 +691,62 @@ const AdminPanel = () => {
 
 
     const markAsUnsold = async () => {
-        // Save undo
-        setUndoStack(prev => [...prev, { type: "unsold", player: currentPlayer }]);
+  // Save undo
+  setUndoStack(prev => [...prev, { type: "unsold", player: currentPlayer }]);
 
-        // Prepare updated player (DB truth)
-        const updatedPlayer = {
-            ...currentPlayer,
-            sold_status: "FALSE",
-            team_id: null,
-            sold_price: 0,
-            sold_pool: activePool,
-        };
+  // Prepare updated player (DB truth)
+  const updatedPlayer = {
+    ...currentPlayer,
+    sold_status: "FALSE",
+    team_id: null,
+    sold_price: 0,
+    sold_pool: activePool,
+  };
 
-        // Tell spectators to show the UNSOLD overlay (socket)
-        socketRef.current?.emit("playerUnsold", {
-            player_id: currentPlayer.id,
-            sold_pool: activePool,
-        });
+  // Tell spectators to show the UNSOLD overlay (visual/audio only)
+  socketRef.current?.emit("playerUnsold", {
+    player_id: currentPlayer.id,
+    sold_pool: activePool,
+  });
 
-        // Persist to DB (current-player + players)
-        await Promise.all([
-            fetch(`${API}/api/current-player`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedPlayer),
-            }),
-            fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedPlayer),
-            }),
-        ]);
+  // Persist to DB (current-player + players)
+  await Promise.all([
+    fetch(`${API}/api/current-player`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedPlayer),
+    }),
+    fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedPlayer),
+    }),
+  ]);
 
-        // Notify spectators with a MINIMAL payload (prevents 0/null flicker)
-        const minimalUnsold = {
-            id: currentPlayer.id,
-            sold_status: "FALSE",
-            sold_pool: activePool,
-        };
-        fetch(`${API}/api/notify-player-change`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(minimalUnsold),
-        });
+  // Optimistic Admin UI
+  if (window?.toast) window.toast.info("Player marked as UNSOLD.");
+  setCurrentPlayer(updatedPlayer);
+  setBidAmount(0);
+  setSelectedTeam("");
 
-        // Optimistic Admin UI
-        if (window?.toast) window.toast.info("Player marked as UNSOLD.");
-        setCurrentPlayer(updatedPlayer);
-        setBidAmount(0);
-        setSelectedTeam("");
+  // Reset current bid on the server SILENTLY (no socket broadcast)
+  // Delay to let spectators finish the UNSOLD overlay
+  setTimeout(() => {
+    fetch(`${API}/api/current-bid`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+    });
+  }, 1200);
 
-        // Reset current bid immediately + broadcast
-        // Reset current bid on the server silently (no broadcast)
-        // Optional: delay to let spectators finish the UNSOLD overlay
-        setTimeout(() => {
-            fetch(`${API}/api/current-bid`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bid_amount: 0, team_name: "" }),
-            });
-        }, 1200);
+  // Optional: refresh KCPL summaries for Admin view
+  try {
+    await refreshKcplTeamStates();
+  } catch (e) {
+    console.warn("KCPL table refresh failed:", e);
+  }
+};
 
-
-        // Fast KCPL summary refresh (optional)
-        try {
-            await refreshKcplTeamStates();
-        } catch (e) {
-            console.warn("KCPL table refresh failed:", e);
-        }
-    };
 
 
 
