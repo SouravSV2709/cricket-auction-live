@@ -2506,21 +2506,20 @@ const SpectatorLiveDisplay = () => {
 
 
 
-                    {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
-                        (isWaitingForBid &&
-                            !(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status))) ? (
-                            // ⛔ Shown only when actively waiting AND NOT UNSOLD
-                            <div className="text-center items-center justify-center">
+                            {!isValidSold(player) && (
+                            isWaitingForBid && !unsoldOverlayActive ? (
+                                // ⛔ Shown only when actively waiting AND NOT UNSOLD
+                                <div className="text-center items-center justify-center">
                                 <img
                                     src="/bidding.gif"
                                     alt="Waiting for a Bid"
                                     className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
                                 />
-                                <p className="text-3xl text-yellow-300  animate-pulse">
+                                <p className="text-3xl text-yellow-300 animate-pulse">
                                     Waiting for a Bid.
                                 </p>
-                            </div>
-                        ) : (
+                                </div>
+                            ) : (
                             <>
                                 {(() => {
                                     const leadingTeamObj = Array.isArray(teamSummaries)
