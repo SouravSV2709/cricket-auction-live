@@ -75,7 +75,7 @@ const AdminPanel = () => {
         const m = new Map();
         for (const p of players || []) {
             const s = Number(p?.auction_serial);
-            if (Number.isFinite(s)) m.set(s, p);
+            if (Number.isFinite(s) && s >= 1) m.set(s, p);
         }
         return m;
     }, [players]);
@@ -96,7 +96,7 @@ const AdminPanel = () => {
         return players
             .filter(p => notDeleted(p?.deleted_at))
             .map(p => Number(p?.auction_serial))
-            .filter(Number.isFinite)
+            .filter(s => Number.isFinite(s) && s >= 1)
             .sort((a, b) => a - b);
     }, [players]);
 
@@ -105,7 +105,7 @@ const AdminPanel = () => {
         return players
             .filter(p => p?.sold_status === true && notDeleted(p?.deleted_at))
             .map(p => Number(p?.auction_serial))
-            .filter(Number.isFinite)
+            .filter(s => Number.isFinite(s) && s >= 1)
             .sort((a, b) => a - b);
     }, [players]);
 
@@ -114,7 +114,7 @@ const AdminPanel = () => {
         return players
             .filter(p => p?.sold_status === false && notDeleted(p?.deleted_at))
             .map(p => Number(p?.auction_serial))
-            .filter(Number.isFinite)
+            .filter(s => Number.isFinite(s) && s >= 1)
             .sort((a, b) => a - b);
     }, [players]);
 
@@ -123,7 +123,7 @@ const AdminPanel = () => {
         return players
             .filter(p => (p?.sold_status == null) && notDeleted(p?.deleted_at))
             .map(p => Number(p?.auction_serial))
-            .filter(Number.isFinite)
+            .filter(s => Number.isFinite(s) && s >= 1)
             .sort((a, b) => a - b);
     }, [players]);
 
