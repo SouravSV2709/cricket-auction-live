@@ -1034,7 +1034,8 @@ app.put('/api/players/:id', async (req, res) => {
      SET sold_status = $1,
          team_id     = $2,
          sold_price  = $3,
-         sold_pool   = $4
+         sold_pool   = $4,
+         updated_at  = NOW()
    WHERE id = $5`,
       [sold_status, team_id, Number(sold_price) || 0, poolToSave, playerId]
     );
@@ -1151,7 +1152,8 @@ app.patch('/api/players/:id', async (req, res) => {
        SET sold_status = $1,
            sold_price = $2,
            team_id = $3,
-           sold_pool = $4
+           sold_pool = $4,
+           updated_at  = NOW()
        WHERE id = $5`,
       [sold_status, sold_price, team_id, sold_pool || effectiveCategory, playerId]
     );

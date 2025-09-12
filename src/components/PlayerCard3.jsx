@@ -162,7 +162,7 @@ const PlayerCard3 = ({
                     </div>
                 </div>
 
-                {/* 🔻 SOLD PLAYERS MARQUEE (below the ribbon) */}
+                {/* 🔻 SOLD / UNSOLD MARQUEE (below the ribbon) */}
                 {Array.isArray(soldMarqueeItems) && soldMarqueeItems.length > 0 && (
                     <div className="w-full mt-2">
                         <marquee
@@ -171,14 +171,28 @@ const PlayerCard3 = ({
                             scrollamount="6"
                             className="block w-full bg-black/40 text-white py-2 rounded-xl"
                         >
-                            {soldMarqueeItems.map((it, idx) => (
-                                <span key={idx} className="mx-8 text-base md:text-lg tracking-wide">
-                                    {it.name} — {it.team}
-                                </span>
-                            ))}
+                            {soldMarqueeItems.map((it, idx) => {
+                                const isSold = it.status === "TRUE";
+                                const label = isSold
+                                    ? `#${it.serial || "-"} ${it.name} — SOLD to ${it.team} (${formatINR(it.sold_price)})`
+                                    : `#${it.serial || "-"} ${it.name} — UNSOLD`;
+
+                                return (
+                                    <span
+                                        key={it.id ?? idx}
+                                        className={`mx-8 text-base md:text-lg tracking-wide ${it.isLatest ? "text-yellow-300 font-extrabold underline animate-pulse" : ""
+                                            }`}
+                                    >
+                                        {label}
+                                    </span>
+                                );
+                            })}
                         </marquee>
                     </div>
                 )}
+
+
+
 
 
 

@@ -682,29 +682,7 @@ const SpectatorLiveDisplay = () => {
         }
     };
 
-    // 🔴 Unsold rain trigger
-
-    const triggerUnsoldRain = () => {
-        const duration = 2000;
-        const end = Date.now() + duration;
-
-        (function frame() {
-            confetti({
-                particleCount: 8,
-                angle: 90,          // downward
-                spread: 40,
-                startVelocity: 20,
-                gravity: 1.5,
-                origin: { x: Math.random(), y: 0 }, // random spots at top
-                colors: ["#9ca3af", "#6b7280", "#374151", "#ffffff"], // muted greys
-            });
-            if (Date.now() < end) requestAnimationFrame(frame);
-        })();
-    };
-
-    // 😞 UNSOLD disappointment emoji rain
-    // 😞 Disappointment Emoji Rain using DOM elements
-    // 😞 Disappointment Emoji Rain (slower, more emojis)
+        // 😞 Disappointment Emoji Rain (slower, more emojis)
     const triggerUnsoldEmojiRain = () => {
         const container = document.createElement("div");
         container.style.position = "fixed";
@@ -1937,10 +1915,16 @@ const SpectatorLiveDisplay = () => {
     if (customView === "team-stats") {
         // One block if <=8 teams; otherwise split into two
         const MAX_PER_BLOCK = 8;
-        const groups =
-            teamSummaries.length > MAX_PER_BLOCK
-                ? [teamSummaries.slice(0, MAX_PER_BLOCK), teamSummaries.slice(MAX_PER_BLOCK)]
-                : [teamSummaries];
+
+// If 8 or fewer, keep single column. Otherwise, split evenly.
+const groups =
+  teamSummaries.length > MAX_PER_BLOCK
+    ? [
+        teamSummaries.slice(0, Math.ceil(teamSummaries.length / 2)),
+        teamSummaries.slice(Math.ceil(teamSummaries.length / 2)),
+      ]
+    : [teamSummaries];
+
 
         const getTeamPlayers = (teamId) =>
             playerList.filter(

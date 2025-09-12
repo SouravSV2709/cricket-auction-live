@@ -59,7 +59,7 @@ const SpectatorLiveDisplay = () => {
     const [animTick, setAnimTick] = useState(0); // bumps to force remount+animation
     const confettiRafRef = useRef(null);
     const playerStatusRef = useRef(new Map()); // id -> "TRUE" | "FALSE"
-    const confettiBlockRef = useRef(false); // when true, refuse to start confetti
+    const confettiBlockRef = useRef(true); // when true, refuse to start confetti
 
 
 
@@ -74,20 +74,33 @@ const SpectatorLiveDisplay = () => {
     const isUnsoldFlag = (v) => normSoldFlag(v) === "FALSE";
 
 
-    const soldMarqueeItems = useMemo(() => {
+    const marqueeItems = useMemo(() => {
         if (!Array.isArray(playerList) || !Array.isArray(teamSummaries)) return [];
+
         return playerList
-            .filter(p => ["TRUE", "true", true].includes(p?.sold_status))
-            .map(p => {
+            .filter(p => ["TRUE", "true", true, "FALSE", "false", false].includes(p?.sold_status))
+            .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0)) // latest first
+            .map((p, idx) => {
                 const t = teamSummaries.find(tt => Number(tt.id) === Number(p.team_id));
                 const teamName =
                     p?.team_name ||
                     t?.name ||
                     t?.display_name ||
                     (t?.team_number ? `Team #${t.team_number}` : "");
-                return { name: p?.name || "-", team: teamName || "-" };
+
+                return {
+                    id: Number(p.id),
+                    serial: p.auction_serial,
+                    name: p?.name || "-",
+                    team: teamName || "-",
+                    status: String(p?.sold_status).toUpperCase(), // "TRUE" | "FALSE"
+                    sold_price: Number(p?.sold_price) || 0,
+                    isLatest: idx === 0,
+                };
             });
     }, [playerList, teamSummaries]);
+
+
 
 
     useEffect(() => {
@@ -203,6 +216,42 @@ const SpectatorLiveDisplay = () => {
         };
 
         confettiRafRef.current = requestAnimationFrame(frame);
+    };
+
+
+    // 😞 Disappointment Emoji Rain (slower, more emojis)
+    const triggerUnsoldEmojiRain = () => {
+        const container = document.createElement("div");
+        container.style.position = "fixed";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "100%";
+        container.style.height = "100%";
+        container.style.pointerEvents = "none";
+        container.style.zIndex = "9999";
+        document.body.appendChild(container);
+
+        const emojis = ["😞", "😔", "😢"];
+
+        for (let i = 0; i < 50; i++) {  // ⬅️ doubled the count
+            const emoji = document.createElement("div");
+            emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+            emoji.style.position = "absolute";
+            emoji.style.left = Math.random() * 100 + "vw";
+            emoji.style.fontSize = Math.random() * 30 + 25 + "px"; // medium size
+            emoji.style.top = "-60px";
+            emoji.style.opacity = "0.9";
+
+            // Slow the fall: 5–7 seconds instead of 3–5
+            emoji.style.animation = `fall ${5 + Math.random() * 2}s linear forwards`;
+
+            container.appendChild(emoji);
+        }
+
+        // cleanup after 8s
+        setTimeout(() => {
+            document.body.removeChild(container);
+        }, 8000);
     };
 
 
@@ -395,13 +444,15 @@ const SpectatorLiveDisplay = () => {
             confettiBlockRef.current = true;
             setTimeout(() => { confettiBlockRef.current = false; }, 1200);
 
+            triggerUnsoldEmojiRain();
+
             setPlayer(prev =>
                 prev && Number(prev.id) === Number(player_id)
                     ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
                     : prev
             );
 
-            
+
             setHighestBid(0);
             setLeadingTeam("");
 
@@ -497,7 +548,7 @@ const SpectatorLiveDisplay = () => {
                         tournamentLogo={tournamentLogo}
                         brandLogo="/AuctionArena2.png"
                         brandText="AUCTION ARENA LIVE"
-                        soldMarqueeItems={soldMarqueeItems}
+                        soldMarqueeItems={marqueeItems}
                     />
                 </div>
             )}
