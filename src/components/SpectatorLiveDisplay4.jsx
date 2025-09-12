@@ -41,6 +41,11 @@ const formatLakhs = (amt) => {
 
     if (n === 0) return "0";
 
+    // Show full value below 1000
+  if (n < 1000) {
+    return String(n);
+  }
+
     // Lakhs
     if (n >= 100000) {
         const lakhs = n / 100000;
@@ -466,11 +471,11 @@ const BottomMarquee = ({
             </div>
 
             {/* Copyright inside */}
-            <div className="absolute bottom-2 right-4 pointer-events-none">
-                <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-xs md:text-sm text-white/80 tracking-wider">
+            {/* <div className="absolute bottom-2 right-4 pointer-events-none">
+                <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-2xl md:text-xl text-white/80 tracking-wider">
                     🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </div>
-            </div>
+            </div> */}
 
             {/* KEYFRAMES */}
             <style>{`
@@ -568,7 +573,7 @@ const SpectatorLiveDisplay = () => {
 
     // put this inside SpectatorLiveDisplay component, after the useState hooks
     const renderFooter = (items, teamPurseChunks) => (
-        <div className="fixed bottom-0 left-0 w-full z-[60]">
+        <div className="fixed bottom-20 left-0 w-full z-[60]">
             <BottomMarquee
                 items={items}
                 teamPurseChunks={teamPurseChunks}
@@ -676,6 +681,65 @@ const SpectatorLiveDisplay = () => {
             }, 100);
         }
     };
+
+    // 🔴 Unsold rain trigger
+
+    const triggerUnsoldRain = () => {
+        const duration = 2000;
+        const end = Date.now() + duration;
+
+        (function frame() {
+            confetti({
+                particleCount: 8,
+                angle: 90,          // downward
+                spread: 40,
+                startVelocity: 20,
+                gravity: 1.5,
+                origin: { x: Math.random(), y: 0 }, // random spots at top
+                colors: ["#9ca3af", "#6b7280", "#374151", "#ffffff"], // muted greys
+            });
+            if (Date.now() < end) requestAnimationFrame(frame);
+        })();
+    };
+
+    // 😞 UNSOLD disappointment emoji rain
+    // 😞 Disappointment Emoji Rain using DOM elements
+    // 😞 Disappointment Emoji Rain (slower, more emojis)
+    const triggerUnsoldEmojiRain = () => {
+        const container = document.createElement("div");
+        container.style.position = "fixed";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "100%";
+        container.style.height = "100%";
+        container.style.pointerEvents = "none";
+        container.style.zIndex = "9999";
+        document.body.appendChild(container);
+
+        const emojis = ["😞", "😔", "😢"];
+
+        for (let i = 0; i < 50; i++) {  // ⬅️ doubled the count
+            const emoji = document.createElement("div");
+            emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+            emoji.style.position = "absolute";
+            emoji.style.left = Math.random() * 100 + "vw";
+            emoji.style.fontSize = Math.random() * 30 + 25 + "px"; // medium size
+            emoji.style.top = "-60px";
+            emoji.style.opacity = "0.9";
+
+            // Slow the fall: 5–7 seconds instead of 3–5
+            emoji.style.animation = `fall ${5 + Math.random() * 2}s linear forwards`;
+
+            container.appendChild(emoji);
+        }
+
+        // cleanup after 8s
+        setTimeout(() => {
+            document.body.removeChild(container);
+        }, 8000);
+    };
+
+
 
 
 
@@ -1099,6 +1163,8 @@ const SpectatorLiveDisplay = () => {
                 unsoldAudio.currentTime = 0;
                 unsoldAudio.play();
             } catch { }
+
+            triggerUnsoldEmojiRain();
 
             // ⛔️ DO NOT do any of these on spectator:
             // setPlayer(... sold_status: "FALSE", team_id: null, sold_price: 0 ...)
@@ -2612,21 +2678,16 @@ const SpectatorLiveDisplay = () => {
                                     );
                                 })()}
 
-                                {!unsoldOverlayActive && (
-                                    <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
-                                        <div className="items-center py-3 px-3 bg-black/40">
-                                            <p className="text-lg uppercase text-green-bold">Base Price</p>
-                                            <p className="text-4xl tracking-wider uppercase">
-                                                {formatLakhs(getDisplayBasePrice(player, activePool))}
-                                            </p>
-                                        </div>
-                                        <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
-                                            <p className="text-lg uppercase text-green-bold">Current Bid</p>
-                                            <p className="text-4xl uppercase text-green-bold">
-                                                {formatLakhs(highestBid)}
-                                            </p>
-                                        </div>
+                                {!unsoldOverlayActive && ( 
+                                    <div className="w-auto text-center mt-2 ml-5">
+                                    <div className="bg-black/60 border border-yellow-400/30 rounded-2xl px-2 py-2 animate-pulse shadow-lg">
+                                        <p className="text-2xl uppercase tracking-wider text-white/70 mb-2">Current Bid</p>
+                                        <p className="text-6xl md:text-8xl font-extrabold text-yellow-300 drop-shadow-lg">
+                                        {formatLakhs(highestBid)}
+                                        </p>
                                     </div>
+                                    </div>
+
                                 )}
 
                                 <div>
@@ -2804,12 +2865,24 @@ const SpectatorLiveDisplay = () => {
                 <img
                     src={tournamentLogo}
                     alt="Tournament Logo"
-                    className="w-16 h-16 object-contain absolute bottom-12 right-4 opacity-70"
+                    className="w-24 h-24 object-contain absolute bottom-60 right-0 opacity-70 z-[100]"
+                />
+            )}
+
+            {tournamentLogo && (
+                <img
+                    src={tournamentLogo}
+                    alt="Tournament Logo"
+                    className="w-24 h-24 object-contain absolute bottom-60 left-0 opacity-70 z-[100]"
                 />
             )}
 
 
             {marqueeEnabled && renderFooter(top5SoldPlayers, teamPurseChunks)}
+
+            <footer className="fixed bottom-0 left-0 w-full h-20 text-center text-white text-xl bg-black animate-pulse z-50 py-2">
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
+                </footer>
 
         </div>
 

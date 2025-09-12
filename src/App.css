@@ -63,3 +63,9 @@
 .pop-out { animation: popOutFade 320ms ease forwards; }
 .pop-in  { animation: popInFade 380ms ease forwards; }
 
+@keyframes fall {
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}

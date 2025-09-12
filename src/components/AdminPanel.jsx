@@ -2116,7 +2116,7 @@ const AdminPanel = () => {
                             <div className="bg-gray-900 p-4 border border-gray-700 rounded-lg">
                                 <h3 className="text-lg font-semibold mb-2 text-white">🎯 Current Player:</h3>
                                 {currentPlayer ? (
-                                    <div className="text-sm space-y-1 text-white">
+                                    <div className="flex flex row text-sm space-x-2 text-white">
                                         <p><strong>ID:</strong> {currentPlayer.id}</p>
                                         <p><strong>Auction-serial:</strong> {currentPlayer.auction_serial}</p>
                                         <p><strong>Player-category:</strong> {currentPlayer.base_category}</p>
