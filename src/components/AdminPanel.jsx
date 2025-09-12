@@ -279,7 +279,7 @@ const AdminPanel = () => {
             if (rMax != null && first >= rMax) {
                 pushVal(rMax);
                 idx += 1;
-                amt = rMax + 1; // nudge into next range
+                amt = rMax; // nudge into next range
                 continue;
             }
 
