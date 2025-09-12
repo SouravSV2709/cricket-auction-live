@@ -305,7 +305,8 @@ const AdminPanel = () => {
 
             // Prepare amt for the next range:
             if (rMax != null) {
-                amt = Math.max(out[out.length - 1] ?? rMax, rMax) + 1; // just above this max
+                // start from the max boundary (no +1 offset)
+                amt = rMax;
             } else {
                 // Infinite range handled above already; we would have filled maxCount by now
                 break;
