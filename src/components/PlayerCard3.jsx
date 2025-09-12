@@ -75,7 +75,7 @@ const PlayerCard3 = ({
                 {/* Ribbon */}
                 <div className="flex items-stretch w-full h-20 drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] relative z-10">
                     {/* LEFT — Base Price */}
-                    <div className="relative w-[28%] text-white px-6 flex flex-col justify-center rounded-l-xl bg-gradient-to-r from-rose-800 to-rose-600">
+                    <div className="relative w-[28%] text-white px-6 flex flex-col justify-center rounded-l-xl bg-gradient-to-r from-pink-300 to-pink-500 text-black">
                         <div
                             className="absolute -left-6 top-0 h-full w-6"
                             style={{ clipPath: "polygon(100% 0, 0 50%, 100% 100%)", background: "linear-gradient(to right, #9f1239, #be123c)" }}
@@ -86,7 +86,7 @@ const PlayerCard3 = ({
 
                     {/* CENTER — Player Name + optional tagline */}
                     {/* CENTER — Player Name with logos inside the ribbon */}
-                    <div className="flex-1 relative text-white bg-gradient-to-r from-rose-600 to-rose-500">
+                    <div className="flex-1 relative text-white bg-gradient-to-r bg-gradient-to-r from-gray-900 to-gray-700">
                         {/* left logo: tournament */}
                         {tournamentLogo && (
                             <img
@@ -132,11 +132,11 @@ const PlayerCard3 = ({
                     {/* RIGHT — Status / Bid / Sold */}
                     <div
                         className={`relative w-[28%] text-white px-5 pr-6 rounded-r-xl flex items-center justify-between ${isUnsold
-                            ? "bg-gradient-to-r from-red-800 to-red-600"
+                            ? "bg-gradient-to-r from-pink-700 to-pink-500"
                             : isSold
-                                ? "bg-gradient-to-r from-green-800 to-green-600"
+                                ? "bg-gradient-to-r from-yellow-500 to-yellow-400 text-black"
                                 : Number(currentBid) > 0
-                                    ? "bg-gradient-to-r from-emerald-800 to-emerald-600"
+                                    ? "bg-gradient-to-r from-sky-700 to-sky-500"
                                     : "bg-gradient-to-r from-slate-800 to-slate-600"
                             }`}
                     >
@@ -162,34 +162,103 @@ const PlayerCard3 = ({
                     </div>
                 </div>
 
+                <div className="w-full text-center bg-gradient-to-r from-rose-700 to-rose-500 text-white text-sm tracking-widest py-1 rounded-t-xl">
+  Digitalize your auction experience with E-AUCTION ARENA. +91-9547652702
+</div>
+
                 {/* 🔻 SOLD / UNSOLD MARQUEE (below the ribbon) */}
                 {Array.isArray(soldMarqueeItems) && soldMarqueeItems.length > 0 && (
-                    <div className="w-full mt-2">
-                        <marquee
-                            behavior="scroll"
-                            direction="left"
-                            scrollamount="6"
-                            className="block w-full bg-black/40 text-white py-2 rounded-xl"
-                        >
-                            {soldMarqueeItems.map((it, idx) => {
-                                const isSold = it.status === "TRUE";
-                                const label = isSold
-                                    ? `#${it.serial || "-"} ${it.name} — SOLD to ${it.team} (${formatINR(it.sold_price)})`
-                                    : `#${it.serial || "-"} ${it.name} — UNSOLD`;
+  <div className="w-full mt-3 relative">
+    {/* edge fades */}
+    <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black/60 to-transparent rounded-bl-xl"></div>
+    <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black/60 to-transparent rounded-br-xl"></div>
 
-                                return (
-                                    <span
-                                        key={it.id ?? idx}
-                                        className={`mx-8 text-base md:text-lg tracking-wide ${it.isLatest ? "text-yellow-300 font-extrabold underline animate-pulse" : ""
-                                            }`}
-                                    >
-                                        {label}
-                                    </span>
-                                );
-                            })}
-                        </marquee>
-                    </div>
-                )}
+    <div className="overflow-hidden bg-black/40 text-white py-2 rounded-xl border border-white/10">
+      <div className="ticker-track whitespace-nowrap will-change-transform animate-ticker flex items-center">
+        {soldMarqueeItems.map((it, idx) => {
+          const isSold = it.status === "TRUE";
+          return (
+            <span
+              key={it.id ?? idx}
+              className={`inline-flex items-center gap-2 px-8 text-sm md:text-base tracking-wide ${
+                idx > 0 ? "border-l border-white/20" : ""
+              }`}
+            >
+              {/* highlight chip for latest */}
+              {it.isLatest && (
+                <span className="px-2 py-0.5 rounded bg-yellow-300 text-black text-[11px] font-extrabold uppercase animate-pulse">
+                  Latest
+                </span>
+              )}
+
+              {/* serial & name */}
+              <span className="font-semibold">
+                #{it.serial ?? "-"} {it.name ?? "-"}
+              </span>
+
+              {/* status pill */}
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider ${
+                  isSold ? "bg-emerald-500 text-black" : "bg-rose-500 text-black"
+                }`}
+              >
+                {isSold ? "SOLD" : "UNSOLD"}
+              </span>
+
+              {/* details */}
+              {isSold && (
+                <span className="opacity-90">
+                  to <span className="font-semibold">{it.team ?? "-"}</span>{" "}
+                  ({formatINR(it.sold_price || 0)})
+                </span>
+              )}
+            </span>
+          );
+        })}
+
+        {/* duplicate for seamless loop */}
+        {soldMarqueeItems.map((it, idx) => {
+          const isSold = it.status === "TRUE";
+          return (
+            <span
+              key={"dup-" + (it.id ?? idx)}
+              className={`inline-flex items-center gap-2 px-8 text-sm md:text-base tracking-wide ${
+                idx > 0 ? "border-l border-white/20" : ""
+              }`}
+            >
+              {it.isLatest && (
+                <span className="px-2 py-0.5 rounded bg-yellow-300 text-black text-[11px] font-extrabold uppercase animate-pulse">
+                  Latest
+                </span>
+              )}
+
+              <span className="font-semibold">
+                #{it.serial ?? "-"} {it.name ?? "-"}
+              </span>
+
+              <span
+                className={`px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider ${
+                  isSold ? "bg-emerald-500 text-black" : "bg-rose-500 text-black"
+                }`}
+              >
+                {isSold ? "SOLD" : "UNSOLD"}
+              </span>
+
+              {isSold && (
+                <span className="opacity-90">
+                  to <span className="font-semibold">{it.team ?? "-"}</span>{" "}
+                  ({formatINR(it.sold_price || 0)})
+                </span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+)}
+
+
 
 
 

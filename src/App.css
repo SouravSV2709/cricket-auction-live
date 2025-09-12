@@ -69,3 +69,14 @@
     opacity: 0;
   }
 }
+
+/* Smooth, seamless ticker scroll */
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); } /* half, because we duplicate content */
+}
+.ticker-track {
+  display: inline-flex;
+  animation: ticker-scroll 30s linear infinite;
+}
+
