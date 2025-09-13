@@ -77,6 +77,6 @@
 }
 .ticker-track {
   display: inline-flex;
-  animation: ticker-scroll 30s linear infinite;
+  animation: ticker-scroll 500s linear infinite;
 }
 
