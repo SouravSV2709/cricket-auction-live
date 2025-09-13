@@ -660,8 +660,6 @@ const AdminPanel = () => {
     };
 
 
-
-
     const fetchPlayers = async () => {
         if (!tournamentId) return;
 
@@ -1217,83 +1215,127 @@ const AdminPanel = () => {
         }
     };
 
+// put near other refs
+const detailCacheRef = useRef(new Map()); // key: playerId, value: detailed player
+
+const getDetailedPlayer = async (basic) => {
+  if (!basic?.id) return basic;
+  const cached = detailCacheRef.current.get(basic.id);
+  if (cached) return cached;
+
+  const detailUrl =
+    kcplMode && activePool
+      ? `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
+      : `${API}/api/players/${basic.id}?slug=${tournamentSlug}`;
+
+  const res = await fetch(detailUrl);
+  if (!res.ok) return basic;
+  const detailed = await res.json();
+  detailCacheRef.current.set(basic.id, detailed);
+  return detailed;
+};
+
+const prefetchBySerial = async (serial) => {
+  const p = serialToPlayer.get(Number(serial));
+  if (!p?.id || detailCacheRef.current.has(p.id)) return;
+  try { await getDetailedPlayer(p); } catch { /* ignore */ }
+};
 
 
     // ---- Full replacement: resilient search by serial ----
-    const handleSearchById = async (idOverride) => {
-        try {
-            // take from pill if provided, otherwise from the input
-            const raw = idOverride ?? searchId;
-            const idToFind = raw != null ? String(raw).trim() : "";
-            if (!idToFind) {
-                alert("Please enter or select a player serial.");
-                return;
-            }
+    // ---- Full replacement: ultra-fast selection by serial (optimistic + cached) ----
+const handleSearchById = async (idOverride) => {
+  try {
+    // take from pill if provided, otherwise from the input
+    const raw = idOverride ?? searchId;
+    const idToFind = raw != null ? String(raw).trim() : "";
+    if (!idToFind) {
+      alert("Please enter or select a player serial.");
+      return;
+    }
 
-            // normalize to number when possible (handles "007", "  15 " etc.)
-            const n = Number(idToFind);
-            const serialParam = Number.isFinite(n) ? String(n) : idToFind;
+    // normalize to number when possible (handles "007", "  15 " etc.)
+    const n = Number(idToFind);
+    const serialParam = Number.isFinite(n) ? String(n) : idToFind;
 
-            // 1) Find the player by serial
-            const res = await fetch(
-                `${API}/api/players/by-serial/${encodeURIComponent(serialParam)}?slug=${tournamentSlug}`
-            );
-            if (!res.ok) {
-                alert("❌ Player not found.");
-                return;
-            }
-            const basic = await res.json();
+    // ---- 0) Try in-memory map first (instant UX) ----
+    let basic = serialToPlayer.get(Number(serialParam));
 
-            // ✅ Validate tournament_id
-            if (Number(basic.tournament_id) !== Number(tournamentId)) {
-                alert("❌ Player not found in this tournament.");
-                return;
-            }
+    // Fallback: hit by-serial endpoint only if not in memory
+    if (!basic) {
+      const res = await fetch(
+        `${API}/api/players/by-serial/${encodeURIComponent(serialParam)}?slug=${tournamentSlug}`
+      );
+      if (!res.ok) {
+        alert("❌ Player not found.");
+        return;
+      }
+      basic = await res.json();
+      if (Number(basic.tournament_id) !== Number(tournamentId)) {
+        alert("❌ Player not found in this tournament.");
+        return;
+      }
+    }
 
-            // 2) Get full player
-            const detailUrl =
-                kcplMode && activePool
-                    ? `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
-                    : `${API}/api/players/${basic.id}?slug=${tournamentSlug}`;
+    // ---- 1) Optimistic UI now (feels instant) ----
+    setCurrentPlayer((prev) => ({
+      ...prev,
+      ...basic,
+      sold_status: basic.sold_status ?? null,
+      sold_price: basic.sold_price ?? null,
+      team_id: basic.team_id ?? null,
+      sold_pool: basic.sold_pool ?? null,
+    }));
+    setBidAmount(0);
+    setSelectedTeam("");
+    setSearchId(serialParam);
 
-            const detailedRes = await fetch(detailUrl);
-            if (!detailedRes.ok) {
-                alert("❌ Failed to load player details.");
-                return;
-            }
-            const detailed = await detailedRes.json();
+    // ---- 2) Fetch detailed (from cache or network) in parallel with PUTs ----
+    const detailedPromise = getDetailedPlayer(basic);
 
-            // 3) Update current player + reset bid
-            await Promise.all([
-                fetch(`${API}/api/current-player`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(detailed),
-                }),
-                fetch(`${API}/api/current-bid`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ bid_amount: 0, team_name: "" }),
-                }),
-            ]);
+    // Persist current-player + reset bid together
+    const persistPromise = Promise.all([
+      fetch(`${API}/api/current-player`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(basic), // will replace with detailed when it resolves below
+      }),
+      fetch(`${API}/api/current-bid`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+      }),
+    ]);
 
-            // 4) Notify spectators (non-blocking)
-            fetch(`${API}/api/notify-player-change`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(detailed),
-            });
+    // When detailed arrives, update UI & overwrite server current-player (quick follow-up)
+    detailedPromise.then(async (detailed) => {
+      // update UI only if we are still looking at the same player
+      setCurrentPlayer((prev) => (prev && prev.id === detailed.id ? { ...prev, ...detailed } : prev));
+      // refresh server copy with detailed (non-blocking best-effort)
+      fetch(`${API}/api/current-player`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(detailed),
+        keepalive: true,
+      });
+      // notify spectators (same as your existing flow)
+      fetch(`${API}/api/notify-player-change`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(detailed),
+        keepalive: true,
+      });
+    });
 
-            // 5) Update Admin UI
-            await fetchCurrentPlayer();
-            setBidAmount(0);
-            setSelectedTeam("");
-            setSearchId(serialParam); // keep the input synced (e.g., from pill click)
-        } catch (err) {
-            console.error("❌ Error in handleSearchById:", err);
-            alert("❌ Failed to find player. Please try again.");
-        }
-    };
+    // don’t block the UI on notifications
+    persistPromise.catch(() => { /* surface errors only if needed */ });
+
+  } catch (err) {
+    console.error("❌ Error in handleSearchById:", err);
+    alert("❌ Failed to find player. Please try again.");
+  }
+};
+
 
 
 
@@ -2064,6 +2106,7 @@ const AdminPanel = () => {
                                                             key={s}
                                                             type="button"
                                                             title={p ? `#${s} • ${p.name}${p?.nickname ? ` (${p.nickname})` : ""}` : `#${s}`}
+                                                            onMouseEnter={() => prefetchBySerial(s)}
                                                             className={getSerialChipClass(s)}
                                                             disabled={isDisabled}
                                                             onClick={() => handleSearchById(s)}
