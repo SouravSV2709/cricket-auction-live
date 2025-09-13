@@ -1061,6 +1061,12 @@ const AllPlayerCards = () => {
                                                                 ? <a href={`tel:${openDetails.mobile}`} className="hover:underline">{openDetails.mobile}</a>
                                                                 : "-"}
                                                         </div>
+
+                                                        {/* LOcation */}
+                                                        <div className="text-gray-400">Location</div>
+                                                        <div className="font-semibold text-white">
+                                                            {(openDetails?.location && String(openDetails.location).toLowerCase() !== "null") ? openDetails.location : "-"}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
