@@ -302,7 +302,7 @@ export const makeGroupController = ({ pool, io }) => {
     "bcup-s1": {
       // Reveal order for "Spin & Assign Next"
       planOrder: [
-        78, 82, 86, 89, 79, 83, 87, 91, 80, 84, 88, 92, 81, 85, 89, 93,
+        78, 82, 86, 90, 79, 83, 87, 91, 80, 84, 88, 92, 81, 85, 89, 93
       ],
       // Fixed assignment: teamId -> group letter (balanced A-D)
       groups: {
