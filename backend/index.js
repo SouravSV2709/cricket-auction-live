@@ -10,6 +10,7 @@ import CONFIG from './config.js';
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { KCPL_RULES } from './kcplRules.js';
+import groupRoutes from "./routes/groupRoutes.js";
 
 
 dotenv.config();
@@ -47,6 +48,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
 
 // PostgreSQL Connection
 const pool = new Pool({
@@ -96,7 +98,7 @@ async function getTeamPoolSnapshot(teamId, tournamentId) {
 }
 
 
-
+app.use("/api/tournaments", groupRoutes({ pool, io }));
 
 
 function computeEffectiveCaps(snapshot, rules) {

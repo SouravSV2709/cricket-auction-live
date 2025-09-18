@@ -12,6 +12,7 @@ import AllPlayerCards2 from './components/AllPlayerCards2';
 import AllTeamCards from './components/AllTeamCards';
 import TournamentDashboard from "./components/TournamentDashboard";
 import SecretBidPage from './components/SecretBidPage';
+import TournamentGroupDraw from "./components/TournamentGroupDraw";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -152,6 +153,7 @@ const AppWrapper = () => {
       <Route path="/team-cards/:tournamentSlug" element={<AllTeamCards />} />
       <Route path="/tournament/:tournamentSlug" element={<TournamentDashboard />} />
       <Route path="/secret-bid/:tournamentSlug" element={<SecretBidPage />} />
+      <Route path="/grouping/:tournamentSlug" element={<TournamentGroupDraw />} />
     </Routes>
   );
 };
