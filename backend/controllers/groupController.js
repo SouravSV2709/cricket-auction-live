@@ -299,32 +299,59 @@ export const makeGroupController = ({ pool, io }) => {
 
   // ---- ONE-TIME MANUAL GROUP PLAN (ID-based) -------------------------------
   const MANUAL_GROUP_PLAN_IDS = {
-    "bcup-s1": {
-      // Reveal order for "Spin & Assign Next"
-      planOrder: [
-        78, 82, 86, 90, 79, 83, 87, 91, 80, 84, 88, 92, 81, 85, 89, 93
-      ],
-      // Fixed assignment: teamId -> group letter (balanced A-D)
-      groups: {
-        78: "A", // Paschim Bardhaman3
-        79: "A", // Bankura
-        80: "A", // Purulia 1
-        81: "A", // Purba Midnapore
-        82: "B", // Kolkata
-        83: "B", // Howrah
-        84: "B", // Nadia
-        85: "B", // Purulia 2
-        86: "C", // Paschim Bardhaman 2
-        87: "C", // Hooghly
-        88: "C", // Murshidabad
-        89: "C", // North 24 Paranagans
-        90: "D", // Paschim Midnapore
-        91: "D", // Siliguri
-        92: "D", // Birbhum
-        93: "D", // Paschim Bardhaman 1
-      },
-    },
-  };
+  "bcup-s1": {
+    // Interleaved reveal order (A → B → C → D)
+    planOrder: [
+      78, // A: Paschim Bardhaman 3
+      83, // B: Howrah
+      87, // C: Hooghly
+      89, // D: North 24 Parganas
+
+      80, // A: Purulia 1
+      85, // B: Purulia 2
+      86, // C: Paschim Bardhaman 2
+      91, // D: Siliguri
+
+      90, // A: West Medinipore (Paschim Midnapore)
+      79, // B: Bankura
+      82, // C: Kolkata
+      92, // D: Birbhum
+
+      84, // A: Nadia
+      81, // B: East Midnapore
+      88, // C: Murshidabad
+      93  // D: Paschim Bardhaman 1
+    ],
+
+    // Fixed assignment: teamId -> group letter
+    groups: {
+      // Group A
+      78: "A", // Paschim Bardhaman 3
+      80: "A", // Purulia 1
+      90: "A", // West Medinipore (Paschim Midnapore)
+      84: "A", // Nadia
+
+      // Group B
+      83: "B", // Howrah
+      85: "B", // Purulia 2
+      79: "B", // Bankura
+      81: "B", // East Midnapore
+
+      // Group C
+      87: "C", // Hooghly
+      86: "C", // Paschim Bardhaman 2
+      82: "C", // Kolkata
+      88: "C", // Murshidabad
+
+      // Group D
+      89: "D", // North 24 Parganas
+      91: "D", // Siliguri
+      92: "D", // Birbhum
+      93: "D"  // Paschim Bardhaman 1
+    }
+  }
+};
+
 
   return { getGroups, drawGroups, resetGroups, assignOne };
 };
