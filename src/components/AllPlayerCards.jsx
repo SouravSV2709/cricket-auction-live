@@ -1062,11 +1062,31 @@ const AllPlayerCards = () => {
                                                                 : "-"}
                                                         </div>
 
-                                                        {/* LOcation */}
-                                                        <div className="text-gray-400">Location</div>
-                                                        <div className="font-semibold text-white">
-                                                            {(openDetails?.location && String(openDetails.location).toLowerCase() !== "null") ? openDetails.location : "-"}
-                                                        </div>
+                                                       {/* Location (only if present) */}
+                                                        {openDetails?.location &&
+                                                        String(openDetails.location).toLowerCase() !== "null" &&
+                                                        openDetails.location.trim() !== "" && (
+                                                            <>
+                                                            <div className="text-gray-400">Location</div>
+                                                            <div className="font-semibold text-white">
+                                                                {openDetails.location}
+                                                            </div>
+                                                            </>
+                                                        )}
+
+                                                        {/* District (only if present) */}
+                                                        {openDetails?.district &&
+                                                        String(openDetails.district).toLowerCase() !== "null" &&
+                                                        openDetails.district.trim() !== "" && (
+                                                            <>
+                                                            <div className="text-gray-400">District</div>
+                                                            <div className="font-semibold text-white">
+                                                                {openDetails.district}
+                                                            </div>
+                                                            </>
+                                                        )}
+
+
                                                     </div>
                                                 </div>
                                             </div>
