@@ -2739,17 +2739,21 @@ const groups =
                             </div>
 
                             <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-3xl">
-                                <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
-                                <div className="px-3 py-2">{player?.nickname || "-"}</div>
+                                {/* <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
+                                <div className="px-3 py-2">{player?.nickname || "-"}</div> */}
 
                                 <div className="px-3 py-2 tracking-wider uppercase">Role</div>
                                 <div className="px-3 py-2 uppercase">{player?.role || "-"}</div>
 
-                                <div className="px-3 py-2 tracking-wider uppercase">Batting Type</div>
-                                <div className="px-3 py-2 uppercase">{player?.batting_hand || "-"}</div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Age Category</div>
+                                <div className="px-3 py-2 uppercase">{player?.age_category || "Below 40"}</div> 
 
-                                <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
-                                <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div>
+
+                                {/* <div className="px-3 py-2 tracking-wider uppercase">Batting Type</div>
+                                <div className="px-3 py-2 uppercase">{player?.batting_hand || "-"}</div> */}
+
+                                {/* <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
+                                <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div> */}
 
                                 {player?.location && (
                                     <>
