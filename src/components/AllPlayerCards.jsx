@@ -624,6 +624,13 @@ const AllPlayerCards = () => {
                             </div>
                         )}
 
+                        {player.age_category && (
+                            <div>
+                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
+                                <div className="font-semibold text-white truncate">{player.age_category}</div>
+                            </div>
+                        )}
+
                         {player.location && (
                             <div>
                                 <span className="uppercase tracking-wide text-gray-400 text-[10px]">Location</span>
@@ -1070,6 +1077,18 @@ const AllPlayerCards = () => {
                                                             <div className="text-gray-400">Location</div>
                                                             <div className="font-semibold text-white">
                                                                 {openDetails.location}
+                                                            </div>
+                                                            </>
+                                                        )}
+
+                                                        {/* Age Category (only if present) */}
+                                                        {openDetails?.age_category &&
+                                                        String(openDetails.age_category).toLowerCase() !== "null" &&
+                                                        openDetails.location.trim() !== "" && (
+                                                            <>
+                                                            <div className="text-gray-400">Age Category</div>
+                                                            <div className="font-semibold text-white">
+                                                                {openDetails.age_category}
                                                             </div>
                                                             </>
                                                         )}
