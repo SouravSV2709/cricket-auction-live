@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "../App.css";
 
 const PlayerCard3 = ({
@@ -51,6 +51,29 @@ const PlayerCard3 = ({
         rightBg = "bg-emerald-700";
         rightText = "text-white";
     }
+
+    // Constant-speed ticker: measure content width and set duration
+    const tickerTrackRef = useRef(null);
+    const [tickerDurationSec, setTickerDurationSec] = useState(null);
+    useEffect(() => {
+        const PIXELS_PER_SECOND = 60; // target speed
+        const recalc = () => {
+            requestAnimationFrame(() => {
+                const el = tickerTrackRef.current;
+                if (!el) return;
+                // track contains duplicated items; half is one full cycle width
+                const total = el.scrollWidth;
+                const cycle = total / 2;
+                if (!cycle || !Number.isFinite(cycle)) return;
+                const seconds = Math.max(5, cycle / PIXELS_PER_SECOND);
+                setTickerDurationSec(seconds);
+            });
+        };
+        recalc();
+        const onResize = () => recalc();
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, [soldMarqueeItems]);
 
     return (
         <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 w-[92vw] max-w-[1200px] select-none ${animClass || ""}`}>
@@ -174,7 +197,11 @@ const PlayerCard3 = ({
     <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-black/60 to-transparent rounded-br-xl"></div>
 
     <div className="overflow-hidden bg-black/40 text-white py-2 rounded-xl border border-white/10">
-      <div className="ticker-track whitespace-nowrap will-change-transform animate-ticker flex items-center">
+      <div
+        ref={tickerTrackRef}
+        className="ticker-track whitespace-nowrap will-change-transform animate-ticker flex items-center"
+        style={tickerDurationSec ? { animationDuration: `${tickerDurationSec}s` } : undefined}
+      >
         {soldMarqueeItems.map((it, idx) => {
           const isSold = it.status === "TRUE";
           return (
