@@ -69,7 +69,8 @@ const AllPlayerCards = () => {
             (filtersoldstatus === "notauctioned" && (player.sold_status === null || player.sold_status === undefined))
         ) &&
         (
-            filterCategory === "" || player.base_category === filterCategory
+            // Filter by Age Category when selected
+            filterCategory === "" || (player.age_category || "") === filterCategory
         )
     );
 
@@ -485,6 +486,16 @@ const AllPlayerCards = () => {
     const uniqueRoles = [...new Set(players.map((p) => p.role).filter(Boolean))];
     const uniqueDistricts = [...new Set(players.map((p) => p.district).filter(Boolean))];
     const hasAnyDistrict = players.some((p) => !!p.district);
+    const uniqueAgeCategories = [
+        ...new Set(
+            players
+                .map((p) => p.age_category)
+                .filter((v) => v !== undefined && v !== null && String(v).toLowerCase() !== "null" && String(v).trim() !== "")
+        ),
+    ];
+    const hasAnyAgeCategory = players.some(
+        (p) => p.age_category && String(p.age_category).toLowerCase() !== "null" && String(p.age_category).trim() !== ""
+    );
 
     const columnCount = getColumnCount();
     const rowCount = Math.ceil(filteredPlayers.length / columnCount);
@@ -770,13 +781,13 @@ const AllPlayerCards = () => {
                                     </Listbox>
                                 )}
 
-                                {players.some(p => p.base_category && p.base_category.trim() !== "") && (
+                                
+
+                                {hasAnyAgeCategory && (
                                     <Listbox value={filterCategory} onChange={setFilterCategory}>
                                         <div className="relative w-60">
                                             <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
-                                                <span className="block truncate">
-                                                    {filterCategory === "" ? "All Categories" : filterCategory}
-                                                </span>
+                                                <span className="block truncate">{filterCategory || "All Categories"}</span>
                                                 <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                                                     <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
                                                 </span>
@@ -789,24 +800,20 @@ const AllPlayerCards = () => {
                                                         </li>
                                                     )}
                                                 </Listbox.Option>
-                                                {Array.from(new Set(players
-                                                    .map(p => p.base_category)
-                                                    .filter(c => c && c.trim() !== "")))
-                                                    .map((cat) => (
-                                                        <Listbox.Option key={cat} value={cat}>
-                                                            {({ active }) => (
-                                                                <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
-                                                                    {cat}
-                                                                </li>
-                                                            )}
-                                                        </Listbox.Option>
-                                                    ))
-                                                }
+                                                {uniqueAgeCategories.map((cat, idx) => (
+                                                    <Listbox.Option key={idx} value={cat}>
+                                                        {({ selected, active }) => (
+                                                            <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                                {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
+                                                                {cat}
+                                                            </li>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
                                             </Listbox.Options>
                                         </div>
                                     </Listbox>
                                 )}
-
 
 
                                 <Listbox value={filtersoldstatus} onChange={setFiltersoldstatus}>
