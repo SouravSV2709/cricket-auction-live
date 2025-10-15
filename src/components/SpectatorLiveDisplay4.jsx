@@ -2612,7 +2612,7 @@ const groups =
                                                 ) : (
                                                     <>
                                                         <p className="text-xl text-yellow-400 uppercase tracking-wider">Base Price</p>
-                                                        <p className="tracking-wider uppercase">
+                                                        <p className="tracking-wider uppercase text-white">
                                                             {formatLakhs(getDisplayBasePrice(player, activePool))}
                                                         </p>
                                                     </>

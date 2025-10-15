@@ -431,18 +431,21 @@ const SpectatorLiveDisplay = () => {
 
         // 🚫 UNSOLD (optimistic: clear team & sold_price locally)
         const onPlayerUnsold = ({ player_id, sold_pool }) => {
-            // Stop any ongoing confetti immediately
-            if (confettiRafRef.current) {
-                cancelAnimationFrame(confettiRafRef.current);
-                confettiRafRef.current = null;
-            }
-            // Reset duplicate guard for future players
-            lastConfettiPlayerId.current = null;
+        // Stop any ongoing confetti immediately
+        if (confettiRafRef.current) {
+            cancelAnimationFrame(confettiRafRef.current);
+            confettiRafRef.current = null;
+        }
+        // Best-effort hard stop for any active canvas-confetti animations
+        try { if (typeof confetti?.reset === "function") confetti.reset(); } catch (_) { }
+        // Keep duplicate guard set to this player to avoid late SOLD re-triggers for same id
+        lastConfettiPlayerId.current = Number(player_id);
 
-            // Mark UNSOLD + short block to reject late SOLD races
-            playerStatusRef.current.set(Number(player_id), "FALSE");
-            confettiBlockRef.current = true;
-            setTimeout(() => { confettiBlockRef.current = false; }, 1200);
+        // Mark UNSOLD + maintain a block window to reject late SOLD races
+        playerStatusRef.current.set(Number(player_id), "FALSE");
+        confettiBlockRef.current = true;
+        // Match/confidence window slightly longer than confetti duration (3s)
+        setTimeout(() => { confettiBlockRef.current = false; }, 3800);
 
             triggerUnsoldEmojiRain();
 
