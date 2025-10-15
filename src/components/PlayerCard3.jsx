@@ -81,27 +81,143 @@ const PlayerCard3 = ({
             <div className="w-full flex flex-col items-center">
                 {/* Image sits above the ribbon; no absolute/negative top */}
                 {player?.profile_image && (
-                    <div className="w-48 h-96 rounded-md overflow-hidden ring-4 ring-white shadow-xl bg-white -mb-20">
-                        <img
-                            src={
-                                player.profile_image?.startsWith("http")
-                                    ? player.profile_image
-                                    : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-320,h-320,fo-face,z-0.4,q-95,e-sharpen,f-webp`
-                            }
-                            onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
-                            alt={player?.name || "Player"}
-                            className="w-full h-full object-cover"
-                        />
+                    <div className="w-48 h-96 -mb-20">
+                        {player?.__shape === 'triangle' ? (
+                            <div
+                                className="w-full h-full overflow-hidden shadow-xl bg-white"
+                                style={{ clipPath: 'polygon(50% 3%, 0 97%, 100% 97%)' }}
+                            >
+                                <img
+                                    src={
+                                        player.profile_image?.startsWith("http")
+                                            ? player.profile_image
+                                            : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-320,h-320,fo-face,z-0.4,q-95,e-sharpen,f-webp`
+                                    }
+                                    onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
+                                    alt={player?.name || "Player"}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        ) : player?.__shape === 'hex' ? (
+                            <div
+                                className="w-full h-full shadow-xl"
+                                style={{
+                                    clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+                                    background: 'linear-gradient(180deg, #facc15, #f43f5e, #a855f7)'
+                                }}
+                            >
+                                <div
+                                    className="w-full h-full p-[3px]"
+                                    style={{
+                                        clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)'
+                                    }}
+                                >
+                                    <div
+                                        className="w-full h-full bg-white"
+                                        style={{
+                                            clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)'
+                                        }}
+                                    >
+                                        <img
+                                            src={
+                                                player.profile_image?.startsWith("http")
+                                                    ? player.profile_image
+                                                    : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-320,h-480,fo-face,z-0.4,q-95,e-sharpen,f-webp`
+                                            }
+                                            onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
+                                            alt={player?.name || "Player"}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : player?.__shape === 'ticket' ? (
+                            <div
+                                className="w-full h-full shadow-xl relative"
+                                style={{
+                                    // Premium ticket: cut corners + side notches + soft glow
+                                    clipPath: 'polygon(6% 0%, 94% 0%, 100% 6%, 100% 42%, 96% 50%, 100% 58%, 100% 94%, 94% 100%, 6% 100%, 0% 94%, 0% 58%, 4% 50%, 0% 42%, 0% 6%)',
+                                    background: 'linear-gradient(135deg, #fbbf24, #fde68a 35%, #f59e0b 70%, #facc15)',
+                                    filter: 'drop-shadow(0 10px 24px rgba(250,191,36,0.35))'
+                                }}
+                            >
+                                {/* subtle shimmer across the border */}
+                                <div
+                                    className="absolute inset-0 pointer-events-none opacity-30 shimmer-anim"
+                                    style={{
+                                        clipPath: 'inherit',
+                                        background: 'linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.6) 10%, transparent 20%)',
+                                        backgroundSize: '200% 100%'
+                                    }}
+                                />
+                                {/* perforation dots near ticket notches */}
+                                <div
+                                    className="absolute left-[3%] top-[35%] h-[30%] w-[6px] pointer-events-none opacity-60 z-10"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.35) 30%, rgba(0,0,0,0) 31%)',
+                                        backgroundSize: '4px 12px',
+                                        backgroundRepeat: 'repeat-y',
+                                        backgroundPosition: 'center top'
+                                    }}
+                                />
+                                <div
+                                    className="absolute right-[3%] top-[35%] h-[30%] w-[6px] pointer-events-none opacity-60 z-10"
+                                    style={{
+                                        backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.35) 30%, rgba(0,0,0,0) 31%)',
+                                        backgroundSize: '4px 12px',
+                                        backgroundRepeat: 'repeat-y',
+                                        backgroundPosition: 'center top'
+                                    }}
+                                />
+                                <div
+                                    className="w-full h-full p-[3px]"
+                                    style={{
+                                        clipPath: 'polygon(6% 0%, 94% 0%, 100% 6%, 100% 42%, 96% 50%, 100% 58%, 100% 94%, 94% 100%, 6% 100%, 0% 94%, 0% 58%, 4% 50%, 0% 42%, 0% 6%)'
+                                    }}
+                                >
+                                    <div
+                                        className="w-full h-full bg-white"
+                                        style={{
+                                            clipPath: 'polygon(6% 0%, 94% 0%, 100% 6%, 100% 42%, 96% 50%, 100% 58%, 100% 94%, 94% 100%, 6% 100%, 0% 94%, 0% 58%, 4% 50%, 0% 42%, 0% 6%)'
+                                        }}
+                                    >
+                                        <img
+                                            src={
+                                                player.profile_image?.startsWith("http")
+                                                    ? player.profile_image
+                                                    : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-320,h-480,fo-face,z-0.4,q-95,e-sharpen,f-webp`
+                                            }
+                                            onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
+                                            alt={player?.name || "Player"}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="w-full h-full rounded-xl overflow-hidden ring-2 ring-white/80 shadow-xl bg-white">
+                                <img
+                                    src={
+                                        player.profile_image?.startsWith("http")
+                                            ? player.profile_image
+                                            : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-320,h-320,fo-face,z-0.4,q-95,e-sharpen,f-webp`
+                                    }
+                                    onError={(e) => (e.currentTarget.src = "/no-image-found.png")}
+                                    alt={player?.name || "Player"}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {/* Ribbon */}
                 <div className="flex items-stretch w-full h-20 drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)] relative z-10">
                     {/* LEFT — Base Price */}
-                    <div className="relative w-[28%] text-white px-6 flex flex-col justify-center rounded-l-xl bg-gradient-to-r from-pink-300 to-pink-500 text-black">
+                    <div className="relative w-[28%] text-white px-6 flex flex-col justify-center rounded-l-xl bg-gradient-to-r from-emerald-600 to-emerald-500">
                         <div
                             className="absolute -left-6 top-0 h-full w-6"
-                            style={{ clipPath: "polygon(100% 0, 0 50%, 100% 100%)", background: "linear-gradient(to right, #9f1239, #be123c)" }}
+                            style={{ clipPath: "polygon(100% 0, 0 50%, 100% 100%)", background: "linear-gradient(to right, #065f46, #059669)" }}
                         />
                         <p className="uppercase text-xs tracking-widest opacity-90">Base Price</p>
                         <p className="text-3xl font-extrabold leading-none">{formatINR(basePrice)}</p>
@@ -109,7 +225,7 @@ const PlayerCard3 = ({
 
                     {/* CENTER — Player Name + optional tagline */}
                     {/* CENTER — Player Name with logos inside the ribbon */}
-                    <div className="flex-1 relative text-white bg-gradient-to-r bg-gradient-to-r from-gray-900 to-gray-700">
+                    <div className="flex-1 relative text-white bg-gradient-to-r from-gray-900 to-gray-700 ring-1 ring-white/10">
                         {/* left logo: tournament */}
                         {tournamentLogo && (
                             <img
@@ -185,9 +301,9 @@ const PlayerCard3 = ({
                     </div>
                 </div>
 
-                <div className="w-full text-center bg-gradient-to-r from-rose-700 to-rose-500 text-white text-sm tracking-widest py-1 rounded-t-xl">
-  Digitalize your auction experience with E-AUCTION ARENA. +91-9547652702
-</div>
+                <div className="w-full text-center bg-gradient-to-r from-slate-800 to-slate-700 text-slate-100 text-xs tracking-wider py-1.5 rounded-t-xl opacity-90">
+  Digitalize your auction experience with E-AUCTION ARENA · +91-9547652702
+                </div>
 
                 {/* 🔻 SOLD / UNSOLD MARQUEE (below the ribbon) */}
                 {Array.isArray(soldMarqueeItems) && soldMarqueeItems.length > 0 && (

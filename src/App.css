@@ -132,4 +132,12 @@
 }
 
 
+/* Premium ticket shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+.shimmer-anim {
+  animation: shimmer 4s linear infinite;
+}
 

@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
 import { io } from "socket.io-client";
-import PlayerCard2 from "../components/PlayerCard2";
+import PlayerCard3 from "../components/PlayerCard3";
 
 
 
@@ -308,12 +308,40 @@ const SpectatorLiveDisplay = () => {
     const isSold = ["TRUE", "true", true].includes(player?.sold_status);
     const isUnsold = ["FALSE", "false", false].includes(player?.sold_status);
 
+    // Build SOLD/UNSOLD marquee items similar to Live 5
+    const marqueeItems = useMemo(() => {
+        if (!Array.isArray(playerList) || !Array.isArray(teamSummaries)) return [];
+
+        return playerList
+            .filter(p => ["TRUE", "true", true, "FALSE", "false", false].includes(p?.sold_status))
+            .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))
+            .map((p, idx) => {
+                const t = teamSummaries.find(tt => Number(tt.id) === Number(p.team_id));
+                const teamName =
+                    p?.team_name ||
+                    t?.name ||
+                    t?.display_name ||
+                    (t?.team_number ? `Team #${t.team_number}` : "");
+
+                return {
+                    id: Number(p.id),
+                    serial: p.auction_serial,
+                    name: p?.name || "-",
+                    team: teamName || "-",
+                    status: String(p?.sold_status).toUpperCase(),
+                    sold_price: Number(p?.sold_price) || 0,
+                    isLatest: idx === 0,
+                };
+            });
+    }, [playerList, teamSummaries]);
+
     return (
         <div className="relative w-screen h-screen">
-            {player && player.profile_image && (
-                <PlayerCard2
+            {player && (
+                <PlayerCard3
                     player={{
                         ...player,
+                        __shape: 'ticket',
                         team_name:
                             player?.team_name ||
                             team?.name ||
@@ -328,14 +356,16 @@ const SpectatorLiveDisplay = () => {
                     biddingTeam={leadingTeam}
                     biddingTeamLogo={
                         Array.isArray(teamSummaries)
-                            ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())?.logo
+                            ? teamSummaries.find((t) => t.name?.trim() === leadingTeam?.trim())?.logo
                             : undefined
                     }
                     secretBidActive={secretBidActive}
+                    tournamentLogo={tournamentLogo}
+                    brandLogo="/AuctionArena2.png"
+                    brandText="AUCTION ARENA LIVE"
+                    soldMarqueeItems={marqueeItems}
                 />
             )}
-
-
         </div>
     );
 

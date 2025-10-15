@@ -63,6 +63,7 @@ const AdminPanel = () => {
     // ===== Quick-Pick UX: filter + search =====
     const [serialView, setSerialView] = React.useState("paid"); // 'paid' | 'unpaid' | 'all'
     const [serialQuery, setSerialQuery] = React.useState("");
+    const [roleFilter, setRoleFilter] = React.useState("all");
 
 
     // helpers
@@ -78,6 +79,16 @@ const AdminPanel = () => {
             if (Number.isFinite(s) && s >= 1) m.set(s, p);
         }
         return m;
+    }, [players]);
+
+    // unique list of roles from players for role filter dropdown
+    const availableRoles = React.useMemo(() => {
+        const set = new Set();
+        for (const p of players || []) {
+            const r = String(p?.role || '').trim();
+            if (r) set.add(r);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
     }, [players]);
 
     // build three lists (counts shown on tabs)
@@ -140,18 +151,25 @@ const AdminPanel = () => {
     }, [serialView, soldSerials, unsoldSerials, notAuctionedSerials, allSerials]);
 
 
-    // apply search (by serial or name/nickname)
+    // apply search (by serial or name/nickname) and role filter
     const filteredSerials = React.useMemo(() => {
         const q = serialQuery.trim().toLowerCase();
-        if (!q) return serialsByView;
         return serialsByView.filter((s) => {
-            if (String(s).includes(q)) return true;
             const p = serialToPlayer.get(s);
+            // Role filter (exact match) if selected
+            if (roleFilter !== 'all') {
+                const r = String(p?.role || '').toLowerCase();
+                if (r !== String(roleFilter).toLowerCase()) return false;
+            }
+            // If no text query, role filter alone applies
+            if (!q) return true;
+            // Text query can match serial, name, or nickname
+            if (String(s).includes(q)) return true;
             const name = String(p?.name || "").toLowerCase();
             const nick = String(p?.nickname || "").toLowerCase();
             return name.includes(q) || nick.includes(q);
         });
-    }, [serialsByView, serialQuery, serialToPlayer]);
+    }, [serialsByView, serialQuery, serialToPlayer, roleFilter]);
 
     // generic color helper (Sold=Green, Unsold=Red, Ongoing=Yellow, Default=Gray)
     const getSerialChipClass = (serial) => {
@@ -2062,6 +2080,18 @@ const handleSearchById = async (idOverride) => {
                                             className="px-3 py-1.5 text-sm rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                             style={{ minWidth: 220 }}
                                         />
+
+                                        {/* Role filter */}
+                                        <select
+                                            value={roleFilter}
+                                            onChange={(e) => setRoleFilter(e.target.value)}
+                                            className="px-3 py-1.5 text-sm rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                            <option value="all">All roles</option>
+                                            {availableRoles.map((role) => (
+                                                <option key={role} value={role}>{role}</option>
+                                            ))}
+                                        </select>
 
                                         {/* Scroll to current */}
                                         <button
