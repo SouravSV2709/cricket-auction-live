@@ -1,14 +1,11 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef , useMemo} from "react";
 import { useParams } from "react-router-dom";
 import CONFIG from "../components/config";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import clsx from "clsx";
 import Navbar from "../components/Navbar";
-// import BackgroundEffect from "../components/BackgroundEffect";
-import * as XLSX from "xlsx";
-import { getTeamRosterPosterExporter } from "../utils/teamRosterPoster";
-import { getTeamPosterExporter } from "../utils/teamPosters";
+// import BackgroundEffect from "../components/BackgroundEffect";`nimport * as XLSX from "xlsx";`nimport { getTeamPosterExporter } from "../utils/teamPosters";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -68,7 +65,7 @@ const AllTeamCards = () => {
                 setTeams(teamData);
                 if (teamData.length > 0) setSelectedTeam(teamData[0]);
             } catch (err) {
-                console.error("âŒ Error loading data:", err);
+                console.error("G¥î Error loading data:", err);
             }
         };
 
@@ -119,26 +116,6 @@ const AllTeamCards = () => {
 
     XLSX.writeFile(workbook, `${teamName}-Players.xlsx`);
 };
-
-
-    // Team Roster Poster (single poster for whole team)
-    const teamRosterPoster = useMemo(() => {
-        if (!selectedTeam) return null;
-        return getTeamRosterPosterExporter({
-            team: selectedTeam,
-            tournamentName,
-            tournamentLogo,
-            background: "/goldbg.jpg",
-            playersPerTeam,
-        });
-    }, [selectedTeam, tournamentName, tournamentLogo, playersPerTeam]);
-
-    const handleDownloadTeamPoster = () => {
-        if (!teamRosterPoster) return;
-        const list = teamPlayers.filter(Boolean);
-        if (!list.length) return;
-        teamRosterPoster.download(list);
-    };
 
 
 
@@ -242,14 +219,7 @@ const AllTeamCards = () => {
                             onClick={exportToExcel}
                             className="bg-green-600 hover:bg-green-700 text-black font-bold py-2 px-4 rounded ml-3"
                         >
-                            ðŸ“¥ Download Excel
-                        </button>
-                        <button
-                            onClick={handleDownloadTeamPoster}
-                            disabled={!selectedTeam || !teamPlayers.length}
-                            className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-2 px-4 rounded ml-3"
-                        >
-                            Download Team Poster
+                            =ƒôÑ Download Excel
                         </button>
                     </div>
 
@@ -345,7 +315,7 @@ const AllTeamCards = () => {
                                                     )}
                                                     <div>
                                                         {/* <span className="uppercase tracking-wide text-gray-400 text-[10px]">Sold Price</span> */}
-                                                        <div className="font-semibold text-white">â‚¹{player.sold_price?.toLocaleString() || "0"}</div>
+                                                        <div className="font-semibold text-white">Gé¦{player.sold_price?.toLocaleString() || "0"}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -396,7 +366,7 @@ const AllTeamCards = () => {
                                                     {player.jersey_size || "-"} / {player.pant_size || "-"}
                                                 </td>
                                                 <td className="border px-2 py-1">{player.mobile || "-"}</td>
-                                                <td className="border px-2 py-1 text-center">â‚¹{player.sold_price?.toLocaleString() || "0"}</td>
+                                                <td className="border px-2 py-1 text-center">Gé¦{player.sold_price?.toLocaleString() || "0"}</td>
                                             </tr>
                                         ))}
                                     {Array(placeholdersToShow).fill(null).map((_, idx) => (
@@ -436,7 +406,7 @@ const AllTeamCards = () => {
                                 className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
                                 onClick={() => setOpenImage(null)}
                             >
-                                âœ•
+                                G£ò
                             </button>
                         </div>
                     )}
@@ -447,7 +417,7 @@ const AllTeamCards = () => {
 
                     {/* Footer */}
                     <footer className="bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
-                        ðŸ”´ All rights reserved | Powered by Auction Arena | +91-9547652702 ðŸ§¨
+                        =ƒö¦ All rights reserved | Powered by Auction Arena | +91-9547652702 =ƒº¿
                     </footer>
                 </div>
             </div>
@@ -456,4 +426,5 @@ const AllTeamCards = () => {
 };
 
 export default AllTeamCards;
+
 
