@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
 import { useParams } from "react-router-dom";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
-import THEMES from '../components/themes';
+import THEMES, { DEFAULT_THEME_KEY } from '../components/themes';
 import PlayerTransitionLoader from "../components/PlayerTransitionLoader";
 import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
@@ -41,6 +41,11 @@ const formatLakhs = (amt) => {
 
     if (n === 0) return "0";
 
+    // Show full value below 1000
+  if (n < 1000) {
+    return String(n);
+  }
+
     // Lakhs
     if (n >= 100000) {
         const lakhs = n / 100000;
@@ -54,8 +59,439 @@ const formatLakhs = (amt) => {
     return `${str}k`;
 };
 
+const BannerSlide = ({ icon, title, subtitle }) => (
+    <div className="mx-16 md:mx-24">
+        <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                    bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                    border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                    backdrop-blur">
+            <span className="text-2xl md:text-3xl">{icon}</span>
+            <div className="flex flex-col">
+                <span className="text-amber-300 font-extrabold uppercase tracking-widest
+                         text-lg md:text-2xl leading-none">
+                    {title}
+                </span>
+                {subtitle && (
+                    <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                        {subtitle}
+                    </span>
+                )}
+            </div>
+        </div>
+    </div>
+);
 
 
+// ===== Bottom marquee (Top-5 SOLD players) + unified footer =====
+const BottomMarquee = ({
+    items,
+    teamPurseChunks = [],
+    teamSummaries = [],
+    playerList = [],
+    formatLakhs,
+}) => {
+    const STORAGE_KEY = "aa_marquee_phase_v1";
+
+    // ---- Buffered snapshot so marquee doesn't restart mid-run on SOLD/UNSOLD ----
+    const [stable, setStable] = React.useState({
+        items,
+        teamPurseChunks,
+        teamSummaries,
+        playerList,
+    });
+    const pendingRef = React.useRef(stable);
+    const hasPendingRef = React.useRef(false);
+
+    React.useEffect(() => {
+        pendingRef.current = { items, teamPurseChunks, teamSummaries, playerList };
+        hasPendingRef.current = true; // mark that fresh data arrived
+    }, [items, teamPurseChunks, teamSummaries, playerList]);
+
+    // ---- Animation + layout refs/state ----
+    const viewportRef = React.useRef(null);
+    const trackRef = React.useRef(null);
+
+    const [phase, setPhase] = React.useState(0);  // which segment to show
+    const [runId, setRunId] = React.useState(0);  // force re-measure when content changes intentionally
+    const [hydrated, setHydrated] = React.useState(false); // prevent initial flash before restoring phase
+
+    // Restore last phase on mount so we don't start from segment 0 every time
+    React.useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (typeof parsed?.phase === "number") {
+                    setPhase(parsed.phase);
+                }
+            }
+        } catch { }
+        setHydrated(true);
+    }, []);
+
+    const SPEED_PX_PER_SEC = 150; // tune speed
+    const GAP_PX = 1; // head/tail spacer px
+
+    const [animVars, setAnimVars] = React.useState({
+        from: "0px",
+        to: "0px",
+        duration: 30,
+    });
+
+    const measure = React.useCallback(() => {
+        const vw = viewportRef.current?.offsetWidth || 0;
+        const cw = trackRef.current?.scrollWidth || 0;
+        const distance = vw + cw + GAP_PX * 2;
+        const dur = Math.max(10, distance / SPEED_PX_PER_SEC); // never too short
+        setAnimVars({
+            from: `${vw + GAP_PX}px`,
+            to: `-${cw + GAP_PX}px`,
+            duration: dur,
+        });
+    }, []);
+
+    // Re-measure ONLY when we intentionally change phase or bump runId
+    React.useEffect(() => {
+        const id = requestAnimationFrame(measure);
+        return () => cancelAnimationFrame(id);
+    }, [phase, runId, measure]);
+
+    // Respond to container resizes without restarting on data changes
+    React.useEffect(() => {
+        const ro = new ResizeObserver(() => setRunId((r) => r + 1));
+        if (viewportRef.current) ro.observe(viewportRef.current);
+        return () => ro.disconnect();
+    }, []);
+
+    // ---- Helpers ----
+    const resolvePlayerImg = React.useCallback((p, size = 200) => {
+        if (p?.profile_image) {
+            return String(p.profile_image).startsWith("http")
+                ? p.profile_image
+                : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-${size},h-${size},fo-face,z-0.4,q-95,e-sharpen`;
+        }
+        if (p?.image_url) return p.image_url;
+        if (p?.photo_url) return p.photo_url;
+        return "/no-image-found.png";
+    }, []);
+
+    // ---- Segment A: Top-5 most expensive players ----
+    const expensiveNodes = React.useMemo(() => {
+        const list = stable.items;
+        if (!Array.isArray(list) || list.length === 0) return [];
+
+        const banner = (
+            <div className="mx-16 md:mx-24 inline-block" key="exp-banner">
+                <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                        bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                        border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                        backdrop-blur">
+                    <span className="text-2xl md:text-3xl">🏆</span>
+                    <div className="flex flex-col">
+                        <span className="text-amber-300 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
+                            Top 5 Most Expensive Players
+                        </span>
+                        <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                            Highest sold prices this auction
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const pills = list.map((p, idx) => (
+            <div
+                key={`pl-${p.id ?? idx}`}
+                className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px]"
+            >
+                <img
+                    src={p.image_url}
+                    alt={p.name}
+                    onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = "/no-image-found.png";
+                    }}
+                    className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                    <div className="font-extrabold text-2xl md:text-3xl text-yellow-200 leading-tight truncate">
+                        {p.name}
+                    </div>
+                    <div className="text-base md:text-lg text-white/70 uppercase tracking-wider truncate">
+                        {p.teamName}
+                    </div>
+                </div>
+                <div className="ml-2 flex-shrink-0 whitespace-nowrap tabular-nums text-green-300 font-black text-3xl md:text-4xl drop-shadow-lg">
+                    {p.priceText}
+                </div>
+            </div>
+        ));
+
+        return [banner, ...pills];
+    }, [stable.items]);
+
+    // ---- Segment B: Team purse remaining (grouped) ----
+    const teamNodes = React.useMemo(() => {
+        const chunks = stable.teamPurseChunks;
+        if (!Array.isArray(chunks) || chunks.length === 0) return [];
+
+        const banner = (
+            <div className="mx-16 md:mx-24 inline-block" key="purse-banner">
+                <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                        bg-gradient-to-r from-fuchsia-600/25 via-purple-600/20 to-indigo-600/25
+                        border border-white/15 shadow-[0_0_20px_rgba(168,85,247,0.25)]
+                        backdrop-blur">
+                    <span className="text-2xl md:text-3xl">💰</span>
+                    <div className="flex flex-col">
+                        <span className="text-amber-300 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
+                            Team Purse Remaining
+                        </span>
+                        <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                            Sorted high → low
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const flatTeams = chunks.flatMap((c) => (Array.isArray(c) ? c : [c]));
+        const groupsOf4 = [];
+        for (let i = 0; i < flatTeams.length; i += 4) {
+            groupsOf4.push(flatTeams.slice(i, i + 4));
+        }
+
+        const pills = groupsOf4.map((group, i) => (
+            <div
+                key={`tpill-${i}`}
+                className="mx-12 inline-flex items-stretch gap-6 px-8 py-4 bg-white/10 rounded-3xl shadow-xl"
+                style={{ minWidth: "960px" }}
+            >
+                {group.map((t, j) => (
+                    <div
+                        key={j}
+                        className="flex items-center gap-3 px-2"
+                        style={{ width: "220px" }}
+                    >
+                        <span className="min-w-0 flex-1 truncate text-white/90 text-lg font-semibold">
+                            {t?.name ?? "Unknown"}
+                        </span>
+                        <span className="ml-2 flex-none whitespace-nowrap tabular-nums text-emerald-300 font-extrabold text-2xl">
+                            {typeof formatLakhs === "function"
+                                ? formatLakhs(t?.purse ?? 0)
+                                : t?.purse ?? 0}
+                        </span>
+                        {j < group.length - 1 && (
+                            <span className="mx-3 h-6 w-px bg-white/20" />
+                        )}
+                    </div>
+                ))}
+            </div>
+        ));
+
+        return [banner, ...pills];
+    }, [stable.teamPurseChunks, formatLakhs]);
+
+    // ---- Segments C..Z: Team squads (one segment per team) ----
+    const squadSegments = React.useMemo(() => {
+        const ts = stable.teamSummaries;
+        const plist = stable.playerList;
+        if (!Array.isArray(ts) || ts.length === 0) return [];
+
+        const getTeamPlayers = (teamId) =>
+            (plist || [])
+                .filter(
+                    (p) =>
+                        Number(p.team_id) === Number(teamId) &&
+                        (p.sold_status === true || p.sold_status === "TRUE")
+                )
+                .sort(
+                    (a, b) =>
+                        String(a.role || a.base_category || "").localeCompare(
+                            String(b.role || b.base_category || "")
+                        ) ||
+                        String(a.fullname || a.name || "").localeCompare(
+                            String(b.fullname || b.name || "")
+                        )
+                );
+
+        const MAX_PLAYERS_PER_TEAM = 24;
+
+        return ts.map((team) => {
+            const players = getTeamPlayers(team.id).slice(0, MAX_PLAYERS_PER_TEAM);
+
+            const banner = (
+                <div
+                    className="mx-16 md:mx-24 inline-block"
+                    key={`squad-banner-${team.id}`}
+                >
+                    <div className="flex items-center gap-4 px-6 py-3 rounded-full
+                          bg-gradient-to-r from-sky-600/25 via-cyan-600/20 to-emerald-600/25
+                          border border-white/15 shadow-[0_0_20px_rgba(34,197,94,0.25)]
+                          backdrop-blur">
+                        <img
+                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
+                            alt={team.name}
+                            className="w-8 h-8 md:w-10 md:h-10 rounded-full object-contain bg-white/90 border border-white/40"
+                        />
+                        <div className="flex flex-col">
+                            <span className="text-emerald-200 font-extrabold uppercase tracking-widest text-lg md:text-2xl leading-none">
+                                Team Squad: {team.name}
+                            </span>
+                            <span className="text-[10px] md:text-xs text-white/70 tracking-wide">
+                                Bought players (role • name • price)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const chips = players.map((p, idx) => {
+                const img = resolvePlayerImg(p, 90);
+                const role = String(p.role || p.base_category || "PL").toUpperCase();
+                const price = Number(p.sold_price || 0);
+                return (
+                    <span
+                        key={`squad-${team.id}-${p.id ?? idx}`}
+                        className="mx-12 inline-flex items-center gap-4 px-6 py-3 bg-white/10 rounded-3xl shadow-xl min-w-[480px] border border-white/10"
+                    >
+                        <img
+                            src={img}
+                            alt={p.fullname || p.name}
+                            onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = "/no-image-found.png";
+                            }}
+                            className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/60 shadow-2xl flex-shrink-0"
+                        />
+                        <span className="text-xs md:text-sm px-2 py-0.5 rounded bg-black/40 border border-white/10 tracking-wider">
+                            {role}
+                        </span>
+                        <span className="font-semibold text-base md:text-lg truncate max-w-[220px] md:max-w-[320px]">
+                            {p.fullname || p.name}
+                        </span>
+                        <span className="opacity-80">•</span>
+                        <span className="tabular-nums text-emerald-300 font-bold text-lg md:text-xl">
+                            {typeof formatLakhs === "function" ? formatLakhs(price) : price}
+                        </span>
+                    </span>
+                );
+            });
+
+            return (
+                <div
+                    key={`squad-seg-${team.id}`}
+                    className="inline-flex items-center gap-8 text-white/95 text-lg md:text-2xl"
+                >
+                    {banner}
+                    {chips.length ? (
+                        chips
+                    ) : (
+                        <span className="mx-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/10">
+                            <span className="text-white/80">No players bought yet</span>
+                        </span>
+                    )}
+                </div>
+            );
+        });
+    }, [stable.teamSummaries, stable.playerList, resolvePlayerImg, formatLakhs]);
+
+    // ---- Build the full segment list in order ----
+    const segmentList = React.useMemo(() => {
+        const list = [];
+        if (expensiveNodes.length) list.push(expensiveNodes); // segment 0
+        if (teamNodes.length) list.push(teamNodes); // segment 1
+        if (squadSegments.length) {
+            squadSegments.forEach((node) => list.push([node])); // segments 2..N
+        }
+        return list.length ? list : [[]];
+    }, [expensiveNodes, teamNodes, squadSegments]);
+
+    // If segment count shrinks/expands, keep phase in range and persist it
+    React.useEffect(() => {
+        setPhase((p) => {
+            const np = segmentList.length ? p % segmentList.length : 0;
+            try {
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ phase: np }));
+            } catch { }
+            return np;
+        });
+    }, [segmentList.length]);
+
+    const currentNodes = segmentList.length
+        ? segmentList[phase % segmentList.length]
+        : [];
+
+    const handleEnd = React.useCallback(() => {
+        setTimeout(() => {
+            // advance to next segment
+            setPhase((p) => {
+                const np = (p + 1) % (segmentList.length || 1);
+                try {
+                    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ phase: np }));
+                } catch { }
+                return np;
+            });
+
+            // apply any pending updates exactly at segment boundary
+            if (hasPendingRef.current) {
+                setStable(pendingRef.current);
+                hasPendingRef.current = false;
+                setRunId((r) => r + 1); // re-measure freshly applied content
+            } else {
+                setRunId((r) => r + 1);
+            }
+        }, 600); // small pause for readability
+    }, [segmentList.length]);
+
+    // Avoid initial flash (we restore phase first)
+    if (!hydrated || !currentNodes || !currentNodes.length) return null;
+
+    return (
+        <div
+            ref={viewportRef}
+            className="relative overflow-hidden w-full h-40 bg-gradient-to-r from-black via-gray-900 to-black backdrop-blur-sm border-t-4 border-purple-600 shadow-inner"
+        >
+            {/* Scrolling track for CURRENT segment only */}
+            <div
+                key={`phase-${phase}-${runId}`}
+                ref={trackRef}
+                className="absolute inset-x-0 top-0 bottom-10 whitespace-nowrap will-change-transform flex items-center"
+                style={{
+                    animation: `aa-marquee-seq ${animVars.duration}s linear 0s 1 both`,
+                    "--from": animVars.from,
+                    "--to": animVars.to,
+                }}
+                onAnimationEnd={handleEnd}
+            >
+                {/* Head gap */}
+                <span style={{ display: "inline-block", width: GAP_PX }} />
+                {currentNodes}
+                {/* Tail gap */}
+                <span style={{ display: "inline-block", width: GAP_PX }} />
+            </div>
+
+            {/* Copyright inside */}
+            {/* <div className="absolute bottom-2 right-4 pointer-events-none">
+                <div className="px-4 py-1.5 rounded-full bg-black/40 border border-white/10 text-2xl md:text-xl text-white/80 tracking-wider">
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
+                </div>
+            </div> */}
+
+            {/* KEYFRAMES */}
+            <style>{`
+        @keyframes aa-marquee-seq {
+          0%   { transform: translateX(var(--from)); }
+          100% { transform: translateX(var(--to)); }
+        }
+      `}</style>
+        </div>
+    );
+};
+
+
+
+
+// ===== End marquee/footer helpers =====
 
 
 const API = CONFIG.API_BASE_URL;
@@ -106,22 +542,52 @@ const SpectatorLiveDisplay = () => {
     const [auctionDatetime, setAuctionDatetime] = useState(null);
     const [cricheroesStats, setCricheroesStats] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
-    const [activePool, setActivePool] = useState("A"); // optional: keep in sync with Admin
-    const DEFAULT_THEME_KEY = "fireflies"; // pick any valid key that exists in THEMES
+    const [activePool, setActivePool] = useState(""); // optional: keep in sync with Admin
     const [theme, setTheme] = useState(DEFAULT_THEME_KEY);
     const activeTheme =
         (THEMES && THEMES[theme]) ||
         (THEMES && THEMES[DEFAULT_THEME_KEY]) ||
-        { bg: "from-black via-gray-900 to-black", text: "text-white" };
+        { bg: "from-[#0F2A5A] via-[#1F3E73] to-[#0F2A5A]", text: "text-yellow-50" };
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
+    const [marqueeEnabled, setMarqueeEnabled] = useState(true);
+    // guards for UNSOLD transition
+    const unsoldLockRef = useRef(false);
+    const unsoldLockTimerRef = useRef(null);
+    const lastUnsoldAtRef = useRef(0);
+    const lastUnsoldPlayerIdRef = useRef(null);
+
+    // Treat as SOLD only when status is TRUE AND we have a non-zero price AND a real team_id
+    const isValidSold = (p) =>
+        p &&
+        (p.sold_status === true || p.sold_status === "TRUE") &&
+        Number(p.sold_price) > 0 &&
+        p.team_id !== null &&
+        p.team_id !== "";
+
+    const isUnsold = (p) =>
+        p && (p.sold_status === false || p.sold_status === "FALSE");
 
 
+
+
+    // put this inside SpectatorLiveDisplay component, after the useState hooks
+    const renderFooter = (items, teamPurseChunks) => (
+        <div className="fixed bottom-20 left-0 w-full z-[60]">
+            <BottomMarquee
+                items={items}
+                teamPurseChunks={teamPurseChunks}
+                teamSummaries={teamSummaries}
+                playerList={playerList}
+                formatLakhs={formatLakhs}
+            />
+        </div>
+    );
 
 
 
     useEffect(() => {
-        document.title = "Live1 | Auction Arena";
+        document.title = "Live4 | EA ARENA";
     }, []);
 
     // Preload UNSOLD GIFs so they render instantly
@@ -188,30 +654,22 @@ const SpectatorLiveDisplay = () => {
 
 
     const triggerConfettiIfSold = (playerData) => {
-        if (!isLoading && ["TRUE", "true", true].includes(playerData?.sold_status)) {
-            console.log("🎉 Confetti fired for SOLD player:", playerData.name);
+        // do not confetti while UNSOLD is transitioning
+        if (unsoldLockRef.current) return;
 
-            //  ✅ Sold Play sound
-            // Stop previous audio if still playing
+        if (!isLoading && isValidSold(playerData)) {
             if (currentSoldAudio) {
                 currentSoldAudio.pause();
                 currentSoldAudio.currentTime = 0;
             }
-
             const selectedSrc = getRandomSoldAudio();
-            console.log("🔊 Playing audio:", selectedSrc);
-
             currentSoldAudio = new Audio(selectedSrc);
             currentSoldAudio.volume = 1.0;
-            currentSoldAudio.play().catch(err => {
-                console.warn("Autoplay prevented:", err);
-            });
+            currentSoldAudio.play().catch(() => { });
 
-            // Confetti Animatiom
             setTimeout(() => {
                 const duration = 3000;
                 const end = Date.now() + duration;
-
                 const frame = () => {
                     confetti({ particleCount: 10, angle: 60, spread: 200, origin: { x: 0 } });
                     confetti({ particleCount: 10, angle: 120, spread: 200, origin: { x: 1 } });
@@ -219,11 +677,49 @@ const SpectatorLiveDisplay = () => {
                     confetti({ particleCount: 10, angle: 90, spread: 200, origin: { y: 1 } });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 };
-
                 frame();
-            }, 100); // ⏱️ delay to ensure DOM settles
+            }, 100);
         }
     };
+
+        // 😞 Disappointment Emoji Rain (slower, more emojis)
+    const triggerUnsoldEmojiRain = () => {
+        const container = document.createElement("div");
+        container.style.position = "fixed";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "100%";
+        container.style.height = "100%";
+        container.style.pointerEvents = "none";
+        container.style.zIndex = "9999";
+        document.body.appendChild(container);
+
+        const emojis = ["😞", "😔", "😢"];
+
+        for (let i = 0; i < 50; i++) {  // ⬅️ doubled the count
+            const emoji = document.createElement("div");
+            emoji.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+            emoji.style.position = "absolute";
+            emoji.style.left = Math.random() * 100 + "vw";
+            emoji.style.fontSize = Math.random() * 30 + 25 + "px"; // medium size
+            emoji.style.top = "-60px";
+            emoji.style.opacity = "0.9";
+
+            // Slow the fall: 5–7 seconds instead of 3–5
+            emoji.style.animation = `fall ${5 + Math.random() * 2}s linear forwards`;
+
+            container.appendChild(emoji);
+        }
+
+        // cleanup after 8s
+        setTimeout(() => {
+            document.body.removeChild(container);
+        }, 8000);
+    };
+
+
+
+
 
     const lastPlayerId = useRef(null);
 
@@ -287,7 +783,7 @@ const SpectatorLiveDisplay = () => {
         }
 
         try {
-            const res = await fetch(`${API}/api/current-player?tournament_id=${tournamentId}`);
+            const res = await fetch(`${API}/api/current-player?slug=${tournamentSlug}`);
             if (!res.ok) throw new Error("❌ Failed to fetch current player");
 
             const text = await res.text();
@@ -296,7 +792,19 @@ const SpectatorLiveDisplay = () => {
                 return;
             }
 
-            const basic = JSON.parse(text);
+            let basic = null;
+            try {
+                basic = JSON.parse(text);
+            } catch (e) {
+                setPlayer(null);
+                setHighestBid(0);
+                setLeadingTeam("");
+                setCricheroesStats(null);
+                setCustomMessage("No player available");
+                setCustomView(null);
+                setIsLoading(false);
+                return;
+            }
             if (!basic?.id) {
                 console.warn("⚠️ No player ID found in current-player response — skipping update");
                 setCricheroesStats(null);
@@ -311,6 +819,21 @@ const SpectatorLiveDisplay = () => {
 
             const fullRes = await fetch(`${API}/api/players/${basic.id}`);
             const fullPlayer = await fullRes.json();
+            // Guard: only enforce mismatch if both IDs are present
+            if (
+                fullPlayer?.tournament_id != null &&
+                tournamentId != null &&
+                Number(fullPlayer.tournament_id) !== Number(tournamentId)
+            ) {
+                setPlayer(null);
+                setHighestBid(0);
+                setLeadingTeam("");
+                setCricheroesStats(null);
+                setCustomMessage("No player available");
+                setCustomView(null);
+                setIsLoading(false);
+                return;
+            }
 
             fullPlayer.base_price = computeBasePrice(fullPlayer);
             fullPlayer.secret_bidding_enabled = basic.secret_bidding_enabled;
@@ -379,8 +902,80 @@ const SpectatorLiveDisplay = () => {
         }
     };
 
+    const top5SoldPlayers = useMemo(() => {
+        // pick SOLD only, order by sold_price desc, keep top 5
+        const sold = (playerList || [])
+            .filter(p => p?.sold_status === true || p?.sold_status === "TRUE")
+            .sort((a, b) => (Number(b.sold_price) || 0) - (Number(a.sold_price) || 0))
+            .slice(0, 5);
 
+        return sold.map(p => {
+            const team = Array.isArray(teamSummaries)
+                ? teamSummaries.find(t => Number(t.id) === Number(p.team_id))
+                : null;
 
+            // Build a safe image URL:
+            // - If profile_image is absolute (starts with http), use as-is
+            // - Else, use ImageKit path with light face crop + sharpen
+            const img =
+                p?.profile_image
+                    ? (String(p.profile_image).startsWith("http")
+                        ? p.profile_image
+                        : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`)
+                    : "/no-image-found.png";
+
+            return {
+                id: p.id,
+                name: p.name,
+                priceText: formatLakhs(p.sold_price),
+                teamName: team?.name || "Unknown",
+                image_url: img,
+            };
+        });
+    }, [playerList, teamSummaries]);
+
+    const totalPurseRemaining = useMemo(() => {
+        if (!Array.isArray(teamSummaries)) return 0;
+        return teamSummaries.reduce(
+            (sum, t) => sum + (Number(t.remaining_purse) || 0),
+            0
+        );
+    }, [teamSummaries]);
+
+    const teamPurseChunks = useMemo(() => {
+        if (!Array.isArray(teamSummaries) || !Array.isArray(playerList)) return [];
+
+        const arr = teamSummaries.map((team) => {
+            const teamPlayers = playerList.filter(
+                (p) =>
+                    Number(p.team_id) === Number(team.id) &&
+                    (p.sold_status === true || p.sold_status === "TRUE")
+            );
+
+            const spent = teamPlayers.reduce((sum, p) => {
+                const price = Number(p.sold_price);
+                return sum + (isNaN(price) ? 0 : price);
+            }, 0);
+
+            const purse = Math.max(Number(team.budget || 0) - spent, 0);
+
+            return {
+                name: team?.name ?? "Unknown",
+                purse,
+            };
+        });
+
+        // Sort high → low
+        arr.sort((a, b) => b.purse - a.purse);
+
+        // Break into chunks (3 teams per pill)
+        const size = 3;
+        const chunks = [];
+        for (let i = 0; i < arr.length; i += size) {
+            chunks.push(arr.slice(i, i + size));
+        }
+        return chunks;
+    }, [teamSummaries, playerList]);
 
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
@@ -389,6 +984,8 @@ const SpectatorLiveDisplay = () => {
     const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
+
+
 
 
 
@@ -423,6 +1020,7 @@ const SpectatorLiveDisplay = () => {
                 setPlayers(soldPlayers);
                 setTeams(teamData);
                 setTeamSummaries(teamData); // ✅ THIS FIXES THE ERROR
+                setPlayerList(playerData);
             } catch (err) {
                 console.error("❌ Failed to load tournament data:", err);
             }
@@ -434,8 +1032,12 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         if (!player || !["TRUE", "true", true].includes(player.sold_status)) return;
 
-        if (player.id === lastPlayerId.current) {
-            console.log("⏭️ Skipping confetti - player already shown as SOLD:", player.name);
+        // ⛔ ignore SOLD flashes for the same player right after UNSOLD
+        if (
+            unsoldLockRef.current &&
+            Number(player.id) === Number(lastUnsoldPlayerIdRef.current) &&
+            Date.now() - lastUnsoldAtRef.current < 3000
+        ) {
             return;
         }
 
@@ -503,6 +1105,17 @@ const SpectatorLiveDisplay = () => {
             fetchKcplTeamStates();
         };
 
+        // Require tournament-scoped events; ignore others
+        const matchesTournament = (payload) => {
+            if (!payload) return false; // must have payload
+            const tid = payload.tournament_id;
+            const slug = payload.tournament_slug;
+            if (tid != null && tournamentId != null && Number(tid) !== Number(tournamentId)) return false;
+            if (slug != null && tournamentSlug != null && String(slug) !== String(tournamentSlug)) return false;
+            // require at least one tournament tag to be present
+            return tid != null || slug != null;
+        };
+
         // 🔴 LIVE: update bid instantly on every increment
         const onBidUpdated = ({ bid_amount, team_name }) => {
             if (unsoldOverlayActive && Number(bid_amount) === 0 && (!team_name || team_name === "")) return;
@@ -511,23 +1124,33 @@ const SpectatorLiveDisplay = () => {
             if (Number(bid_amount) === 0 && (!team_name || team_name === "")) fastRefresh();
         };
 
-        socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
+        socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); }); // scoped
 
         socket.on("saleCommitted", (payload) => {
+            if (!matchesTournament(payload)) return;
+            // Ignore during UNSOLD overlay or when payload is not a valid SOLD update
+            const price = Number(payload?.sold_price) || 0;
+            const hasTeam = payload?.team_id !== null && payload?.team_id !== "";
+
+            if (unsoldOverlayActive || price <= 0 || !hasTeam) {
+                return; // 🔒 don't paint an invalid SOLD state
+            }
+
             // ① update the visible player instantly (no network)
-            setPlayer(prev =>
+            setPlayer((prev) =>
                 prev && Number(prev.id) === Number(payload?.player_id)
                     ? {
                         ...prev,
                         sold_status: "TRUE",
-                        sold_price: payload?.sold_price ?? prev.sold_price,
-                        team_id: payload?.team_id ?? prev.team_id,
+                        sold_price: payload?.sold_price,
+                        team_id: payload?.team_id,
                         sold_pool: payload?.sold_pool ?? prev.sold_pool,
                     }
                     : prev
             );
+
             // keep the banner in sync so "Waiting for Bid" never shows
-            setHighestBid(Number(payload?.sold_price) || 0);
+            setHighestBid(price);
 
             // ② refresh only aggregates; don't refetch the player yet
             fetchAllPlayers();
@@ -535,49 +1158,82 @@ const SpectatorLiveDisplay = () => {
             fetchKcplTeamStates();
         });
 
-        // optimistic UNSOLD — do not refetch the player
-        const onPlayerUnsold = ({ player_id, sold_pool }) => {
-            // ① Show the overlay immediately
+
+        // optimistic UNSOLD — immediately reflect UNSOLD on the card
+        // UNSOLD: show overlay + audio, but DO NOT mutate local player/bid.
+        // Let DB/Admin own the truth; we’ll refresh after overlay completes.
+        const onPlayerUnsold = ({ player_id }) => {
+            // start a short guard window to block any late SOLD effects
+            if (unsoldLockTimerRef.current) clearTimeout(unsoldLockTimerRef.current);
+            unsoldLockRef.current = true;
+            lastUnsoldAtRef.current = Date.now();
+            lastUnsoldPlayerIdRef.current = Number(player_id);
+
+            // overlay + audio
             setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
-            try { unsoldAudio.currentTime = 0; unsoldAudio.play(); } catch { }
+            try {
+                if (currentSoldAudio) {
+                    currentSoldAudio.pause();
+                    currentSoldAudio.currentTime = 0;
+                }
+                unsoldAudio.currentTime = 0;
+                unsoldAudio.play();
+            } catch { }
 
-            // ② After a short delay, *then* apply the state reset
-            if (unsoldOverlayTimerRef.current) clearTimeout(unsoldOverlayTimerRef.current);
-            unsoldOverlayTimerRef.current = setTimeout(() => {
+            triggerUnsoldEmojiRain();
+
+            // ⛔️ DO NOT do any of these on spectator:
+            // setPlayer(... sold_status: "FALSE", team_id: null, sold_price: 0 ...)
+            // setHighestBid(0);
+            // setLeadingTeam("");
+
+            // after overlay, refetch fresh state from server
+            unsoldLockTimerRef.current = setTimeout(() => {
                 setUnsoldOverlayActive(false);
-                setPlayer(prev =>
-                    prev && Number(prev.id) === Number(player_id)
-                        ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0, sold_pool: sold_pool ?? prev.sold_pool }
-                        : prev
-                );
-                setHighestBid(0);
-                setLeadingTeam("");
-                fetchAllPlayers();
-            }, 1200); // ~1.2s feels snappy; adjust if your clip is longer
+                // fetchAllPlayers();     // your existing light refresh
+                // release guard a moment later
+                setTimeout(() => { unsoldLockRef.current = false; }, 300);
+            }, 1200);
         };
 
 
-        socket.on("playerUnsold", onPlayerUnsold);
+
+
+        socket.on("playerUnsold", (payload) => { if (!matchesTournament(payload)) return; onPlayerUnsold(payload); });
 
 
         socket.on("playerChanged", (payload) => {
-            // ① paint the new player immediately – no network
+            if (!matchesTournament(payload)) return;
+            const samePlayer =
+                payload?.id != null && player?.id != null &&
+                Number(payload.id) === Number(player.id);
+
+            // If this is the SAME player and we just handled UNSOLD,
+            // treat it as a soft refresh (no transition loader / no reset).
+            if (
+                samePlayer &&
+                unsoldLockRef.current // set by onPlayerUnsold
+            ) {
+                setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
+                // keep current highestBid/leadingTeam; do not set isLoading
+                return;
+            }
+
+            // Normal path for actual player switches:
             setIsLoading(true);
-            setPlayer(prev => ({ ...(prev || {}), ...payload }));
+            setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
             setHighestBid(0);
             setLeadingTeam("");
 
-            // ② lazily refresh light aggregates (optional)
+            // light aggregates
             fetchAllPlayers();
             fetchKcplTeamStates();
 
-            // ③ fetch teams only if we need them and don't have them
             if ((!teamSummaries || teamSummaries.length === 0) && payload?.tournament_id) {
                 fetchTeams();
             }
 
-            // ④ optional: fetch stats asynchronously if present
             if (payload?.cricheroes_id) {
                 fetch(`${API}/api/cricheroes-stats/${payload.cricheroes_id}`)
                     .then(r => r.json())
@@ -588,14 +1244,19 @@ const SpectatorLiveDisplay = () => {
             setTimeout(() => setIsLoading(false), 150);
         });
 
-        socket.on("secretBiddingToggled", fastRefresh);
+
+        socket.on("secretBiddingToggled", (payload) => { if (!matchesTournament(payload)) return; fastRefresh(); });
 
         // Theme + custom message + reveal flow — move onto THIS socket
         socket.on("themeUpdate", (newTheme) => {
             setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
         });
 
-        socket.on("customMessageUpdate", (msg) => {
+        socket.on("customMessageUpdate", (payload) => {
+            // Support legacy string payloads (treated as global/ignored here), and new scoped objects
+            if (!payload) return;
+            if (typeof payload === "object" && !matchesTournament(payload)) return;
+            const msg = typeof payload === "string" ? payload : payload.message;
             if (!msg || typeof msg !== "string") return;
 
             if (msg === "__SHOW_TEAM_STATS__") {
@@ -622,12 +1283,17 @@ const SpectatorLiveDisplay = () => {
                 }, 1000);
             } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
                 setCustomView("top-10-expensive"); setCustomMessage(null);
+            } else if (msg === "__MARQUEE_OFF__") {
+                setMarqueeEnabled(false);
+            } else if (msg === "__MARQUEE_ON__") {
+                setMarqueeEnabled(true);
             } else {
                 setCustomMessage(msg); setCustomView(null);
             }
         });
 
         socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
+            if (!matchesTournament({ tournament_id })) return;
             try {
                 const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
                 const data = await res.json();
@@ -638,7 +1304,8 @@ const SpectatorLiveDisplay = () => {
             }
         });
 
-        socket.on("secretBidWinnerAssigned", () => {
+        socket.on("secretBidWinnerAssigned", (payload) => {
+            if (!matchesTournament(payload)) return;
             setCustomView(null);
             setRevealedBids([]);
             setCustomMessage(null);
@@ -646,6 +1313,7 @@ const SpectatorLiveDisplay = () => {
         });
 
         socket.on("showTeam", (payload) => {
+            if (!matchesTournament(payload)) return;
             if (!payload || payload.team_id === null) {
                 setTeamIdToShow(null); setCustomMessage(null); setCustomView("live");
             } else {
@@ -659,7 +1327,12 @@ const SpectatorLiveDisplay = () => {
             }
         });
 
-        socket.on("kcplPoolChanged", (pool) => setActivePool(pool));
+        socket.on("kcplPoolChanged", (data) => {
+            if (typeof data === 'string') { setActivePool(data); return; }
+            if (!matchesTournament(data)) return;
+            const { pool } = data || {};
+            if (pool) setActivePool(pool);
+        });
 
         // Cleanup: unregister listeners and close the one socket
         return () => {
@@ -694,7 +1367,7 @@ const SpectatorLiveDisplay = () => {
     }, []);
 
     useEffect(() => {
-        fetch(`${API}/api/custom-message`)
+        fetch(`${API}/api/custom-message?slug=${tournamentSlug}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.message || data.message.startsWith("__")) {
@@ -744,7 +1417,7 @@ const SpectatorLiveDisplay = () => {
                     />
 
                     <div className="text-center space-y-2">
-                        <h1 className="text-2xl ">{player.name}</h1>
+                        <h1 className="text-3xl ">{player.name}</h1>
                         <p className="text-sm italic text-yellow-200">
                             {player.role} | {player.district || "NA"}
                         </p>
@@ -780,7 +1453,7 @@ const SpectatorLiveDisplay = () => {
                             // ✅ Single Table Layout
                             <div className="w-full max-w-4xl">
                                 <table className="w-full table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in">
-                                    <thead className="bg-white/10 text-yellow-300 text-xs uppercase text-center">
+                                    <thead className="bg-white/10 text-yellow-300 text-xl uppercase text-center">
                                         <tr>
                                             <th className="px-4 py-2 border-b border-white/10">#</th>
                                             <th className="px-4 py-2 border-b border-white/10">Logo</th>
@@ -856,7 +1529,7 @@ const SpectatorLiveDisplay = () => {
                                         key={i}
                                         className="w-1/2 table-auto text-left border-collapse shadow-md rounded-xl overflow-hidden backdrop-blur-md animate-fade-in"
                                     >
-                                        <thead className="bg-white/10 text-yellow-300 text-xs uppercase text-center">
+                                        <thead className="bg-white/10 text-yellow-300 text-xl uppercase text-center">
                                             <tr>
                                                 <th className="px-3 py-2 border-b border-white/10">#</th>
                                                 <th className="px-3 py-2 border-b border-white/10">Logo</th>
@@ -931,7 +1604,7 @@ const SpectatorLiveDisplay = () => {
 
                 {/* FOOTER */}
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
@@ -975,7 +1648,7 @@ const SpectatorLiveDisplay = () => {
                             />
                         )}
 
-                        <h1 className="text-2xl font-extrabold text-center mb-4">{team?.name || "Team Not Found"}</h1>
+                        <h1 className="text-3xl font-extrabold text-center mb-4">{team?.name || "Team Not Found"}</h1>
 
 
                         <p className="text-red-500  text-3xl mb-4 text-center">
@@ -991,7 +1664,7 @@ const SpectatorLiveDisplay = () => {
                         )}
 
                         <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                            🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                            🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                         </footer>
                     </div>
                 </div>
@@ -1059,11 +1732,11 @@ const SpectatorLiveDisplay = () => {
 
                     {/* Left Panel – Highlight Player */}
                     <div className="w-1/3 h-full flex flex-col items-center justify-center p-6">
-                        <h3 className="text-2xl text-yellow-300 mb-3">#1 Most Valuable Player</h3>
+                        <h3 className="text-3xl text-yellow-300 mb-3">#1 Most Valuable Player</h3>
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-extrabold">{topPlayer?.name || "No Player"}</h1>
                             <p className="text-yellow-200 text-sm">{topPlayer?.role || "Not Assigned"}</p>
-                            <p className="text-2xl text-green-400 mt-2">{formatLakhs(topPlayer?.sold_price)}</p>
+                            <p className="text-3xl text-green-400 mt-2">{formatLakhs(topPlayer?.sold_price)}</p>
                         </div>
                         <img
                             src={
@@ -1106,7 +1779,7 @@ const SpectatorLiveDisplay = () => {
                                                 className="flex items-center justify-between bg-white/10 border-l-4 pl-4 pr-6 py-3 rounded-xl shadow-lg backdrop-blur-sm border-white/20"
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className="text-2xl text-yellow-300 w-8">#{groupIdx * 8 + idx + 2}</div>
+                                                    <div className="text-3xl text-yellow-300 w-8">#{groupIdx * 8 + idx + 2}</div>
                                                     <img
                                                         src={
                                                             player?.profile_image
@@ -1121,11 +1794,11 @@ const SpectatorLiveDisplay = () => {
                                                         className="w-14 h-14 rounded-full border border-white object-cover"
                                                     />
                                                     <div className="flex flex-col">
-                                                        <div className="text-white text-2xl">{player?.name || "No Player"}</div>
+                                                        <div className="text-white text-3xl">{player?.name || "No Player"}</div>
                                                         <div className="text-xl text-yellow-100">{player?.role || "Not Assigned"}</div>
                                                     </div>
                                                 </div>
-                                                <div className="text-2xl text-green-400">
+                                                <div className="text-3xl text-green-400">
                                                     {formatLakhs(player?.sold_price || 0)}
                                                 </div>
                                             </div>
@@ -1137,7 +1810,7 @@ const SpectatorLiveDisplay = () => {
                     </div>
 
                     <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                        🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                        🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                     </footer>
                 </div>
                 {/* Ken Burns keyframes (scoped to this component) */}
@@ -1209,7 +1882,7 @@ const SpectatorLiveDisplay = () => {
                                 />
                             )}
                             <h2 className="text-3xl font-extrabold tracking-wider uppercase drop-shadow-md text-center">
-                                {tournamentName || "AUCTION ARENA"} <br />
+                                {tournamentName || "EA ARENA"} <br />
                                 <span className="text-white text-xl">Top 10 Most Expensive Players</span>
                             </h2>
                         </div>
@@ -1232,7 +1905,7 @@ const SpectatorLiveDisplay = () => {
                                                 style={{ animationDelay: `${rank * 0.1}s` }}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`text-2xl  w-8 ${getRankText(rank)}`}>#{rank}</div>
+                                                    <div className={`text-3xl  w-8 ${getRankText(rank)}`}>#{rank}</div>
                                                     <img
                                                         src={player.profile_image
                                                             ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-90,h-90,fo-face,z-0.4,q-95,e-sharpen`
@@ -1260,11 +1933,11 @@ const SpectatorLiveDisplay = () => {
 
                     {/* Right Panel */}
                     <div className="w-1/3 flex flex-col items-center justify-center p-6 bg-gradient-to-t from-black to-black-900 shadow-inner animate-fadeIn">
-                        <h3 className="text-2xl  text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
+                        <h3 className="text-3xl  text-yellow-300 mb-3">🏅 Highest Bidded Player</h3>
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-extrabold">{topPlayer.name}</h1>
                             <p className="text-yellow-200 text-sm">{topTeam?.name}</p>
-                            <p className="text-2xl text-green-400  mt-2">{formatLakhs(topPlayer.sold_price)}</p>
+                            <p className="text-3xl text-green-400  mt-2">{formatLakhs(topPlayer.sold_price)}</p>
                         </div>
                         <img
                             src={
@@ -1281,12 +1954,11 @@ const SpectatorLiveDisplay = () => {
                 </div>
 
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
     }
-
 
 
 
@@ -1295,10 +1967,16 @@ const SpectatorLiveDisplay = () => {
     if (customView === "team-stats") {
         // One block if <=8 teams; otherwise split into two
         const MAX_PER_BLOCK = 8;
-        const groups =
-            teamSummaries.length > MAX_PER_BLOCK
-                ? [teamSummaries.slice(0, MAX_PER_BLOCK), teamSummaries.slice(MAX_PER_BLOCK)]
-                : [teamSummaries];
+
+// If 8 or fewer, keep single column. Otherwise, split evenly.
+const groups =
+  teamSummaries.length > MAX_PER_BLOCK
+    ? [
+        teamSummaries.slice(0, Math.ceil(teamSummaries.length / 2)),
+        teamSummaries.slice(Math.ceil(teamSummaries.length / 2)),
+      ]
+    : [teamSummaries];
+
 
         const getTeamPlayers = (teamId) =>
             playerList.filter(
@@ -1309,8 +1987,20 @@ const SpectatorLiveDisplay = () => {
 
         const formatCurrency = (amt) => formatLakhs(amt);
 
+        // Determine a sensible minimum base price:
+        // 1) If KCPL rules define pool bases, use the smallest pool base
+        // 2) Else default to ₹1700
+        const poolBases = KCPL_RULES?.pools
+            ? Object.values(KCPL_RULES.pools)
+                .map((p) => Number(p?.base) || Infinity)
+                .filter((n) => Number.isFinite(n))
+            : [];
+        const MIN_BASE_PRICE = poolBases.length > 0 ? Math.min(...poolBases) : 1700;
+
         return (
-            <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
+            <div
+                className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}
+            >
                 {/* <BackgroundEffect theme={theme} /> */}
 
                 <div className="flex flex-row items-center justify-center mt-2 mb-4">
@@ -1321,29 +2011,29 @@ const SpectatorLiveDisplay = () => {
                             className="w-36 h-36 object-contain animate-pulse"
                         />
                     )}
-                    <h1 className="text-2xl text-center mt-2">{tournamentName}</h1>
+                    <h1 className="text-3xl text-center mt-2">{tournamentName}</h1>
                 </div>
 
                 <h2 className="text-3xl text-center py-5 text-white">📊 Team Statistics</h2>
 
-                <div className="flex gap-2 items-start justify-center">
+                <div className="flex gap-3 items-start justify-center px-2">
                     {groups.map((grp, grpIdx) => (
                         <div
                             key={grpIdx}
-                            className={`flex flex-col ${groups.length === 1 ? "w-[85%] max-w-[1100px]" : "w-auto max-w-[48%]"
-                                } overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-xl`}
+                            className={`flex flex-col ${groups.length === 1 ? "w-[88%] max-w-[1200px]" : "w-auto max-w-[48%]"
+                                } overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-6 md:px-10 py-6 backdrop-blur-sm shadow-2xl`}
                         >
-                            {/* Header (now 4 columns) */}
-                            <div className="grid grid-cols-4 gap-2 px-3 py-2 text-xl bg-gray-800 rounded-lg text-white">
-                                <div>TEAM NAME</div>
-                                <div className="text-center">PURSE REMAINING</div>
-                                <div className="text-center">BOUGHT (A/B/C/D)</div>
-                                <div className="text-center">SLOTS LEFT</div>
+                            {/* Header (TEAM | PURSE | MAX BID | SLOTS LEFT) */}
+                            <div className="grid grid-cols-4 gap-2 md:gap-4 px-3 py-3 text-base md:text-xl bg-white/10 rounded-xl text-white/90 border border-white/10">
+                                <div className="tracking-wider">TEAM NAME</div>
+                                <div className="text-center tracking-wider">PURSE REMAINING</div>
+                                <div className="text-center tracking-wider">MAX BID ALLOWED</div>
+                                <div className="text-center tracking-wider">SLOTS LEFT</div>
                             </div>
 
                             {/* Rows */}
-                            <div className="overflow-y-auto max-h-[calc(100vh-300px)] mt-2 space-y-2 pr-1">
-                                {grp.map((team) => {
+                            <div className="overflow-y-auto max-h-[calc(100vh-300px)] mt-3 space-y-2 pr-1">
+                                {grp.map((team, idx) => {
                                     const teamPlayers = getTeamPlayers(team.id);
 
                                     const spent = teamPlayers.reduce((sum, p) => {
@@ -1352,45 +2042,59 @@ const SpectatorLiveDisplay = () => {
                                     }, 0);
 
                                     const purse = Math.max(Number(team.budget || 0) - spent, 0);
-                                    const leftSlots = (totalPlayersToBuy || 14) - (team.bought_count || 0);
+                                    const leftSlots = Math.max(
+                                        (totalPlayersToBuy || 14) - (team.bought_count || 0),
+                                        0
+                                    );
 
-                                    // Pool counts A/B/C/D
-                                    const poolCounts = { A: 0, B: 0, C: 0, D: 0 };
-                                    teamPlayers.forEach((p) => {
-                                        const pool = p?.sold_pool;
-                                        if (poolCounts[pool] !== undefined) poolCounts[pool] += 1;
-                                    });
+                                    // Prefer backend-provided max if available; else compute via rule
+                                    const computedMax =
+                                        purse - Math.max(leftSlots - 1, 0) * MIN_BASE_PRICE;
+                                    const maxBidAllowed = Math.max(
+                                        Number.isFinite(Number(team.max_bid_allowed))
+                                            ? Number(team.max_bid_allowed)
+                                            : computedMax,
+                                        0
+                                    );
 
                                     return (
                                         <div
                                             key={team.id}
-                                            className="grid grid-cols-4 gap-2 items-center px-3 py-3 rounded-lg bg-gradient-to-r from-blue-900 to-purple-900 text-2xl font-semibold shadow-sm"
+                                            className={`grid grid-cols-4 gap-2 md:gap-4 items-center px-3 py-3 rounded-xl 
+                                bg-gradient-to-r from-slate-900/70 to-indigo-900/50 text-2xl md:text-3xl font-semibold 
+                                border border-white/10 shadow-sm hover:shadow-xl transition-shadow ${idx % 2 ? "backdrop-blur-[2px]" : "backdrop-blur-sm"
+                                                }`}
                                         >
                                             {/* Team */}
-                                            <div className="flex items-center gap-2 truncate">
+                                            <div className="flex items-center gap-3 min-w-0">
                                                 <img
                                                     src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                     alt={team.name}
-                                                    className="w-6 h-6 rounded-full border border-white"
+                                                    className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/50 bg-white/80 object-contain"
                                                 />
-                                                <span className="truncate">{team.name}</span>
+                                                <span className="truncate text-white">{team.name}</span>
                                             </div>
 
                                             {/* Purse */}
-                                            <div className="text-center">{formatCurrency(purse)}</div>
-
-                                            {/* Bought by Pool (compact chips in one cell) */}
                                             <div className="text-center">
-                                                <div className="inline-flex items-center gap-1 text-xl">
-                                                    <span className="px-1.5 py-0.5 rounded bg-rose-600/80">A:{poolCounts.A}</span>
-                                                    <span className="px-1.5 py-0.5 rounded bg-amber-600/80">B:{poolCounts.B}</span>
-                                                    <span className="px-1.5 py-0.5 rounded bg-emerald-600/80">C:{poolCounts.C}</span>
-                                                    <span className="px-1.5 py-0.5 rounded bg-indigo-600/80">D:{poolCounts.D}</span>
-                                                </div>
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-600/25 border border-emerald-300/30 text-emerald-200 tabular-nums">
+                                                    {formatCurrency(purse)}
+                                                </span>
+                                            </div>
+
+                                            {/* Max Bid Allowed */}
+                                            <div className="text-center">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-600/25 border border-amber-300/30 text-amber-200 tabular-nums">
+                                                    {formatCurrency(maxBidAllowed)}
+                                                </span>
                                             </div>
 
                                             {/* Slots Left */}
-                                            <div className="text-center">{leftSlots}</div>
+                                            <div className="text-center">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-cyan-600/25 border border-cyan-300/30 text-cyan-200 tabular-nums">
+                                                    {leftSlots}
+                                                </span>
+                                            </div>
                                         </div>
                                     );
                                 })}
@@ -1400,11 +2104,12 @@ const SpectatorLiveDisplay = () => {
                 </div>
 
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
     }
+
 
 
 
@@ -1420,7 +2125,7 @@ const SpectatorLiveDisplay = () => {
                         <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
                             <img
                                 src="/AuctionArena2.png"
-                                alt="Auction Arena"
+                                alt="EA ARENA"
                                 className="w-64 h-64 object-contain mb-2 animate-shake"
                             />
                             <div className="text-xl text-white text-center leading-snug">
@@ -1487,7 +2192,7 @@ const SpectatorLiveDisplay = () => {
                     </>
                 )}
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
         );
@@ -1625,7 +2330,7 @@ const SpectatorLiveDisplay = () => {
                                     🔴 LIVE STREAMING
                                 </div>
                                 <img src="/hammer.png" alt="Gavel" className="w-10 h-10 object-contain" />
-                                <img src="/AuctionArena2.png" alt="Auction Arena" className="w-20 h-20 object-contain" />
+                                <img src="/AuctionArena2.png" alt="EA ARENA" className="w-20 h-20 object-contain" />
                             </div>
 
                             <div className="text-white text-xl bg-black/60 border border-white/30 px-6 py-2 rounded-lg tracking-widest font-semibold">
@@ -1664,7 +2369,7 @@ const SpectatorLiveDisplay = () => {
 
                 {/* Footer */}
                 <footer className="absolute bottom-0 left-0 w-full text-center text-white text-sm bg-black/80 border-t border-purple-600 animate-pulse z-50 py-2">
-                    🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
                 </footer>
             </div>
 
@@ -1680,13 +2385,39 @@ const SpectatorLiveDisplay = () => {
     const team = Array.isArray(teamSummaries)
         ? teamSummaries.find(t => Number(t.id) === Number(player.team_id))
         : null;
-    const teamName = team?.name || leadingTeam || "Unknown";
+    const teamName = team?.name || leadingTeam || "-";
     const teamLogoId = team?.logo;
 
+    // Pick the LIVE leading team object (prefer socket leadingTeam, else fall back to player's team)
+    const leadingTeamObj =
+        (leadingTeam
+            ? teamSummaries.find(t => (t?.name || "").trim() === (leadingTeam || "").trim())
+            : null) || team || null;
+
+    // Values from Teams table (no recompute)
+    const playersInTeamCount = leadingTeamObj?.bought_count ?? 0;
+    const leadingTeamMaxBid = Number(leadingTeamObj?.max_bid_allowed || 0);
+    const leadingTeamId = leadingTeamObj?.id ? Number(leadingTeamObj.id) : null;
+
+    const spentByLeadingTeam =
+        leadingTeamId !== null
+            ? playerList.reduce((sum, p) => {
+                const sameTeam = Number(p.team_id) === leadingTeamId;
+                const isSold = p.sold_status === true || p.sold_status === "TRUE";
+                return sum + (sameTeam && isSold ? Number(p.sold_price) || 0 : 0);
+            }, 0)
+            : 0;
+
+    const availablePurse = Math.max(Number(leadingTeamObj?.budget || 0) - spentByLeadingTeam, 0);
+
+
+
     const isWaitingForBid =
-        !["TRUE", "true", true].includes(player?.sold_status) &&
+        !isValidSold(player) &&
+        !isUnsold(player) &&
         (!highestBid || Number(highestBid) === 0) &&
         !player?.secret_bidding_enabled;
+
 
 
 
@@ -1708,19 +2439,19 @@ const SpectatorLiveDisplay = () => {
             {/* <BackgroundEffect theme={theme} /> */}
 
             <div className="flex items-center justify-between px-6 py-4">
-                {/* Left: Auction Arena Logo */}
+                {/* Left: EA ARENA Logo */}
                 <img
                     src="/AuctionArena2.png"
-                    alt="Auction Arena"
+                    alt="EA ARENA"
                     className="w-20 h-20 object-contain animate-pulse"
                 />
                 <h1 className="text-4xl font-extrabold tracking-wide text-center flex-1 animate-pulse">
-                    {tournamentName?.toUpperCase() || "AUCTION ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
+                    {tournamentName?.toUpperCase() || "EA ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
                 </h1>
                 {tournamentLogo && (
                     <img
                         src="/AuctionArena2.png"
-                        alt="Auction Arena"
+                        alt="EA ARENA"
                         className="w-20 h-20 object-contain ml-4 animate-pulse"
                     />
                 )}
@@ -1804,7 +2535,7 @@ const SpectatorLiveDisplay = () => {
                             </div>
 
                             {/* SOLD image (only if NOT Pool X) */}
-                            {["TRUE", "true", true].includes(player?.sold_status) && poolCode !== "X" && (
+                            {isValidSold(player) && poolCode !== "X" && (
                                 <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
                                     <img src="/SOLD.png" alt="SOLD" className="w-28 h-auto drop-shadow-xl animate-pulse" />
                                 </div>
@@ -1830,7 +2561,9 @@ const SpectatorLiveDisplay = () => {
                                 .toUpperCase();
                             const soldAmt = Number(player?.sold_price) || 0;
 
-                            let poolLabel = poolCode ? `Pool ${poolCode}` : "Pool -";
+                            if (!poolCode) return null; // ⬅️ Don’t render if no pool
+
+                            let poolLabel = `Pool ${poolCode}`;
 
                             if (poolCode === "X") {
                                 if (soldAmt === 400000) poolLabel = "Owner";
@@ -1848,6 +2581,7 @@ const SpectatorLiveDisplay = () => {
                                 </div>
                             );
                         })()}
+
 
                     </div>
                 </div>
@@ -1874,89 +2608,91 @@ const SpectatorLiveDisplay = () => {
                         </p>
                     </div>
 
-                    {["TRUE", "true", true].includes(player?.sold_status) && (() => {
-                        const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
-                        const isPoolX = poolCode === "X";
-                        const soldAmt = Number(player?.sold_price) || 0;
-                        const xLabel = isPoolX
-                            ? (soldAmt === 400000 ? "Owner" : soldAmt === 1000000 ? "ICON" : "Pool X")
-                            : null;
+                    {isValidSold(player) &&
+                        !["FALSE", "false", false].includes(player?.sold_status) &&
+                        !unsoldOverlayActive && (() => {
+                            const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
+                            const isPoolX = poolCode === "X";
+                            const soldAmt = Number(player?.sold_price) || 0;
+                            const xLabel = isPoolX
+                                ? (soldAmt === 400000 ? "Owner" : soldAmt === 1000000 ? "ICON" : "Pool X")
+                                : null;
 
-                        return (
-                            <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
-                                {/* Team Logo */}
-                                <div className="flex justify-center">
-                                    <img
-                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId}?`}
-                                        alt={teamName}
-                                        className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
-                                    />
-                                </div>
-
-                                {/* Team Name */}
-                                <p className="text-2xl text-center mt-2 text-white uppercase tracking-wide">
-                                    {teamName}
-                                </p>
-
-                                {/* Sold Amount — HIDE when Pool X */}
-                                {!isPoolX && (
-                                    <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                        <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
-                                            🎉 Sold Amount: {formatLakhs(player?.sold_price || 0)}
-                                        </p>
+                            return (
+                                <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
+                                    {/* Team Logo */}
+                                    <div className="flex justify-center">
+                                        <img
+                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId}?`}
+                                            alt={teamName}
+                                            className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
+                                        />
                                     </div>
-                                )}
 
-                                {/* Players Bought & Base Price / Owner / ICON */}
-                                {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
-                                    <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
-                                        <div className="flex flex-col items-center py-3 bg-black/40">
-                                            <p className="text-xs text-yellow-400 uppercase tracking-wider">Players Bought</p>
-                                            <p className="text-xl text-white">
-                                                🧑‍🤝‍🧑 {team.bought_count} / {CONFIG.PLAYERS_PER_TEAM || 17}
+                                    {/* Team Name */}
+                                    <p className="text-3xl text-center mt-2 text-white uppercase tracking-wide">
+                                        {teamName}
+                                    </p>
+
+                                    {/* Sold Amount — HIDE when Pool X */}
+                                    {!isPoolX && (
+                                        <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
+                                            <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
+                                                🎉 Sold Amount: {formatLakhs(player?.sold_price || 0)}
                                             </p>
                                         </div>
+                                    )}
 
-                                        <div className="flex flex-col items-center py-3 bg-black/40">
-                                            {isPoolX ? (
-                                                <>
-                                                    <p className="text-xs text-yellow-400 uppercase tracking-wider">Category</p>
-                                                    <p className="text-xl text-white tracking-wider uppercase">
-                                                        {xLabel}
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <p className="text-xs text-yellow-400 uppercase tracking-wider">Base Price</p>
-                                                    <p className="tracking-wider uppercase">
-                                                        {formatLakhs(getDisplayBasePrice(player, activePool))}
-                                                    </p>
-                                                </>
-                                            )}
+                                    {/* Players Bought & Base Price / Owner / ICON */}
+                                    {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
+                                        <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
+                                            <div className="flex flex-col items-center py-3 bg-black/40">
+                                                <p className="text-xl text-yellow-400 uppercase tracking-wider">Players Bought</p>
+                                                <p className="text-xl text-white">
+                                                    🧑‍🤝‍🧑 {team.bought_count} / {totalPlayersToBuy || 17}
+                                                </p>
+                                            </div>
+
+                                            <div className="flex flex-col items-center py-3 bg-black/40">
+                                                {isPoolX ? (
+                                                    <>
+                                                        <p className="text-xl text-yellow-400 uppercase tracking-wider">Category</p>
+                                                        <p className="text-xl text-white tracking-wider uppercase">
+                                                            {xLabel}
+                                                        </p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-xl text-yellow-400 uppercase tracking-wider">Base Price</p>
+                                                        <p className="tracking-wider uppercase text-white">
+                                                            {formatLakhs(getDisplayBasePrice(player, activePool))}
+                                                        </p>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
+                                    )}
+                                </div>
+                            );
+                        })()}
 
 
 
-                    {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) && (
-                        isWaitingForBid ? (
+                    {!isValidSold(player) && !isUnsold(player) && (
+                        isWaitingForBid && !unsoldOverlayActive ? (
+                            // ⛔ shown only when actively waiting, not UNSOLD, not overlay
                             <div className="text-center items-center justify-center">
                                 <img
                                     src="/bidding.gif"
                                     alt="Waiting for a Bid"
                                     className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
                                 />
-                                <p className="text-2xl text-yellow-300  animate-pulse">
-                                    Waiting for a Bid...
+                                <p className="text-3xl text-yellow-300 animate-pulse">
+                                    Waiting for a Bid.
                                 </p>
                             </div>
                         ) : (
                             <>
-
                                 {(() => {
                                     const leadingTeamObj = Array.isArray(teamSummaries)
                                         ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
@@ -1965,12 +2701,8 @@ const SpectatorLiveDisplay = () => {
                                     const leadingTeamLogo = leadingTeamObj?.logo;
                                     const leadingTeamName = leadingTeamObj?.name;
 
-
-
                                     return (
                                         <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
-                                            {/* <p className="text-2xl mb-4 uppercase tracking-wider  drop-shadow-sm">Leading Team</p> */}
-
                                             {leadingTeamLogo && (
                                                 <img
                                                     src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
@@ -1978,44 +2710,34 @@ const SpectatorLiveDisplay = () => {
                                                     className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
                                                 />
                                             )}
-
-                                            {/* <div className="text-4xl uppercase text-green-bold">
-                                                {leadingTeamName || "—"}
-                                            </div> */}
-
                                         </div>
                                     );
                                 })()}
 
-                                {!unsoldOverlayActive && (
-                                    <div className="rounded-xl px-6 py-4 text-center justify-center flex flex-row gap-4">
-                                        <div className="items-center py-3 px-3 bg-black/40">
-                                            <p className="text-lg uppercase text-green-bold">Base Price</p>
-
-                                            <p className="text-4xl tracking-wider uppercase">{formatLakhs(getDisplayBasePrice(player, activePool))}</p>                                    </div>
-                                        <div className="items-center py-3 px-3 bg-black/40 animate-pulse">
-                                            <p className="text-lg uppercase text-green-bold">Current Bid</p>
-                                            <p className="text-4xl uppercase text-green-bold">
-                                                {formatLakhs(highestBid)}
-                                            </p>
-                                        </div>
+                                {!unsoldOverlayActive && ( 
+                                    <div className="w-auto text-center mt-2 ml-5">
+                                    <div className="bg-black/60 border border-yellow-400/30 rounded-2xl px-2 py-2 animate-pulse shadow-lg">
+                                        <p className="text-2xl uppercase tracking-wider text-white/70 mb-2">Current Bid</p>
+                                        <p className="text-6xl md:text-8xl font-extrabold text-yellow-300 drop-shadow-lg">
+                                        {formatLakhs(highestBid)}
+                                        </p>
                                     </div>
+                                    </div>
+
                                 )}
 
-
                                 <div>
-                                    {/* 👇 Secret Bidding Flag Message */}
                                     {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
                                         player?.secret_bidding_enabled && (
-                                            <p className="text-2xl mt-4 text-yellow-300  animate-pulse">
-                                                Secret Bidding In Progress...
+                                            <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
+                                                Secret Bidding In Progress.
                                             </p>
                                         )}
                                 </div>
-
                             </>
                         )
                     )}
+
 
 
                     {(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status)) && unsoldClip && (
@@ -2054,84 +2776,128 @@ const SpectatorLiveDisplay = () => {
 
                 </div>
 
-                <div className="w-1/3 flex flex-col justify-items-stretch space-y-8 mt-10">
+                <div className="w-1/3 flex flex-col space-y-6 mt-10">
+                    {/* ——— Player Info ——— */}
                     <div
-                        className="relative w-[48rem] h-auto rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-2xl
+                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-3xl
                bg-white/5 backdrop-blur-md"
                     >
-                        {/* Content (more padding) */}
                         <div className="relative p-6 md:p-8 font-orbitron">
-
-                            {/* Batting Stat */}
-                            <div>
-                                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
-                        bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
-                        text-xl tracking-widest uppercase">
-                                    Batting Stat
-                                </div>
-
-                                <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
-                                    <div className="px-3 py-2 tracking-wider uppercase">Type</div>
-                                    <div className="px-3 py-2 uppercase">{player?.batsman_type || "LOWER ORDER BATSMAN"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
-                                    <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Runs</div>
-                                    <div className="px-3 py-2">{player?.runs != null ? Number(player.runs).toLocaleString() : "-"}</div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Average</div>
-                                    <div className="px-3 py-2">
-                                        {player?.batting_avg == null ? "-" : Number(player.batting_avg).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-
-                                    <div className="px-3 py-2 tracking-wider uppercase">Strike Rate</div>
-                                    <div className="px-3 py-2">
-                                        {player?.batting_sr == null ? "-" : Number(player.batting_sr).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-                                </div>
+                            <div
+                                className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
+                   bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
+                   text-xl tracking-widest uppercase">
+                                Player Info
                             </div>
 
-                            {/* DISTINCT SEPARATOR */}
-                            <div className="my-6 h-[2px] bg-gradient-to-r from-transparent via-white/40 to-transparent rounded-full" />
+                            <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-3xl">
+                                {/* <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
+                                <div className="px-3 py-2">{player?.nickname || "-"}</div> */}
 
-                            {/* Bowling Stat */}
-                            <div>
-                                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
-                        bg-gradient-to-r from-sky-400/30 to-violet-500/30 text-white/90
-                        text-xl tracking-widest uppercase">
-                                    Bowling Stat
-                                </div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Role</div>
+                                <div className="px-3 py-2 uppercase">{player?.role || "-"}</div>
 
-                                <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
-                                    <div className="px-3 py-2 tracking-wider uppercase">Type</div>
-                                    <div className="px-3 py-2 uppercase">{player?.bowling_type || "PART TIME BOWLER"}</div>
+                                <div className="px-3 py-2 tracking-wider uppercase">Age Category</div>
+                                <div className="px-3 py-2 uppercase">{player?.age_category || "Below 40"}</div> 
 
-                                    <div className="px-3 py-2 tracking-wider uppercase">Matches</div>
-                                    <div className="px-3 py-2">{player?.matches != null ? Number(player.matches).toLocaleString() : "-"}</div>
 
-                                    <div className="px-3 py-2 tracking-wider uppercase">Wickets</div>
-                                    <div className="px-3 py-2">{player?.wickets != null ? Number(player.wickets).toLocaleString() : "-"}</div>
+                                {/* <div className="px-3 py-2 tracking-wider uppercase">Batting Type</div>
+                                <div className="px-3 py-2 uppercase">{player?.batting_hand || "-"}</div> */}
 
-                                    <div className="px-3 py-2 tracking-wider uppercase">Economy</div>
-                                    <div className="px-3 py-2">
-                                        {player?.bowling_eco == null ? "-" : Number(player.bowling_eco).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
+                                {/* <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
+                                <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div> */}
 
-                                    <div className="px-3 py-2 tracking-wider uppercase">Average</div>
-                                    <div className="px-3 py-2">
-                                        {player?.bowling_avg == null ? "-" : Number(player.bowling_avg).toFixed(2).replace(/\.00$/, "")}
-                                    </div>
-                                </div>
+                                {player?.location && (
+                                    <>
+                                        <div className="px-3 py-2 tracking-wider uppercase">Location</div>
+                                        <div className="px-3 py-2">{player.location}</div>
+                                    </>
+                                )}
                             </div>
-
                         </div>
                     </div>
+
+                    {/* ——— Auction Snapshot (fills the blank area neatly) ——— */}
+                    <div className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 bg-white/5 backdrop-blur-md">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {/* Base Price */}
+                            <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                <div className="text-xl tracking-widest text-white/70 uppercase">Base Price</div>
+                                <div className="text-3xl font-extrabold text-green-300 mt-1">
+                                    {formatLakhs(getDisplayBasePrice(player, activePool))}
+                                </div>
+                            </div>
+
+                            {/* Current Bid / Sold / Unsold */}
+                            <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                {["FALSE", "false", false].includes(player?.sold_status) ? (
+                                    <>
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Status</div>
+                                        <div className="text-3xl font-extrabold text-red-400 mt-1">Unsold</div>
+                                    </>
+
+
+
+
+                                ) : ["TRUE", "true", true].includes(player?.sold_status) ? (
+                                    <>
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Sold Amount</div>
+                                        <div className="text-3xl font-extrabold text-green-300 mt-1">
+                                            {formatLakhs(player?.sold_price || 0)}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Current Bid</div>
+                                        <div className="text-3xl font-extrabold text-yellow-300 mt-1">
+                                            {formatLakhs(highestBid || 0)}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+
+                            {/* Leading Team */}
+                            {!["FALSE", "false", false].includes(player?.sold_status) && (
+                                <>
+                                    {/* Leading Team */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center col-span-2 md:col-span-1">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Leading Team</div>
+                                        <div className="text-xl font-bold text-white mt-1 truncate">
+                                            {leadingTeamObj?.name || teamName}
+                                        </div>
+                                    </div>
+
+                                    {/* Players in Team */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Players in Team</div>
+                                        <div className="text-3xl font-extrabold text-white mt-1">{playersInTeamCount}</div>
+                                    </div>
+
+                                    {/* Available Purse */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Available Purse</div>
+                                        <div className="text-3xl font-extrabold text-blue-300 mt-1">
+                                            {formatLakhs(availablePurse)}
+                                        </div>
+                                    </div>
+
+
+                                    {/* Leading Team Max Bid */}
+                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
+                                        <div className="text-xl tracking-widest text-white/70 uppercase">Team Max Bid</div>
+                                        <div className="text-3xl font-extrabold text-green-300 mt-1">
+                                            {formatLakhs(leadingTeamMaxBid)}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+
+                        </div>
+
+                    </div>
                 </div>
-
-
-
-
 
             </div>
 
@@ -2139,62 +2905,25 @@ const SpectatorLiveDisplay = () => {
                 <img
                     src={tournamentLogo}
                     alt="Tournament Logo"
-                    className="w-16 h-16 object-contain absolute bottom-12 right-4 opacity-70"
+                    className="w-24 h-24 object-contain absolute bottom-60 right-0 opacity-70 z-[100]"
+                />
+            )}
+
+            {tournamentLogo && (
+                <img
+                    src={tournamentLogo}
+                    alt="Tournament Logo"
+                    className="w-24 h-24 object-contain absolute bottom-60 left-0 opacity-70 z-[100]"
                 />
             )}
 
 
-            {kcplTeamStates?.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 z-40 bg-black/70 backdrop-blur-md border-b border-white/10">
-                    Title row
-                    {/* <div className="px-4 py-2 text-yellow-400 text-lg font-bold tracking-wide">
-                        POOL {activePool} — LIVE MAX BID / MAX PLAYERS / POOL PURSE
-                    </div> */}
+            {marqueeEnabled && renderFooter(top5SoldPlayers, teamPurseChunks)}
 
-                    {/* Grid layout */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3 px-4 pb-3">
-                        {kcplTeamStates.map(t => {
-                            const stats = t.poolStats?.[activePool] || {};
-                            const effCap = Number(t.limitByPool?.[activePool] ?? 0);       // effective cap for this pool
-                            const spentHere = Number(t.spentByPool?.[activePool] ?? 0);    // spent so far in this pool
-                            const purseLeft = Math.max(0, effCap - spentHere);             // ✅ Purse Left
+            <footer className="fixed bottom-0 left-0 w-full h-20 text-center text-white text-xl bg-black animate-pulse z-50 py-2">
+                    🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
+                </footer>
 
-                            return (
-                                <div key={t.teamId} className="rounded-xl bg-white/10 border border-white/20 p-3 text-center">
-                                    {/* Team name */}
-                                    <div className="font-semibold text-white text-sm mb-2">
-                                        {t.teamName}
-                                    </div>
-
-                                    {/* One row with three chips */}
-                                    <div className="flex items-center justify-center gap-2 flex-wrap text-xl">
-                                        <span className="bg-green-600/80 rounded px-2 py-1 text-white">
-                                            Max Bid - {formatLakhs(stats.maxBid || 0)}
-                                        </span>
-
-                                        <span className="bg-blue-600/80 rounded px-2 py-1 text-white">
-                                            Players - {stats.maxPlayers ?? 0}
-                                        </span>
-
-                                        <span className="bg-purple-600/80 rounded px-2 py-1 text-white">
-                                            Purse Left - {formatLakhs(purseLeft)}
-                                        </span>
-
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
-
-
-
-            {/* 
-            <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black animate-pulse z-50 py-2">
-                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
-            </footer> */}
         </div>
 
     );

@@ -376,15 +376,26 @@ const SpectatorLiveDisplay = () => {
             fetchTeams();
         };
 
+        // Require tournament-scoped events; ignore others
+        const matchesTournament = (payload) => {
+            if (!payload) return false;
+            const tid = payload.tournament_id;
+            const slug = payload.tournament_slug;
+            if (tid != null && tournamentId != null && Number(tid) !== Number(tournamentId)) return false;
+            if (slug != null && tournamentSlug != null && String(slug) !== String(tournamentSlug)) return false;
+            return tid != null || slug != null; // require a tournament tag
+        };
+
         // 🔴 Live bid updates (optimistic)
         const onBidUpdated = ({ bid_amount, team_name }) => {
             setHighestBid(Number(bid_amount) || 0);
             setLeadingTeam(team_name || "");
         };
-        socket.on("bidUpdated", onBidUpdated);
+        socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); });
 
         // ✅ SOLD committed (optimistic apply to the *visible* player)
         const onSaleCommitted = (payload) => {
+            if (!matchesTournament(payload)) return;
             const t = Array.isArray(teamSummaries)
                 ? teamSummaries.find(x => Number(x.id) === Number(payload?.team_id))
                 : null;
@@ -426,11 +437,12 @@ const SpectatorLiveDisplay = () => {
         socket.on("saleCommitted", onSaleCommitted);
 
         // 🟠 If your Admin emits "playerSold" immediately (it does), mirror the same optimistic update
-        const onPlayerSold = (payload) => onSaleCommitted(payload);
+        const onPlayerSold = (payload) => { if (!matchesTournament(payload)) return; onSaleCommitted(payload); };
         socket.on("playerSold", onPlayerSold);
 
         // 🚫 UNSOLD (optimistic: clear team & sold_price locally)
-        const onPlayerUnsold = ({ player_id, sold_pool }) => {
+        const onPlayerUnsold = ({ player_id, sold_pool, tournament_id, tournament_slug }) => {
+        if (!matchesTournament({ tournament_id, tournament_slug })) return;
         // Stop any ongoing confetti immediately
         if (confettiRafRef.current) {
             cancelAnimationFrame(confettiRafRef.current);
@@ -470,6 +482,7 @@ const SpectatorLiveDisplay = () => {
 
         // ⏭️ Next player / player change (paint first, then light refreshes)
         const onPlayerChanged = (payload) => {
+            if (!matchesTournament(payload)) return;
             setPlayer((prev) => {
                 const merged = { ...(prev || {}), ...payload };
                 setHighestBid(0);
@@ -485,8 +498,16 @@ const SpectatorLiveDisplay = () => {
 
         // Theme + custom message + secret-bid toggle
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme || "default"));
-        socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
-        socket.on("secretBiddingToggled", () => {
+        socket.on("customMessageUpdate", (payload) => {
+            if (typeof payload === 'object') {
+                if (!matchesTournament(payload)) return;
+                setCustomMessage(payload?.message ?? null);
+            } else {
+                setCustomMessage(null);
+            }
+        });
+        socket.on("secretBiddingToggled", (payload) => {
+            if (!matchesTournament(payload)) return;
             fetch(`${API}/api/current-player?tournament_id=${tournamentId}`)
                 .then((res) => res.json())
                 .then((data) => {
