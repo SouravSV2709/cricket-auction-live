@@ -783,7 +783,7 @@ const SpectatorLiveDisplay = () => {
         }
 
         try {
-            const res = await fetch(`${API}/api/current-player`);
+            const res = await fetch(`${API}/api/current-player?slug=${tournamentSlug}`);
             if (!res.ok) throw new Error("❌ Failed to fetch current player");
 
             const text = await res.text();
@@ -792,7 +792,19 @@ const SpectatorLiveDisplay = () => {
                 return;
             }
 
-            const basic = JSON.parse(text);
+            let basic = null;
+            try {
+                basic = JSON.parse(text);
+            } catch (e) {
+                setPlayer(null);
+                setHighestBid(0);
+                setLeadingTeam("");
+                setCricheroesStats(null);
+                setCustomMessage("No player available");
+                setCustomView(null);
+                setIsLoading(false);
+                return;
+            }
             if (!basic?.id) {
                 console.warn("⚠️ No player ID found in current-player response — skipping update");
                 setCricheroesStats(null);
@@ -807,6 +819,21 @@ const SpectatorLiveDisplay = () => {
 
             const fullRes = await fetch(`${API}/api/players/${basic.id}`);
             const fullPlayer = await fullRes.json();
+            // Guard: only enforce mismatch if both IDs are present
+            if (
+                fullPlayer?.tournament_id != null &&
+                tournamentId != null &&
+                Number(fullPlayer.tournament_id) !== Number(tournamentId)
+            ) {
+                setPlayer(null);
+                setHighestBid(0);
+                setLeadingTeam("");
+                setCricheroesStats(null);
+                setCustomMessage("No player available");
+                setCustomView(null);
+                setIsLoading(false);
+                return;
+            }
 
             fullPlayer.base_price = computeBasePrice(fullPlayer);
             fullPlayer.secret_bidding_enabled = basic.secret_bidding_enabled;
@@ -1078,6 +1105,17 @@ const SpectatorLiveDisplay = () => {
             fetchKcplTeamStates();
         };
 
+        // Require tournament-scoped events; ignore others
+        const matchesTournament = (payload) => {
+            if (!payload) return false; // must have payload
+            const tid = payload.tournament_id;
+            const slug = payload.tournament_slug;
+            if (tid != null && tournamentId != null && Number(tid) !== Number(tournamentId)) return false;
+            if (slug != null && tournamentSlug != null && String(slug) !== String(tournamentSlug)) return false;
+            // require at least one tournament tag to be present
+            return tid != null || slug != null;
+        };
+
         // 🔴 LIVE: update bid instantly on every increment
         const onBidUpdated = ({ bid_amount, team_name }) => {
             if (unsoldOverlayActive && Number(bid_amount) === 0 && (!team_name || team_name === "")) return;
@@ -1086,9 +1124,10 @@ const SpectatorLiveDisplay = () => {
             if (Number(bid_amount) === 0 && (!team_name || team_name === "")) fastRefresh();
         };
 
-        socket.on("bidUpdated", onBidUpdated); // was split across two sockets before
+        socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); }); // scoped
 
         socket.on("saleCommitted", (payload) => {
+            if (!matchesTournament(payload)) return;
             // Ignore during UNSOLD overlay or when payload is not a valid SOLD update
             const price = Number(payload?.sold_price) || 0;
             const hasTeam = payload?.team_id !== null && payload?.team_id !== "";
@@ -1161,10 +1200,11 @@ const SpectatorLiveDisplay = () => {
 
 
 
-        socket.on("playerUnsold", onPlayerUnsold);
+        socket.on("playerUnsold", (payload) => { if (!matchesTournament(payload)) return; onPlayerUnsold(payload); });
 
 
         socket.on("playerChanged", (payload) => {
+            if (!matchesTournament(payload)) return;
             const samePlayer =
                 payload?.id != null && player?.id != null &&
                 Number(payload.id) === Number(player.id);
@@ -1205,14 +1245,18 @@ const SpectatorLiveDisplay = () => {
         });
 
 
-        socket.on("secretBiddingToggled", fastRefresh);
+        socket.on("secretBiddingToggled", (payload) => { if (!matchesTournament(payload)) return; fastRefresh(); });
 
         // Theme + custom message + reveal flow — move onto THIS socket
         socket.on("themeUpdate", (newTheme) => {
             setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
         });
 
-        socket.on("customMessageUpdate", (msg) => {
+        socket.on("customMessageUpdate", (payload) => {
+            // Support legacy string payloads (treated as global/ignored here), and new scoped objects
+            if (!payload) return;
+            if (typeof payload === "object" && !matchesTournament(payload)) return;
+            const msg = typeof payload === "string" ? payload : payload.message;
             if (!msg || typeof msg !== "string") return;
 
             if (msg === "__SHOW_TEAM_STATS__") {
@@ -1249,6 +1293,7 @@ const SpectatorLiveDisplay = () => {
         });
 
         socket.on("revealSecretBids", async ({ tournament_id, player_serial }) => {
+            if (!matchesTournament({ tournament_id })) return;
             try {
                 const res = await fetch(`${API}/api/secret-bids?tournament_id=${tournament_id}&player_serial=${player_serial}`);
                 const data = await res.json();
@@ -1259,7 +1304,8 @@ const SpectatorLiveDisplay = () => {
             }
         });
 
-        socket.on("secretBidWinnerAssigned", () => {
+        socket.on("secretBidWinnerAssigned", (payload) => {
+            if (!matchesTournament(payload)) return;
             setCustomView(null);
             setRevealedBids([]);
             setCustomMessage(null);
@@ -1267,6 +1313,7 @@ const SpectatorLiveDisplay = () => {
         });
 
         socket.on("showTeam", (payload) => {
+            if (!matchesTournament(payload)) return;
             if (!payload || payload.team_id === null) {
                 setTeamIdToShow(null); setCustomMessage(null); setCustomView("live");
             } else {
@@ -1280,7 +1327,12 @@ const SpectatorLiveDisplay = () => {
             }
         });
 
-        socket.on("kcplPoolChanged", (pool) => setActivePool(pool));
+        socket.on("kcplPoolChanged", (data) => {
+            if (typeof data === 'string') { setActivePool(data); return; }
+            if (!matchesTournament(data)) return;
+            const { pool } = data || {};
+            if (pool) setActivePool(pool);
+        });
 
         // Cleanup: unregister listeners and close the one socket
         return () => {
@@ -1315,7 +1367,7 @@ const SpectatorLiveDisplay = () => {
     }, []);
 
     useEffect(() => {
-        fetch(`${API}/api/custom-message`)
+        fetch(`${API}/api/custom-message?slug=${tournamentSlug}`)
             .then(res => res.json())
             .then(data => {
                 if (!data.message || data.message.startsWith("__")) {

@@ -26,7 +26,7 @@ const SecretBidPage = () => {
         const tournament = await tourRes.json();
         setTournamentId(tournament.id);
 
-        const res = await fetch(`${API}/api/current-player`);
+        const res = await fetch(`${API}/api/current-player?tournament_id=${tournamentId}`);
         const current = await res.json();
 
         if (!current || !current.secret_bidding_enabled) {
@@ -89,7 +89,7 @@ const SecretBidPage = () => {
 
     // 🛑 Check if current player changed
     try {
-      const check = await fetch(`${API}/api/current-player`);
+      const check = await fetch(`${API}/api/current-player?tournament_id=${tournamentId}`);
       const latest = await check.json();
       if (latest.auction_serial !== Number(playerSerial)) {
         setStatus("🚫 Player has changed. Please refresh the page.");

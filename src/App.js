@@ -33,8 +33,8 @@ const AppWrapper = () => {
     const fetchLiveAuctionData = async () => {
       try {
         const [currentPlayerRes, currentBidRes, teamsRes] = await Promise.all([
-          fetch(`${API}/api/current-player`),
-          fetch(`${API}/api/current-bid`),
+          fetch(`${API}/api/current-player?tournament_id=${CONFIG.TOURNAMENT_ID}`),
+          fetch(`${API}/api/current-bid?tournament_id=${CONFIG.TOURNAMENT_ID}`),
           fetch(`${API}/api/teams?tournament_id=${CONFIG.TOURNAMENT_ID}`),
         ]);
 
@@ -45,17 +45,27 @@ const AppWrapper = () => {
           if (text) currentPlayer = JSON.parse(text);
         }
 
-        // Parse currentBid
+        // Parse currentBid safely and keep a stable shape
         let currentBid = { bid_amount: 0, team_name: '' };
         if (currentBidRes.ok) {
           const text = await currentBidRes.text();
-          if (text) currentBid = JSON.parse(text);
+          if (text && text.trim().length > 0) {
+            try {
+              const parsed = JSON.parse(text);
+              if (parsed && typeof parsed === 'object') {
+                currentBid = {
+                  bid_amount: Number(parsed.bid_amount) || 0,
+                  team_name: parsed.team_name || ''
+                };
+              }
+            } catch {}
+          }
         }
 
         const teams = await teamsRes.json();
 
         setCurrentPlayer(currentPlayer);
-        setCurrentBid(currentBid);
+        setCurrentBid(currentBid || { bid_amount: 0, team_name: '' });
         setTeams(teams);
       } catch (err) {
         console.error("Failed to fetch live auction data", err);
@@ -98,8 +108,8 @@ const AppWrapper = () => {
         element={
           <SpectatorLiveDisplay
             player={currentPlayer}
-            highestBid={currentBid.bid_amount}
-            leadingTeam={currentBid.team_name}
+            highestBid={currentBid?.bid_amount ?? 0}
+            leadingTeam={currentBid?.team_name ?? ''}
             teamSummaries={teams}
           />
         }
@@ -109,8 +119,8 @@ const AppWrapper = () => {
         element={
           <SpectatorLiveDisplay2
             player={currentPlayer}
-            highestBid={currentBid.bid_amount}
-            leadingTeam={currentBid.team_name}
+            highestBid={currentBid?.bid_amount ?? 0}
+            leadingTeam={currentBid?.team_name ?? ''}
             teamSummaries={teams}
           />
         }
@@ -120,8 +130,8 @@ const AppWrapper = () => {
         element={
           <SpectatorLiveDisplay3
             player={currentPlayer}
-            highestBid={currentBid.bid_amount}
-            leadingTeam={currentBid.team_name}
+            highestBid={currentBid?.bid_amount ?? 0}
+            leadingTeam={currentBid?.team_name ?? ''}
             teamSummaries={teams}
           />
         }
@@ -131,8 +141,8 @@ const AppWrapper = () => {
         element={
           <SpectatorLiveDisplay4
             player={currentPlayer}
-            highestBid={currentBid.bid_amount}
-            leadingTeam={currentBid.team_name}
+            highestBid={currentBid?.bid_amount ?? 0}
+            leadingTeam={currentBid?.team_name ?? ''}
             teamSummaries={teams}
           />
         }
@@ -142,8 +152,8 @@ const AppWrapper = () => {
         element={
           <SpectatorLiveDisplay5
             player={currentPlayer}
-            highestBid={currentBid.bid_amount}
-            leadingTeam={currentBid.team_name}
+            highestBid={currentBid?.bid_amount ?? 0}
+            leadingTeam={currentBid?.team_name ?? ''}
             teamSummaries={teams}
           />
         }

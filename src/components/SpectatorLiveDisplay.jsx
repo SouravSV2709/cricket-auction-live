@@ -287,7 +287,7 @@ const SpectatorLiveDisplay = () => {
         }
 
         try {
-            const res = await fetch(`${API}/api/current-player`);
+            const res = await fetch(`${API}/api/current-player?tournament_id=${tournamentId}`);
             if (!res.ok) throw new Error("❌ Failed to fetch current player");
 
             const text = await res.text();

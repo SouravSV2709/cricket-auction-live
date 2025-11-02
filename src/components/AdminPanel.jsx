@@ -403,7 +403,9 @@ const AdminPanel = () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                message: isSecretBiddingActive ? "__SECRET_BIDDING_ACTIVE__" : "__CLEAR_CUSTOM_VIEW__"
+                message: isSecretBiddingActive ? "__SECRET_BIDDING_ACTIVE__" : "__CLEAR_CUSTOM_VIEW__",
+                tournament_id: tournamentId,
+                slug: tournamentSlug,
             })
         });
     }, [isSecretBiddingActive]);
@@ -731,7 +733,7 @@ const AdminPanel = () => {
 
     const fetchCurrentPlayer = async () => {
         try {
-            const res = await fetch(`${API}/api/current-player`);
+            const res = await fetch(`${API}/api/current-player?tournament_id=${tournamentId}`);
             if (!res.ok) {
                 console.warn("No current player available yet.");
                 setCurrentPlayer(null);
@@ -790,7 +792,9 @@ const AdminPanel = () => {
             socketRef.current?.emit("bidUpdated", {
                 bid_amount: amt,
                 team_name: selectedTeam,
-                active_pool: activePool || null
+                active_pool: activePool || null,
+                tournament_id: tournamentId,
+                tournament_slug: tournamentSlug,
             });
 
             // 2) Then persist
@@ -800,7 +804,8 @@ const AdminPanel = () => {
                 body: JSON.stringify({
                     bid_amount: amt,
                     team_name: selectedTeam,
-                    active_pool: activePool || null
+                    active_pool: activePool || null,
+                    tournament_id: tournamentId,
                 })
             });
 
@@ -898,12 +903,16 @@ const AdminPanel = () => {
             bid_amount: bidAmount,
             team_name: selectedTeam,
             active_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
         });
         socketRef.current?.emit("playerSold", {
             player_id: currentPlayer.id,
             team_id: teamId,
             sold_price: bidAmount,
             sold_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
         });
 
         // ✅ Perform critical updates in parallel (skip bid reset here)
@@ -911,7 +920,7 @@ const AdminPanel = () => {
             fetch(`${API}/api/current-player`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedPlayer)
+                body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId })
             }),
             fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
                 method: "PUT",
@@ -954,7 +963,7 @@ const AdminPanel = () => {
         fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedPlayer),
+            body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId, tournament_slug: tournamentSlug }),
         });
 
         // 🎉 Confetti
@@ -1008,12 +1017,14 @@ const AdminPanel = () => {
         fetch(`${API}/api/current-bid`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+            body: JSON.stringify({ bid_amount: 0, team_name: "", tournament_id: tournamentId }),
         });
         socketRef.current?.emit("bidUpdated", {
             bid_amount: 0,
             team_name: "",
             active_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
         });
 
         // 🔎 (Optional) Refresh only the affected team's lightweight KCPL snapshot,
@@ -1055,6 +1066,8 @@ const AdminPanel = () => {
         socketRef.current?.emit("playerUnsold", {
             player_id: currentPlayer.id,
             sold_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
         });
 
         // Persist to DB (current-player + players)
@@ -1062,7 +1075,7 @@ const AdminPanel = () => {
             fetch(`${API}/api/current-player`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(updatedPlayer),
+                body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId }),
             }),
             fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
                 method: "PUT",
@@ -1076,6 +1089,8 @@ const AdminPanel = () => {
             id: currentPlayer.id,
             sold_status: "FALSE",
             sold_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
         };
         fetch(`${API}/api/notify-player-change`, {
             method: "POST",
@@ -1114,7 +1129,7 @@ const AdminPanel = () => {
             fetch(`${API}/api/current-bid`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+                body: JSON.stringify({ bid_amount: 0, team_name: "", tournament_id: tournamentId }),
             });
         }, 1200);
 
@@ -1205,12 +1220,12 @@ const AdminPanel = () => {
                 fetch(`${API}/api/current-player`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(nextPlayer)
+                    body: JSON.stringify({ ...nextPlayer, tournament_id: tournamentId })
                 }),
                 fetch(`${API}/api/current-bid`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ bid_amount: 0, team_name: "" })
+                    body: JSON.stringify({ bid_amount: 0, team_name: "", tournament_id: tournamentId })
                 })
             ]);
 
@@ -1218,7 +1233,7 @@ const AdminPanel = () => {
             fetch(`${API}/api/notify-player-change`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(nextPlayer),
+                body: JSON.stringify({ ...nextPlayer, tournament_id: tournamentId, tournament_slug: tournamentSlug }),
             });
 
             // 9. Update admin UI
@@ -1312,35 +1327,35 @@ const handleSearchById = async (idOverride) => {
     const detailedPromise = getDetailedPlayer(basic);
 
     // Persist current-player + reset bid together
-    const persistPromise = Promise.all([
+  const persistPromise = Promise.all([
       fetch(`${API}/api/current-player`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(basic), // will replace with detailed when it resolves below
+        body: JSON.stringify({ ...basic, tournament_id: tournamentId }), // will replace with detailed when it resolves below
       }),
       fetch(`${API}/api/current-bid`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bid_amount: 0, team_name: "" }),
+        body: JSON.stringify({ bid_amount: 0, team_name: "", tournament_id: tournamentId }),
       }),
     ]);
 
     // When detailed arrives, update UI & overwrite server current-player (quick follow-up)
-    detailedPromise.then(async (detailed) => {
+  detailedPromise.then(async (detailed) => {
       // update UI only if we are still looking at the same player
       setCurrentPlayer((prev) => (prev && prev.id === detailed.id ? { ...prev, ...detailed } : prev));
       // refresh server copy with detailed (non-blocking best-effort)
       fetch(`${API}/api/current-player`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(detailed),
+        body: JSON.stringify({ ...detailed, tournament_id: tournamentId }),
         keepalive: true,
       });
       // notify spectators (same as your existing flow)
       fetch(`${API}/api/notify-player-change`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(detailed),
+        body: JSON.stringify({ ...detailed, tournament_id: tournamentId, tournament_slug: tournamentSlug }),
         keepalive: true,
       });
     });
@@ -1407,6 +1422,8 @@ const handleSearchById = async (idOverride) => {
             socketRef.current?.emit("showTeam", {
                 team_id: team.id,
                 empty: team.players?.length === 0,
+                tournament_id: tournamentId,
+                tournament_slug: tournamentSlug,
             });
 
             return;
@@ -1454,6 +1471,8 @@ const handleSearchById = async (idOverride) => {
                 bid_amount: amt,
                 team_name: team.name,
                 active_pool: activePool,
+                tournament_id: tournamentId,
+                tournament_slug: tournamentSlug,
             });
 
             await fetch(`${API}/api/current-bid`, {
@@ -1463,6 +1482,7 @@ const handleSearchById = async (idOverride) => {
                     bid_amount: amt,
                     team_name: team.name,
                     active_pool: activePool,
+                    tournament_id: tournamentId,
                 }),
             });
 
@@ -1517,6 +1537,8 @@ const handleSearchById = async (idOverride) => {
             bid_amount: newBid,
             team_name: team.name,
             active_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
         });
 
         await fetch(`${API}/api/current-bid`, {
@@ -1526,6 +1548,7 @@ const handleSearchById = async (idOverride) => {
                 bid_amount: newBid,
                 team_name: team.name,
                 active_pool: activePool,
+                tournament_id: tournamentId,
             }),
         });
     };
@@ -1607,7 +1630,8 @@ const handleSearchById = async (idOverride) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 bid_amount: type === "sold" ? bidAmount : 0,
-                team_name: type === "sold" ? teamName : ""
+                team_name: type === "sold" ? teamName : "",
+                tournament_id: tournamentId,
             })
         });
 
@@ -1658,7 +1682,8 @@ const handleSearchById = async (idOverride) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     bid_amount: previousBid,
-                    team_name: previousTeam
+                    team_name: previousTeam,
+                    tournament_id: tournamentId,
                 })
             });
 
@@ -1736,7 +1761,7 @@ const handleSearchById = async (idOverride) => {
             fetch(`${API}/api/current-bid`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bid_amount: 0, team_name: "" })
+                    body: JSON.stringify({ bid_amount: 0, team_name: "", tournament_id: tournamentId })
             })
         ]);
 
@@ -1744,7 +1769,7 @@ const handleSearchById = async (idOverride) => {
         await fetch(`${API}/api/notify-player-change`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(reopenedPlayer),
+            body: JSON.stringify({ ...reopenedPlayer, tournament_id: tournamentId, tournament_slug: tournamentSlug }),
         });
 
         // Update local state
@@ -1760,13 +1785,17 @@ const handleSearchById = async (idOverride) => {
     const clearCurrentPlayer = async () => {
         try {
             // 1. Clear current player
-            await fetch(`${API}/api/current-player/reset`, { method: "POST" });
+            await fetch(`${API}/api/current-player/reset`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tournament_id: tournamentId })
+            });
 
             // 2. Clear current bid
             await fetch(`${API}/api/current-bid`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ bid_amount: 0, team_name: "" })
+                body: JSON.stringify({ bid_amount: 0, team_name: "", tournament_id: tournamentId })
             });
 
             // 3. Notify spectators
@@ -1780,11 +1809,11 @@ const handleSearchById = async (idOverride) => {
             await fetch(`${API}/api/custom-message`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: "__SHOW_NO_PLAYERS__" }),
+                body: JSON.stringify({ message: "__SHOW_NO_PLAYERS__", tournament_id: tournamentId, slug: tournamentSlug }),
             });
 
-            // ✅ Broadcast the change via socket
-            socketRef.current?.emit("playerChanged");  // 🔥 Add this line
+            // Broadcast the change via socket (scoped)
+            socketRef.current?.emit("playerChanged", { tournament_id: tournamentId, tournament_slug: tournamentSlug });
 
             alert("✅ Current player cleared.");
             setCurrentPlayer(null);
@@ -2399,7 +2428,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message: next ? "__MARQUEE_ON__" : "__MARQUEE_OFF__" }),
+                                            body: JSON.stringify({ message: next ? "__MARQUEE_ON__" : "__MARQUEE_OFF__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                     }}
                                 />
@@ -2509,7 +2538,10 @@ const handleSearchById = async (idOverride) => {
                                     });
                                     await fetchCurrentPlayer();
                                     alert("✅ Secret Bidding ENABLED for current player");
-                                    socketRef.current?.emit("secretBiddingToggled");
+                                    socketRef.current?.emit("secretBiddingToggled", {
+                                        tournament_id: tournamentId,
+                                        tournament_slug: tournamentSlug,
+                                    });
                                 }}
                                 className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
                                 disabled={isSecretBiddingActive || bidAmount <= 0} // 👈 disable if bid is 0
@@ -2527,7 +2559,10 @@ const handleSearchById = async (idOverride) => {
                                     });
                                     await fetchCurrentPlayer(); // ← ADD THIS
                                     alert("❌ Secret Bidding DISABLED for current player");
-                                    socketRef.current?.emit("secretBiddingToggled");
+                                    socketRef.current?.emit("secretBiddingToggled", {
+                                        tournament_id: tournamentId,
+                                        tournament_slug: tournamentSlug,
+                                    });
                                 }}
                                 className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold"
                                 disabled={!isSecretBiddingActive}
@@ -2546,6 +2581,7 @@ const handleSearchById = async (idOverride) => {
 
                                     socketRef.current?.emit("revealSecretBids", {
                                         tournament_id: tournamentId,
+                                        tournament_slug: tournamentSlug,
                                         player_serial: currentPlayer?.auction_serial
                                     });
                                 }}
@@ -2589,7 +2625,9 @@ const handleSearchById = async (idOverride) => {
                                                     team_id: bid.team_id,
                                                     team_name: bid.team_name,
                                                     bid_amount: bid.bid_amount,
-                                                    team_logo: bid.logo
+                                                    team_logo: bid.logo,
+                                                    tournament_id: tournamentId,
+                                                    tournament_slug: tournamentSlug,
                                                 });
                                             }}
                                             className="mt-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold"
@@ -2637,7 +2675,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message: customMessage }),
+                                            body: JSON.stringify({ message: customMessage, tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("Custom message broadcasted.");
                                     }}
@@ -2651,7 +2689,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message: "__SHOW_TEAM_STATS__" }),
+                                            body: JSON.stringify({ message: "__SHOW_TEAM_STATS__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("📊 Showing Team Statistics...");
                                     }}
@@ -2665,7 +2703,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message: "__SHOW_TOP_10_EXPENSIVE__" }),
+                                            body: JSON.stringify({ message: "__SHOW_TOP_10_EXPENSIVE__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("💰 Showing Top 10 Expensive Players...");
                                     }}
@@ -2679,7 +2717,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__" }),
+                                            body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("✅ Cleared custom view.");
                                     }}
@@ -2708,7 +2746,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message }),
+                                            body: JSON.stringify({ message, tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("⏱️ Countdown started!");
                                     }}
@@ -2787,7 +2825,7 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
-                                            body: JSON.stringify({ message: "__RESET_AUCTION__" }),
+                                            body: JSON.stringify({ message: "__RESET_AUCTION__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("✅ Auction reset successfully.");
                                     } catch (err) {

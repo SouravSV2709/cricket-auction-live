@@ -27,6 +27,34 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Idempotent schema updates to support per-tournament current_* rows
+async function ensureSchema() {
+  try {
+    await pool.query(`
+      ALTER TABLE IF EXISTS current_player
+      ADD COLUMN IF NOT EXISTS tournament_id INTEGER,
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_current_player_tournament_all
+        ON current_player (tournament_id);
+    `);
+    await pool.query(`
+      ALTER TABLE IF EXISTS current_bid
+      ADD COLUMN IF NOT EXISTS tournament_id INTEGER,
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS ux_current_bid_tournament_all
+        ON current_bid (tournament_id);
+    `);
+  } catch (e) {
+    console.warn('ensureSchema skipped:', e?.message || e);
+  }
+}
+
+ensureSchema();
+
 // Log connections
 io.on("connection", (socket) => {
   console.log("✅ Spectator connected via Socket.IO");
@@ -101,8 +129,19 @@ app.get('/api/teams', async (req, res) => {
 // ✅ GET current player
 app.get('/api/current-player', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM current_player LIMIT 1');
-    res.json(result.rows[0]);
+    const { tournament_id, slug } = req.query;
+    let result;
+    if (slug) {
+      const t = await pool.query('SELECT id FROM tournaments WHERE slug = $1', [slug]);
+      if (t.rowCount === 0) return res.json(null);
+      const tid = t.rows[0].id;
+      result = await pool.query('SELECT * FROM current_player WHERE tournament_id = $1 ORDER BY updated_at DESC LIMIT 1', [tid]);
+    } else if (tournament_id) {
+      result = await pool.query('SELECT * FROM current_player WHERE tournament_id = $1 ORDER BY updated_at DESC LIMIT 1', [tournament_id]);
+    } else {
+      result = await pool.query('SELECT * FROM current_player LIMIT 1');
+    }
+    res.json(result.rows[0] || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -110,7 +149,7 @@ app.get('/api/current-player', async (req, res) => {
 
 // ✅ SET current player
 app.put('/api/current-player', async (req, res) => {
-  const { id, name, role, base_price, profile_image, sold_status, team_id, sold_price } = req.body;
+  const { id, name, role, base_price, profile_image, sold_status, team_id, sold_price, tournament_id } = req.body;
 
   if (!id || !name || !role) {
     console.error("❌ Missing required player fields:", req.body);
@@ -118,12 +157,30 @@ app.put('/api/current-player', async (req, res) => {
   }
 
   try {
-    await pool.query('DELETE FROM current_player');
-    await pool.query(
-      `INSERT INTO current_player (id, name, role, base_price, profile_image, sold_status, team_id, sold_price)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [id, name, role, base_price, profile_image, sold_status, team_id, sold_price]
-    );
+    if (tournament_id) {
+      await pool.query(
+        `INSERT INTO current_player (tournament_id, id, name, role, base_price, profile_image, sold_status, team_id, sold_price, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW())
+         ON CONFLICT (tournament_id) DO UPDATE SET
+           id = EXCLUDED.id,
+           name = EXCLUDED.name,
+           role = EXCLUDED.role,
+           base_price = EXCLUDED.base_price,
+           profile_image = EXCLUDED.profile_image,
+           sold_status = EXCLUDED.sold_status,
+           team_id = EXCLUDED.team_id,
+           sold_price = EXCLUDED.sold_price,
+           updated_at = NOW()`,
+        [tournament_id, id, name, role, base_price, profile_image, sold_status, team_id, sold_price]
+      );
+    } else {
+      await pool.query('DELETE FROM current_player');
+      await pool.query(
+        `INSERT INTO current_player (id, name, role, base_price, profile_image, sold_status, team_id, sold_price)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [id, name, role, base_price, profile_image, sold_status, team_id, sold_price]
+      );
+    }
     res.json({ message: 'Current player updated' });
   } catch (err) {
     console.error("❌ DB Insert failed:", err.message);
@@ -135,8 +192,14 @@ app.put('/api/current-player', async (req, res) => {
 // ✅ GET current bid
 app.get('/api/current-bid', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM current_bid LIMIT 1');
-    res.json(result.rows[0]);
+    const { tournament_id } = req.query;
+    let result;
+    if (tournament_id) {
+      result = await pool.query('SELECT * FROM current_bid WHERE tournament_id = $1 ORDER BY updated_at DESC LIMIT 1', [tournament_id]);
+    } else {
+      result = await pool.query('SELECT * FROM current_bid LIMIT 1');
+    }
+    res.json(result.rows[0] || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -144,13 +207,25 @@ app.get('/api/current-bid', async (req, res) => {
 
 // ✅ SET current bid
 app.put('/api/current-bid', async (req, res) => {
-  const { bid_amount, team_name } = req.body;
+  const { bid_amount, team_name, tournament_id } = req.body;
   try {
-    await pool.query('DELETE FROM current_bid');
-    await pool.query(
-      `INSERT INTO current_bid (bid_amount, team_name) VALUES ($1, $2)`,
-      [bid_amount, team_name]
-    );
+    if (tournament_id) {
+      await pool.query(
+        `INSERT INTO current_bid (tournament_id, bid_amount, team_name, updated_at)
+         VALUES ($1,$2,$3, NOW())
+         ON CONFLICT (tournament_id) DO UPDATE SET
+           bid_amount = EXCLUDED.bid_amount,
+           team_name = EXCLUDED.team_name,
+           updated_at = NOW()`,
+        [tournament_id, bid_amount, team_name]
+      );
+    } else {
+      await pool.query('DELETE FROM current_bid');
+      await pool.query(
+        `INSERT INTO current_bid (bid_amount, team_name) VALUES ($1, $2)`,
+        [bid_amount, team_name]
+      );
+    }
     res.json({ message: 'Current bid updated' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -253,29 +328,56 @@ app.get('/api/teams/:id', async (req, res) => {
   }
 });
 
-// cURRENT PLAYER RESET
+// Current player/bid reset (optionally per-tournament)
 app.post("/api/current-player/reset", async (req, res) => {
   try {
-    await pool.query("DELETE FROM current_player");
-    res.json({ message: "Current player reset" });
+    const { tournament_id } = req.body || {};
+    if (tournament_id) {
+      await pool.query("DELETE FROM current_player WHERE tournament_id = $1", [tournament_id]);
+      await pool.query("DELETE FROM current_bid WHERE tournament_id = $1", [tournament_id]);
+    } else {
+      await pool.query("DELETE FROM current_player");
+      await pool.query("DELETE FROM current_bid");
+    }
+    res.json({ message: "Current player and bid reset" });
   } catch (err) {
-    console.error("Error resetting current player:", err);
+    console.error("Error resetting current player/bid:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-let customMessage = null;
-
-// Get custom message
-app.get('/api/custom-message', (req, res) => {
-  res.json({ message: customMessage });
+// Tournament-scoped custom message store
+const customMessagesByTournament = new Map();
+app.get('/api/custom-message', async (req, res) => {
+  try {
+    const { tournament_id, slug } = req.query || {};
+    let tid = tournament_id ? Number(tournament_id) : null;
+    if (!tid && slug) {
+      const t = await pool.query('SELECT id FROM tournaments WHERE slug = $1', [slug]);
+      tid = t?.rows?.[0]?.id ?? null;
+    }
+    if (!tid) return res.json({ message: null });
+    return res.json({ message: customMessagesByTournament.get(Number(tid)) ?? null });
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to fetch custom message' });
+  }
 });
 
-// Set custom message
-app.post('/api/custom-message', (req, res) => {
-  customMessage = req.body.message || null;
-  io.emit("customMessageUpdate", customMessage);
-  res.json({ message: "Custom message updated" });
+app.post('/api/custom-message', async (req, res) => {
+  try {
+    let { message, tournament_id, slug } = req.body || {};
+    let tid = tournament_id ? Number(tournament_id) : null;
+    if (!tid && slug) {
+      const t = await pool.query('SELECT id FROM tournaments WHERE slug = $1', [slug]);
+      tid = t?.rows?.[0]?.id ?? null;
+    }
+    if (!tid) return res.status(400).json({ error: 'tournament_id or slug required' });
+    customMessagesByTournament.set(Number(tid), message || null);
+    io.emit('customMessageUpdate', { message: message || null, tournament_id: Number(tid) });
+    res.json({ message: 'Custom message updated' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to update custom message' });
+  }
 });
 
 

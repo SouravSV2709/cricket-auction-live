@@ -136,7 +136,7 @@ const SpectatorLiveDisplay = () => {
             setTeamSummaries(teams);
 
 
-            const playerRes = await fetch(`${API}/api/current-player`);
+            const playerRes = await fetch(`${API}/api/current-player?tournament_id=${tournamentId}`);
             const basic = await playerRes.json();
 
             if (!basic?.id) {
@@ -278,7 +278,7 @@ const SpectatorLiveDisplay = () => {
         socket.on("themeUpdate", (newTheme) => setTheme(newTheme || "default"));
         socket.on("customMessageUpdate", (msg) => setCustomMessage(msg));
         socket.on("secretBiddingToggled", () => {
-            fetch(`${API}/api/current-player`)
+            fetch(`${API}/api/current-player?tournament_id=${tournamentId}`)
                 .then((res) => res.json())
                 .then((data) => {
                     if (data?.secret_bidding_enabled !== undefined) {

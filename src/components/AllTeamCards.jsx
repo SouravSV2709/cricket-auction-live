@@ -254,8 +254,6 @@ const AllTeamCards = () => {
                     </div>
 
 
-
-
                     {/* Selected Team Title */}
                     {selectedTeam && (
                         <div className="text-center text-lg font-bold text-yellow-300 my-2 flex justify-center items-center gap-2">
