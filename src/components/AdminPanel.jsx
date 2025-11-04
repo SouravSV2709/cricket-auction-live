@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti"; // 🎆 Confetti library
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
+import BACKGROUND_VIDEOS from '../components/backgroundVideos';
 import './ThemePreview.css';
 import { KCPL_RULES } from '../kcplRules';
 
@@ -35,6 +36,7 @@ const AdminPanel = () => {
     const [bidIncrements, setBidIncrements] = useState([]);
     const [showBidConfig, setShowBidConfig] = useState(false);
     const [showThemeSelector, setShowThemeSelector] = useState(false);
+    const [showVideoSelector, setShowVideoSelector] = useState(false);
     const [isLiveAuctionActive, setIsLiveAuctionActive] = useState(true);
     const [countdownDuration, setCountdownDuration] = useState(0);
     const { tournamentSlug } = useParams();
@@ -1909,6 +1911,48 @@ const handleSearchById = async (idOverride) => {
             </div> */}
 
 
+            {/* Background Videos */}
+            <div className="my-6 border border-gray-700 rounded bg-gray-800">
+                <div
+                    className="p-4 cursor-pointer bg-gray-700 hover:bg-gray-600 rounded-t flex justify-between items-center"
+                    onClick={() => setShowVideoSelector(prev => !prev)}
+                >
+                    <h3 className="text-lg font-bold text-cyan-300">Background Videos</h3>
+                    <span className="text-white text-xl">
+                        {showVideoSelector ? '-' : '+'}
+                    </span>
+                </div>
+
+                {showVideoSelector && (
+                    <div className="p-4">
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                            {BACKGROUND_VIDEOS.map((file) => {
+                                const key = `video:${file}`;
+                                const isActive = selectedTheme === key;
+                                return (
+                                    <button
+                                        key={file}
+                                        type="button"
+                                        onClick={() => setSelectedTheme(key)}
+                                        className={`border rounded p-3 text-xs font-semibold truncate hover:bg-gray-700 transition ${isActive ? 'border-cyan-400 bg-gray-700' : 'border-gray-600'}`}
+                                        title={file}
+                                    >
+                                        {file}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={updateTheme}
+                            className="mt-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded"
+                        >
+                            Apply Background Video
+                        </button>
+                    </div>
+                )}
+            </div>
+
             {/* Set Bid increment */}
 
             <div className="my-6 border border-gray-700 rounded bg-gray-800">
@@ -2513,140 +2557,7 @@ const handleSearchById = async (idOverride) => {
                 )}
             </div>
 
-            <div className="mt-6 border border-purple-700 rounded-lg bg-gray-800">
-                <div
-                    className="p-4 cursor-pointer bg-purple-900 hover:bg-purple-800 rounded-t flex justify-between items-center"
-                    onClick={() => setShowSecretBiddingControls(prev => !prev)}
-                >
-                    <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2">
-                        🕵️‍♂️ Secret Bidding Controls
-                    </h3>
-                    <span className="text-white text-xl">{showSecretBiddingControls ? '−' : '+'}</span>
-                </div>
-
-                {showSecretBiddingControls && (
-                    <div className="p-4 space-y-4">
-                        {/* 🔘 Secret Bidding Buttons */}
-                        <div className="flex gap-4 mb-2">
-                            <button
-                                onClick={async () => {
-                                    setIsSecretBiddingActive(true);
-                                    await fetch(`${API}/api/current-player`, {
-                                        method: "PATCH",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ secret_bidding_enabled: true }),
-                                    });
-                                    await fetchCurrentPlayer();
-                                    alert("✅ Secret Bidding ENABLED for current player");
-                                    socketRef.current?.emit("secretBiddingToggled", {
-                                        tournament_id: tournamentId,
-                                        tournament_slug: tournamentSlug,
-                                    });
-                                }}
-                                className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold"
-                                disabled={isSecretBiddingActive || bidAmount <= 0} // 👈 disable if bid is 0
-                            >
-                                ✅ Enable Secret Bidding
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    setIsSecretBiddingActive(false);
-                                    setShowSecretBids(false);
-                                    await fetch(`${API}/api/current-player`, {
-                                        method: "PATCH",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ secret_bidding_enabled: false }),
-                                    });
-                                    await fetchCurrentPlayer(); // ← ADD THIS
-                                    alert("❌ Secret Bidding DISABLED for current player");
-                                    socketRef.current?.emit("secretBiddingToggled", {
-                                        tournament_id: tournamentId,
-                                        tournament_slug: tournamentSlug,
-                                    });
-                                }}
-                                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold"
-                                disabled={!isSecretBiddingActive}
-                            >
-                                ❌ Disable Secret Bidding
-                            </button>
-
-                            <button
-                                onClick={async () => {
-                                    const res = await fetch(
-                                        `${API}/api/secret-bids?tournament_id=${tournamentId}&player_serial=${currentPlayer?.auction_serial}`
-                                    );
-                                    const data = await res.json();
-                                    setSecretBids(data);
-                                    setShowSecretBids(true);
-
-                                    socketRef.current?.emit("revealSecretBids", {
-                                        tournament_id: tournamentId,
-                                        tournament_slug: tournamentSlug,
-                                        player_serial: currentPlayer?.auction_serial
-                                    });
-                                }}
-                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold"
-                                disabled={!isSecretBiddingActive}
-                            >
-                                👁️ Reveal Bids
-                            </button>
-                        </div>
-
-                        {/* 🏆 Show Secret Bid List */}
-                        {showSecretBids && secretBids.length > 0 && (
-                            <div className="space-y-2">
-                                {secretBids.map((bid, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`p-3 rounded shadow bg-gray-900 border ${idx === 0 ? "border-green-400" : "border-gray-600"}`}
-                                    >
-                                        <p><strong>Team:</strong> {bid.team_name}</p>
-                                        <p><strong>Bid:</strong> ₹{bid.bid_amount}</p>
-                                        <button
-                                            onClick={async () => {
-                                                await fetch(`${API}/api/secret-bid/winner`, {
-                                                    method: "POST",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({
-                                                        player_id: currentPlayer.id,
-                                                        team_id: bid.team_id,
-                                                        bid_amount: bid.bid_amount,
-                                                    }),
-                                                });
-                                                alert("✅ Player assigned via secret bid!");
-                                                setShowSecretBids(false);
-                                                setIsSecretBiddingActive(false);
-                                                fetchPlayers();
-                                                fetchTeams(tournamentId);
-                                                fetchCurrentPlayer();
-
-                                                socketRef.current?.emit("secretBidWinnerAssigned", {
-                                                    player_id: currentPlayer.id,
-                                                    team_id: bid.team_id,
-                                                    team_name: bid.team_name,
-                                                    bid_amount: bid.bid_amount,
-                                                    team_logo: bid.logo,
-                                                    tournament_id: tournamentId,
-                                                    tournament_slug: tournamentSlug,
-                                                });
-                                            }}
-                                            className="mt-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold"
-                                        >
-                                            🏆 Assign to this Team
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {showSecretBids && secretBids.length === 0 && (
-                            <p className="text-red-300 font-semibold">No bids submitted yet.</p>
-                        )}
-                    </div>
-                )}
-            </div>
-
-
+            {/* Secret Bidding Controls hidden */}
             {/* 📢 Collapsible Custom Message + Countdown */}
             <div className="mt-6 border border-pink-600 rounded-lg bg-gray-800">
                 <div
@@ -2859,3 +2770,4 @@ const handleSearchById = async (idOverride) => {
 };
 
 export default AdminPanel;
+

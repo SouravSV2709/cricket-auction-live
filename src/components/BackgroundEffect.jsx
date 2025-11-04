@@ -2,6 +2,25 @@ import React from "react";
 import "../styles/thing.scss"; // already imported
 
 const BackgroundEffect = ({ theme }) => {
+  const PUB = process.env.PUBLIC_URL || '';
+
+  // Allow theme to specify a background video via `video:filename.mp4` or full URL
+  if (typeof theme === 'string' && theme.startsWith('video:')) {
+    const file = theme.slice(6).trim();
+    const src = file.startsWith('http') ? file : `${PUB}/${file}`;
+    return (
+      <video
+        key={src}
+        className="absolute inset-0 z-0 w-full h-full object-cover pointer-events-none"
+        src={src}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+      />
+    );
+  }
   if (theme === "neon") {
     return <div className="neon-background absolute inset-0 z-0 pointer-events-none" />;
   }

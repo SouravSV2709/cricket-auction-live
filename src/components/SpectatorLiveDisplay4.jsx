@@ -548,6 +548,8 @@ const SpectatorLiveDisplay = () => {
         (THEMES && THEMES[theme]) ||
         (THEMES && THEMES[DEFAULT_THEME_KEY]) ||
         { bg: "from-[#0F2A5A] via-[#1F3E73] to-[#0F2A5A]", text: "text-yellow-50" };
+    const isVideoTheme = typeof theme === 'string' && theme.startsWith('video:');
+    const bgGradientClass = isVideoTheme ? '' : `bg-gradient-to-br ${activeTheme.bg}`;
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
     const [marqueeEnabled, setMarqueeEnabled] = useState(true);
@@ -604,7 +606,8 @@ const SpectatorLiveDisplay = () => {
             .then(res => res.json())
             .then(data => {
                 const key = data?.theme;
-                setTheme(key && THEMES[key] ? key : DEFAULT_THEME_KEY);
+                const isVideo = typeof key === 'string' && key.startsWith('video:');
+                setTheme(key && (THEMES[key] || isVideo) ? key : DEFAULT_THEME_KEY);
             });
 
         const socket = io(API, {
@@ -616,7 +619,8 @@ const SpectatorLiveDisplay = () => {
         });
 
         socket.on("themeUpdate", (newTheme) => {
-            setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
+            const isVideo = typeof newTheme === 'string' && newTheme.startsWith('video:');
+            setTheme(newTheme && (THEMES[newTheme] || isVideo) ? newTheme : DEFAULT_THEME_KEY);
         });
         return () => socket.disconnect();
     }, []);
@@ -1249,7 +1253,8 @@ const SpectatorLiveDisplay = () => {
 
         // Theme + custom message + reveal flow — move onto THIS socket
         socket.on("themeUpdate", (newTheme) => {
-            setTheme(newTheme && THEMES[newTheme] ? newTheme : DEFAULT_THEME_KEY);
+            const isVideo = typeof newTheme === 'string' && newTheme.startsWith('video:');
+            setTheme(newTheme && (THEMES[newTheme] || isVideo) ? newTheme : DEFAULT_THEME_KEY);
         });
 
         socket.on("customMessageUpdate", (payload) => {
@@ -1398,7 +1403,7 @@ const SpectatorLiveDisplay = () => {
 
         return (
             <div className="w-screen h-screen bg-black text-white flex overflow-hidden">
-                <BackgroundEffect theme={theme} />
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
 
                 {/* LEFT: Player Info Centered */}
                 <div className="w-1/3 h-full flex flex-col items-center justify-center p-6 border-r border-white/20">
@@ -1632,11 +1637,11 @@ const SpectatorLiveDisplay = () => {
 
 
         return (
-            <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
+            <div className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}>
 
                 <div className="w-screen h-screen relative overflow-hidden">
                     {/* Background Layer – Particle Animation */}
-                    <BackgroundEffect theme={theme} />
+                    {isVideoTheme && <BackgroundEffect theme={theme} />}
 
                     {/* Content Layer */}
                     <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
@@ -1843,7 +1848,7 @@ const SpectatorLiveDisplay = () => {
         if (sortedPlayers.length === 0) {
             return (
                 <div className="w-screen h-screen bg-black text-white flex flex-col items-center justify-center p-10 text-center">
-                    <BackgroundEffect theme={theme} />
+                    {isVideoTheme && <BackgroundEffect theme={theme} />}
                     <h1 className="text-4xl font-extrabold text-red-400 mb-4 animate-pulse">⚠️ No Sold Players</h1>
                     <p className="text-lg text-white/80">No player has been marked as SOLD yet. Please try again later.</p>
                 </div>
@@ -1865,10 +1870,10 @@ const SpectatorLiveDisplay = () => {
         };
 
         return (
-            <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
+            <div className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}>
 
                 <div className="w-screen h-screen flex flex-row relative">
-                    {/* <BackgroundEffect theme={theme} /> */}
+                    {isVideoTheme && <BackgroundEffect theme={theme} />}
 
                     {/* Left Panel */}
                     <div className="flex flex-col justify-start w-2/3 p-6 space-y-6">
@@ -1999,9 +2004,9 @@ const groups =
 
         return (
             <div
-                className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}
+                className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}
             >
-                {/* <BackgroundEffect theme={theme} /> */}
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
 
                 <div className="flex flex-row items-center justify-center mt-2 mb-4">
                     {tournamentLogo && (
@@ -2115,9 +2120,9 @@ const groups =
 
     if (customMessage && customView !== "team-stats") {
         return (
-            <div className={`w-screen h-screen flex items-center justify-center bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} text-5xl font-extrabold text-center px-10`}>
+            <div className={`w-screen h-screen flex items-center justify-center ${bgGradientClass} ${activeTheme.text} text-5xl font-extrabold text-center px-10`}>
                 <div className="w-screen h-screen relative overflow-hidden">
-                    {/* <BackgroundEffect theme={theme} /> */}
+                    {isVideoTheme && <BackgroundEffect theme={theme} />}
 
                     <div className="absolute inset-0 flex flex-row items-center justify-center h-screen px-6">
 
@@ -2175,7 +2180,7 @@ const groups =
 
         return (
             <div className="w-screen h-screen bg-black text-white flex flex-col items-center justify-center">
-                <BackgroundEffect theme={theme} />
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
                 {countdownTime === 0 ? (
                     <>
                         <h1 className="text-6xl font-extrabold text-red-500 mb-4 animate-pulse">⛔ Time's Up</h1>
@@ -2236,12 +2241,12 @@ const groups =
             <div className="w-screen h-screen relative overflow-hidden text-white p-4 border-8 border-yellow-400 rounded-[30px] box-border">
 
                 {/* Layout */}
-                <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
+                <div className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}>
                     <div className="absolute inset-0 z-10 flex items-center justify-between px-2 py-4">
 
 
                         {/* Background particles */}
-                        {/* <BackgroundEffect theme={theme} /> */}
+                        {isVideoTheme && <BackgroundEffect theme={theme} />}
                         {/* Left Logos: 3-3-2 */}
                         <div className="flex flex-col gap-6 items-center pl-2">
                             {leftGrid.map((row, i) => (
@@ -2433,10 +2438,10 @@ const groups =
 `}</style>
 
     return (
-        <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
-            {/* <div className="w-screen h-screen relative overflow-hidden bg-black text-white"> */}
+        <div className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}>
+            {/* Background Layer: only show when using a video theme */}
             {/* Background Layer – Particle Animation */}
-            {/* <BackgroundEffect theme={theme} /> */}
+            {isVideoTheme && <BackgroundEffect theme={theme} />}
 
             <div className="flex items-center justify-between px-6 py-4">
                 {/* Left: EA ARENA Logo */}
