@@ -569,6 +569,9 @@ const AdminPanel = () => {
 
             // 3) (optional) KCPL summary refresh
             refreshKcplTeamStates?.();
+
+            // 4) Non-KCPL: refresh teams to update max_bid_allowed/bought_count
+            fetchTeams?.(tournamentId);
         };
 
         const onPlayerUnsold = (payload = {}) => {
@@ -591,6 +594,9 @@ const AdminPanel = () => {
             );
 
             refreshKcplTeamStates?.();
+
+            // Non-KCPL: refresh teams to update max_bid_allowed/bought_count
+            fetchTeams?.(tournamentId);
         };
 
         socketRef.current.on("playerSold", onPlayerSold);
@@ -633,6 +639,101 @@ const AdminPanel = () => {
 
         return 100; // fallback if nothing matches
     };
+
+    // Next bid amount to test team eligibility (KCPL-aware base/increments)
+    const getNextBidAmountForEligibility = React.useCallback(() => {
+        const base = Number(getPoolBaseForCurrent?.() ?? 0) || 0;
+        const current = typeof bidAmount === "number" ? bidAmount : (parseInt(bidAmount, 10) || 0);
+        if (!Number.isFinite(current) || current <= 0) return base;
+        const inc = Number(getDynamicBidIncrement(current)) || 0;
+        return current + inc;
+    }, [bidAmount, getPoolBaseForCurrent]);
+
+    // Determine if a team can legally bid the next amount, and why/why not
+    const getTeamEligibility = React.useCallback((team) => {
+        const nextBid = getNextBidAmountForEligibility();
+        if (!Number.isFinite(nextBid) || nextBid <= 0) return { eligible: true, reason: "" };
+
+        if (kcplMode) {
+            const st = kcplTeamStates?.find?.(t => Number(t.teamId) === Number(team.id));
+            const poolStats = st?.poolStats?.[activePool] || {};
+            const maxAllowed = Number(poolStats?.maxBid);
+            const maxPlayers = Number(poolStats?.maxPlayers);
+
+            // Global squad-size guard: deactivate when total slots are full
+            const totalBought = Object.values(st?.boughtByPool || {}).reduce((sum, v) => sum + Number(v || 0), 0);
+            if (Number.isFinite(KCPL_RULES.totalSquadSize) && totalBought >= KCPL_RULES.totalSquadSize) {
+                return { eligible: false, reason: "Squad full" };
+            }
+
+            // Pool-specific slots left
+            if (Number.isFinite(maxPlayers) && maxPlayers <= 0) {
+                return { eligible: false, reason: "No slots left" };
+            }
+            if (Number.isFinite(maxAllowed) && nextBid > maxAllowed) {
+                return { eligible: false, reason: "Exceeds max bid" };
+            }
+            return { eligible: true, reason: "" };
+        }
+
+        // Non-KCPL
+        const maxAllowed = team?.max_bid_allowed;
+        if (maxAllowed != null && Number.isFinite(Number(maxAllowed))) {
+            if (nextBid > Number(maxAllowed)) {
+                return { eligible: false, reason: "Exceeds max bid" };
+            }
+            return { eligible: true, reason: "" };
+        }
+
+        // Fallback: purse check (budget - spent >= nextBid)
+        const spent = Array.isArray(team?.players)
+            ? team.players.reduce((sum, p) => sum + (Number(p?.sold_price) || 0), 0)
+            : 0;
+        const purse = Math.max(Number(team?.budget || 0) - spent, 0);
+        if (purse < nextBid) return { eligible: false, reason: "Insufficient purse" };
+        return { eligible: true, reason: "" };
+    }, [kcplMode, kcplTeamStates, activePool, getNextBidAmountForEligibility]);
+
+    // Determine if a team can legally bid the next amount
+    const canTeamBid = React.useCallback((team) => {
+        try {
+            const nextBid = getNextBidAmountForEligibility();
+            if (!Number.isFinite(nextBid) || nextBid <= 0) return true;
+
+            if (kcplMode) {
+                const st = kcplTeamStates?.find?.(t => Number(t.teamId) === Number(team.id));
+                const poolStats = st?.poolStats?.[activePool] || {};
+                const maxAllowed = poolStats?.maxBid;
+                const maxPlayers = poolStats?.maxPlayers;
+
+                // Global squad-size guard
+                const totalBought = Object.values(st?.boughtByPool || {}).reduce((sum, v) => sum + Number(v || 0), 0);
+                if (Number.isFinite(KCPL_RULES.totalSquadSize) && totalBought >= KCPL_RULES.totalSquadSize) return false;
+
+                // Pool slots guard
+                if (Number.isFinite(maxPlayers) && Number(maxPlayers) <= 0) return false;
+                if (Number.isFinite(maxAllowed) && nextBid > Number(maxAllowed)) return false;
+                return true;
+            }
+
+            // Non-KCPL
+            const maxAllowed = team?.max_bid_allowed;
+            if (maxAllowed != null && Number.isFinite(Number(maxAllowed))) {
+                if (nextBid > Number(maxAllowed)) return false;
+                return true;
+            }
+
+            // Fallback: basic purse check (budget - spent >= nextBid)
+            const spent = Array.isArray(team?.players)
+                ? team.players.reduce((sum, p) => sum + (Number(p?.sold_price) || 0), 0)
+                : 0;
+            const purse = Math.max(Number(team?.budget || 0) - spent, 0);
+            return purse >= nextBid;
+        } catch (e) {
+            console.warn("Eligibility check failed for team", team?.id, e);
+            return true; // fail-open
+        }
+    }, [kcplMode, kcplTeamStates, activePool, getNextBidAmountForEligibility]);
 
     // Function to updated team secret code
 
@@ -724,7 +825,7 @@ const AdminPanel = () => {
                 return;
             }
 
-            setTeams(data);
+            setTeams(data.slice().sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))));
         } catch (error) {
             console.error("❌ Failed to fetch teams:", error);
             setTeams([]);
@@ -942,6 +1043,9 @@ const AdminPanel = () => {
             })
         ]);
 
+        // Refresh teams so non-KCPL max_bid_allowed and bought_count reflect instantly
+        try { await fetchTeams(tournamentId); } catch {}
+
         // Notify immediately with correct bid and team
         // socketRef.current?.emit("bidUpdated", {
         //     bid_amount: bidAmount,
@@ -1142,6 +1246,9 @@ const AdminPanel = () => {
         } catch (e) {
             console.warn("KCPL table refresh failed:", e);
         }
+
+        // Non-KCPL: refresh teams to update max_bid_allowed/bought_count
+        try { await fetchTeams(tournamentId); } catch {}
     };
 
 
@@ -2351,25 +2458,38 @@ const handleSearchById = async (idOverride) => {
                                 </label>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                                {teams.map(team => (
-                                    <button
-                                        key={team.id}
-                                        onClick={() => handleTeamClick(team)}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all
-                ${selectedTeam === team.name ? "bg-green-800 text-white" : "bg-gray-700 text-gray-200"}
-                hover:bg-indigo-600 hover:text-white`}
-                                    >
-                                        {team.logo && (
-                                            <img
-                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
-                                                alt={team.name}
-                                                className="w-5 h-5 rounded-full"
-                                            />
-                                        )}
-                                        <span className="truncate">{team.name}</span>
-                                    </button>
-                                ))}
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2 w-full">
+                                {teams.map(team => {
+                                    const { eligible, reason } = getTeamEligibility(team) || { eligible: true, reason: "" };
+                                    const disabled = isTeamViewActive || !eligible;
+                                    const tooltip = disabled ? (isTeamViewActive ? "Team View active" : (reason || "Ineligible to bid")) : `Select ${team.name}`;
+                                    const baseClass = `flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all`;
+                                    const normalStateClass = selectedTeam === team.name
+                                        ? "bg-green-800 text-white"
+                                        : "bg-gray-700 text-gray-200";
+                                    const disabledClass = "bg-red-700 text-white ring-1 ring-red-500/60 opacity-90 cursor-not-allowed";
+                                    const hoverClass = disabled ? "" : "hover:bg-indigo-600 hover:text-white";
+                                    const visualDisable = disabled ? disabledClass : "";
+                                    return (
+                                        <span key={team.id} title={tooltip} className="inline-block w-full">
+                                            <button
+                                                onClick={() => !disabled && handleTeamClick(team)}
+                                                disabled={disabled}
+                                                aria-disabled={disabled}
+                                                className={`${baseClass} ${disabled ? '' : normalStateClass} ${hoverClass} ${visualDisable} w-full`}
+                                            >
+                                                {team.logo && (
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
+                                                        alt={team.name}
+                                                        className="w-5 h-5 rounded-full"
+                                                    />
+                                                )}
+                                                <span className="truncate">{team.name}</span>
+                                            </button>
+                                        </span>
+                                    );
+                                })}
                             </div>
 
                             {selectedTeam && (
