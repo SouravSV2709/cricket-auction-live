@@ -1002,7 +1002,7 @@ const SpectatorLiveDisplay = () => {
                 setTournamentName(data.title || tournamentSlug);
                 setTournamentLogo(
                     data.logo
-                        ? `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=w-300,h-600,q-95,e-sharpen`
+                        ? `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=w-300,q-95,e-sharpen`
                         : ""
                 );
                 setTotalPlayersToBuy(data.players_per_team || 14);
@@ -2796,8 +2796,12 @@ const groups =
                             </div>
 
                             <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-3xl">
-                                {/* <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
-                                <div className="px-3 py-2">{player?.nickname || "-"}</div> */}
+
+                            <div className="px-3 py-2 tracking-wider uppercase">Serial No</div>
+                                <div className="px-3 py-2">{player?.auction_serial || "-"}</div>
+
+                                <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
+                                <div className="px-3 py-2">{player?.nickname || "-"}</div>
 
                                 <div className="px-3 py-2 tracking-wider uppercase">Role</div>
                                 <div className="px-3 py-2 uppercase">{player?.role || "-"}</div>

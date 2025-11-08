@@ -998,7 +998,7 @@ const SpectatorLiveDisplay = () => {
                 setTournamentName(data.title || tournamentSlug);
                 setTournamentLogo(
                     data.logo
-                        ? `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=w-300,h-600,q-95,e-sharpen`
+                        ? `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=w-300,q-95,e-sharpen`
                         : ""
                 );
                 setTotalPlayersToBuy(data.players_per_team || 14);
