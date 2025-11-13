@@ -788,8 +788,7 @@ async function getAllTeamStats(tournamentId) {
 
 // Start team loop
 
-let teamLoopInterval = null;
-let loopTeamIndex = 0;
+const teamLoopIntervals = new Map();
 
 app.post("/api/start-team-loop/:slug", async (req, res) => {
   const { slug } = req.params;
@@ -817,8 +816,14 @@ app.post("/api/start-team-loop/:slug", async (req, res) => {
 
     console.log("🔁 Starting team loop for tournament:", slug, teamIds);
 
+    const existingInterval = teamLoopIntervals.get(slug);
+    if (existingInterval) {
+      clearInterval(existingInterval);
+      teamLoopIntervals.delete(slug);
+    }
+
     let i = 0;
-    teamLoopInterval = setInterval(async () => {
+    const intervalHandle = setInterval(async () => {
       const currentTeamId = teamIds[i];
 
       const playersRes = await pool.query(
@@ -829,11 +834,15 @@ app.post("/api/start-team-loop/:slug", async (req, res) => {
 
       io.emit("showTeam", {
         team_id: currentTeamId,
-        empty
+        empty,
+        tournament_id: tournamentId,
+        tournament_slug: slug,
       });
 
       i = (i + 1) % teamIds.length;
     }, 7000);
+
+    teamLoopIntervals.set(slug, intervalHandle);
 
     res.json({ message: "✅ Team loop started" });
   } catch (error) {
@@ -850,14 +859,25 @@ app.post("/api/start-team-loop/:slug", async (req, res) => {
 
 app.post("/api/stop-team-loop", (req, res) => {
   console.log("🛑 Stopping team loop...");
+  const { slug } = req.body || {};
 
-  if (teamLoopInterval) {
-    clearInterval(teamLoopInterval);
-    teamLoopInterval = null;
+  const stopLoopForSlug = (key) => {
+    const handle = teamLoopIntervals.get(key);
+    if (handle) {
+      clearInterval(handle);
+      teamLoopIntervals.delete(key);
+      console.log(`🛑 Cleared team loop for ${key}`);
+    }
+  };
+
+  if (slug) {
+    stopLoopForSlug(slug);
+  } else {
+    Array.from(teamLoopIntervals.keys()).forEach(stopLoopForSlug);
   }
 
   io.emit("customMessageUpdate", "__CLEAR_CUSTOM_VIEW__");
-  res.json({ message: "✅ Team loop stopped" });
+  res.json({ message: slug ? `✅ Team loop stopped for ${slug}` : "✅ Team loop stopped" });
 });
 
 
@@ -869,8 +889,18 @@ let currentTeamId = null;
 
 app.post("/api/show-team", (req, res) => {
   console.log("✅ /api/show-team HIT");
-  currentTeamId = req.body.team_id;
-  io.emit("showTeam", { team_id: currentTeamId, empty: false }); // ✅ Fixed
+  const { team_id, empty = false, tournament_id, tournament_slug } = req.body || {};
+  currentTeamId = team_id ?? null;
+
+  const payload = {
+    team_id: currentTeamId,
+    empty: Boolean(empty),
+  };
+
+  if (tournament_id != null) payload.tournament_id = tournament_id;
+  if (tournament_slug != null) payload.tournament_slug = tournament_slug;
+
+  io.emit("showTeam", payload);
   res.json({ success: true });
 });
 

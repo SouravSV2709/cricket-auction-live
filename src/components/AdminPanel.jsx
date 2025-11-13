@@ -496,7 +496,11 @@ const AdminPanel = () => {
                     await fetch(`${API}/api/show-team`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ team_id: null }),
+                        body: JSON.stringify({
+                            team_id: null,
+                            tournament_id: tournamentId,
+                            tournament_slug: tournamentSlug,
+                        }),
                     });
                     setIsTeamViewActive(false);
                 }
@@ -515,6 +519,11 @@ const AdminPanel = () => {
             if (isTeamLoopActive) {
                 await fetch(`${API}/api/stop-team-loop`, {
                     method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        slug: tournamentSlug,
+                        tournament_id: tournamentId,
+                    }),
                 });
                 setIsTeamLoopActive(false);
             }
@@ -1531,7 +1540,11 @@ const handleSearchById = async (idOverride) => {
             await fetch(`${API}/api/show-team`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ team_id: team.id }),
+                body: JSON.stringify({
+                    team_id: team.id,
+                    tournament_id: tournamentId,
+                    tournament_slug: tournamentSlug,
+                }),
             });
 
             socketRef.current?.emit("showTeam", {
@@ -2442,14 +2455,25 @@ const handleSearchById = async (idOverride) => {
                                                 setIsTeamLoopActive(true);
                                             } else {
                                                 // 🔴 Turning OFF Team Loop
-                                                await fetch(`${API}/api/stop-team-loop`, { method: "POST" });
+                                                await fetch(`${API}/api/stop-team-loop`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        slug: tournamentSlug,
+                                                        tournament_id: tournamentId,
+                                                    }),
+                                                });
                                                 setIsTeamLoopActive(false);
 
                                                 // ✅ ALSO disable Squad View (return to live mode)
                                                 await fetch(`${API}/api/show-team`, {
                                                     method: "POST",
                                                     headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({ team_id: null }),
+                                                    body: JSON.stringify({
+                                                        team_id: null,
+                                                        tournament_id: tournamentId,
+                                                        tournament_slug: tournamentSlug,
+                                                    }),
                                                 });
                                                 setIsTeamViewActive(false);
                                                 setIsLiveAuctionActive(true); // return to live
@@ -2467,8 +2491,12 @@ const handleSearchById = async (idOverride) => {
                             <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2 w-full">
                                 {teams.map(team => {
                                     const { eligible, reason } = getTeamEligibility(team) || { eligible: true, reason: "" };
-                                    const disabled = isTeamViewActive || !eligible;
-                                    const tooltip = disabled ? (isTeamViewActive ? "Team View active" : (reason || "Ineligible to bid")) : `Select ${team.name}`;
+                                    const disabled = !isTeamViewActive && !eligible;
+                                    const tooltip = disabled
+                                        ? (reason || "Ineligible to bid")
+                                        : (isTeamViewActive
+                                            ? `Show ${team.name} squad`
+                                            : `Select ${team.name}`);
                                     const baseClass = `flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-semibold transition-all`;
                                     const normalStateClass = selectedTeam === team.name
                                         ? "bg-green-800 text-white"
@@ -2544,14 +2572,22 @@ const handleSearchById = async (idOverride) => {
                                             await fetch(`${API}/api/show-team`, {
                                                 method: "POST",
                                                 headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ team_id: team.id })
+                                                body: JSON.stringify({
+                                                    team_id: team.id,
+                                                    tournament_id: tournamentId,
+                                                    tournament_slug: tournamentSlug,
+                                                })
                                             });
                                         } else {
                                             setIsLiveAuctionActive(true);
                                             await fetch(`${API}/api/show-team`, {
                                                 method: "POST",
                                                 headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ team_id: null })
+                                                body: JSON.stringify({
+                                                    team_id: null,
+                                                    tournament_id: tournamentId,
+                                                    tournament_slug: tournamentSlug,
+                                                })
                                             });
                                         }
                                         setIsTeamViewActive(newState);
@@ -2574,7 +2610,11 @@ const handleSearchById = async (idOverride) => {
                                             await fetch(`${API}/api/show-team`, {
                                                 method: "POST",
                                                 headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ team_id: null })
+                                                body: JSON.stringify({
+                                                    team_id: null,
+                                                    tournament_id: tournamentId,
+                                                    tournament_slug: tournamentSlug,
+                                                })
                                             });
                                             setIsTeamViewActive(false);
                                         }

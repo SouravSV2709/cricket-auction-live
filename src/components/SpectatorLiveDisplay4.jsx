@@ -1708,6 +1708,7 @@ const SpectatorLiveDisplay = () => {
 
         return (
             <div className="w-screen h-screen relative overflow-hidden">
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
                 {/* Background – Team Flag (KCPL only, animated) */}
                 {tournamentSlug?.toLowerCase().includes("kcpl") &&
                     team?.name &&
