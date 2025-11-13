@@ -259,96 +259,78 @@ const AdminPanel = () => {
      */
 
     const computeSmartSuggestions = (currentBid, base, ranges, maxCount = 10) => {
-        const out = [];
-        const rs = normalizeRanges(ranges);
-        if (rs.length === 0) return out;
+    const rs = normalizeRanges(ranges);
+    if (rs.length === 0) return [];
 
-        // Start from what's typed (or base)
-        let amt = Math.max(Number(currentBid) || 0, base);
-
-        // Find the range that contains 'amt' (or the first range after it)
-        let idx = findRangeIndex(rs, amt);
-        if (idx === -1) {
-            // If below the very first range min, start at that min
-            idx = 0;
-            amt = Math.max(amt, rs[0].min_value ?? 0, base);
+    // Find the increment that applies to a given amount
+    const getIncrementFor = (amount) => {
+        for (const r of rs) {
+            const min = r.min_value ?? 0;
+            const max = r.max_value; // null => ∞
+            if (max == null && amount >= min) return Math.max(1, Number(r.increment) || 1);
+            if (max != null && amount >= min && amount < max) return Math.max(1, Number(r.increment) || 1);
         }
-
-        const pushVal = (v) => {
-            const x = Math.max(v, base);
-            if (out.length === 0 || x > out[out.length - 1]) out.push(x);
-        };
-
-        // Walk ranges forward, always stepping by that range's increment
-        while (out.length < maxCount && idx < rs.length) {
-            const r = rs[idx];
-            const rMin = Math.max(r.min_value ?? 0, base);
-            const rMax = r.max_value;          // null => ∞
-            const inc = Math.max(1, Number(r.increment) || 1);
-
-            // Ensure we are at least at the range min
-            if (amt < rMin) amt = rMin;
-
-            // First suggestion inside this range:
-            //  - If user typed inside range, go to "next step from what they typed" (even if off-grid)
-            //  - Else (we landed exactly on the min), use that min
-            let first = amt;
-            if (first < rMin) first = rMin;
-
-            // If we're *already* at/over the finite max, push the max and move to next range
-            if (rMax != null && first >= rMax) {
-                pushVal(rMax);
-                idx += 1;
-                amt = rMax; // nudge into next range
-                continue;
-            }
-
-            // If the amount is equal to the min boundary, that's a valid first chip;
-            // otherwise, for off-grid amounts we *advance by inc from the current value*.
-            // Example: amt=2300 in +500 range => first=2300+500 = 2800
-            if (first > rMin) first = first + inc;
-
-            // Emit steps in this range
-            let cursor = first;
-            while (out.length < maxCount) {
-                if (rMax != null && cursor > rMax) {
-                    // include the exact max boundary before leaving the range
-                    if (out[out.length - 1] !== rMax) pushVal(rMax);
-                    break;
-                }
-                pushVal(cursor);
-                cursor += inc;
-            }
-
-            // Move to next range
-            idx += 1;
-
-            // Prepare amt for the next range:
-            if (rMax != null) {
-                // start from the max boundary (no +1 offset)
-                amt = rMax;
-            } else {
-                // Infinite range handled above already; we would have filled maxCount by now
-                break;
-            }
-        }
-
-        // If we still need more and there is an infinite tail, continue with it
-        if (out.length < maxCount) {
-            const inf = rs.find(r => r.max_value == null);
-            if (inf) {
-                const iMin = Math.max(inf.min_value ?? 0, base);
-                const inc = Math.max(1, Number(inf.increment) || 1);
-                let cursor = Math.max(out[out.length - 1] ?? iMin, iMin) + inc;
-                while (out.length < maxCount) {
-                    pushVal(cursor);
-                    cursor += inc;
-                }
-            }
-        }
-
-        return out.slice(0, maxCount);
+        // Fallback: use the first range's increment
+        return Math.max(1, Number(rs[0].increment) || 1);
     };
+
+    const seen = new Set();
+    const out = [];
+
+    const pushVal = (v) => {
+        const x = Math.max(Number(v) || 0, base); // never below base
+        if (!Number.isFinite(x)) return;
+        if (x < base) return;
+        if (seen.has(x)) return;
+        seen.add(x);
+        out.push(x);
+    };
+
+    // Start around current bid (or base if bid is lower/zero)
+    const start = Math.max(Number(currentBid) || 0, base);
+    pushVal(start);
+
+    let up = start;
+    let down = start;
+    let canStepDown = true;
+
+    // Alternate: one step up, one step down (but don't go < base)
+    while (out.length < maxCount) {
+        let progressed = false;
+
+        // Step UP
+        const incUp = getIncrementFor(up);
+        const nextUp = up + incUp;
+        if (Number.isFinite(nextUp)) {
+            pushVal(nextUp);
+            up = nextUp;
+            progressed = true;
+        }
+        if (out.length >= maxCount) break;
+
+        // Step DOWN
+        // Use amount just below current to pick correct slab,
+        // but clamp final value so it never goes below base.
+        if (canStepDown) {
+            const incDown = getIncrementFor(Math.max(down - 1, base));
+            const nextDown = down - incDown;
+            if (nextDown < base) {
+                canStepDown = false; // don't attempt any more downward steps
+            } else {
+                pushVal(nextDown);
+                down = nextDown;
+                progressed = true;
+            }
+        }
+
+        if (!progressed) break;
+    }
+
+    // Show chips in ascending order
+    out.sort((a, b) => a - b);
+    return out;
+};
+
 
 
 
