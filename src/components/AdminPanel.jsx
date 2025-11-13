@@ -644,10 +644,16 @@ const AdminPanel = () => {
     const getNextBidAmountForEligibility = React.useCallback(() => {
         const base = Number(getPoolBaseForCurrent?.() ?? 0) || 0;
         const current = typeof bidAmount === "number" ? bidAmount : (parseInt(bidAmount, 10) || 0);
-        if (!Number.isFinite(current) || current <= 0) return base;
-        const inc = Number(getDynamicBidIncrement(current)) || 0;
-        return current + inc;
-    }, [bidAmount, getPoolBaseForCurrent]);
+        const normalized = Number.isFinite(current) ? current : 0;
+
+        if (isBidManual) {
+            return Math.max(normalized, base);
+        }
+
+        if (normalized <= 0) return base;
+        const inc = Number(getDynamicBidIncrement(normalized)) || 0;
+        return normalized + inc;
+    }, [bidAmount, getPoolBaseForCurrent, isBidManual]);
 
     // Determine if a team can legally bid the next amount, and why/why not
     const getTeamEligibility = React.useCallback((team) => {
