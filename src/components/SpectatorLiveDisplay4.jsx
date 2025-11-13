@@ -9,6 +9,7 @@ import { io } from "socket.io-client";
 import BackgroundEffect from "../components/BackgroundEffect";
 import { DateTime } from "luxon";
 import { KCPL_RULES } from '../kcplRules';
+import { slugsMatch } from '../utils/slugUtils';
 
 const PUB = process.env.PUBLIC_URL || '';
 const FLAG = (file) => `${PUB}/${file}`;
@@ -553,6 +554,7 @@ const SpectatorLiveDisplay = () => {
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
     const [marqueeEnabled, setMarqueeEnabled] = useState(true);
+    const { tournamentSlug } = useParams();
     // guards for UNSOLD transition
     const unsoldLockRef = useRef(false);
     const unsoldLockTimerRef = useRef(null);
@@ -602,13 +604,17 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-        fetch(`${API}/api/theme`)
+        const controller = new AbortController();
+        const slugQuery = tournamentSlug ? `?slug=${encodeURIComponent(tournamentSlug)}` : "";
+        const applyTheme = (key) => {
+            const isVideo = typeof key === 'string' && key.startsWith('video:');
+            setTheme(key && (THEMES[key] || isVideo) ? key : DEFAULT_THEME_KEY);
+        };
+
+        fetch(`${API}/api/theme${slugQuery}`, { signal: controller.signal })
             .then(res => res.json())
-            .then(data => {
-                const key = data?.theme;
-                const isVideo = typeof key === 'string' && key.startsWith('video:');
-                setTheme(key && (THEMES[key] || isVideo) ? key : DEFAULT_THEME_KEY);
-            });
+            .then(data => applyTheme(data?.theme))
+            .catch(() => { });
 
         const socket = io(API, {
             transports: ["websocket"],
@@ -618,12 +624,21 @@ const SpectatorLiveDisplay = () => {
             reconnectionDelay: 500,
         });
 
-        socket.on("themeUpdate", (newTheme) => {
-            const isVideo = typeof newTheme === 'string' && newTheme.startsWith('video:');
-            setTheme(newTheme && (THEMES[newTheme] || isVideo) ? newTheme : DEFAULT_THEME_KEY);
-        });
-        return () => socket.disconnect();
-    }, []);
+        const handleThemeUpdate = (payload) => {
+            const incoming = typeof payload === 'string'
+                ? { theme: payload, slug: null }
+                : (payload || {});
+            if (!slugsMatch(incoming.slug, tournamentSlug)) return;
+            applyTheme(incoming.theme);
+        };
+
+        socket.on("themeUpdate", handleThemeUpdate);
+        return () => {
+            controller.abort();
+            socket.off("themeUpdate", handleThemeUpdate);
+            socket.disconnect();
+        };
+    }, [tournamentSlug]);
 
     const fetchKcplTeamStates = async () => {
         if (!tournamentId) return;
@@ -984,7 +999,6 @@ const SpectatorLiveDisplay = () => {
 
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
-    const { tournamentSlug } = useParams();
     const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
@@ -1252,10 +1266,16 @@ const SpectatorLiveDisplay = () => {
         socket.on("secretBiddingToggled", (payload) => { if (!matchesTournament(payload)) return; fastRefresh(); });
 
         // Theme + custom message + reveal flow — move onto THIS socket
-        socket.on("themeUpdate", (newTheme) => {
-            const isVideo = typeof newTheme === 'string' && newTheme.startsWith('video:');
-            setTheme(newTheme && (THEMES[newTheme] || isVideo) ? newTheme : DEFAULT_THEME_KEY);
-        });
+        const handleSocketThemeUpdate = (payload) => {
+            const incoming = typeof payload === 'string'
+                ? { theme: payload, slug: null }
+                : (payload || {});
+            if (!slugsMatch(incoming.slug, tournamentSlug)) return;
+            const key = incoming.theme;
+            const isVideo = typeof key === 'string' && key.startsWith('video:');
+            setTheme(key && (THEMES[key] || isVideo) ? key : DEFAULT_THEME_KEY);
+        };
+        socket.on("themeUpdate", handleSocketThemeUpdate);
 
         socket.on("customMessageUpdate", (payload) => {
             // Support legacy string payloads (treated as global/ignored here), and new scoped objects
@@ -1346,7 +1366,7 @@ const SpectatorLiveDisplay = () => {
             socket.off("playerUnsold", onPlayerUnsold);
             socket.off("playerChanged", fastRefresh);
             socket.off("secretBiddingToggled", fastRefresh);
-            socket.off("themeUpdate");
+            socket.off("themeUpdate", handleSocketThemeUpdate);
             socket.off("customMessageUpdate");
             socket.off("revealSecretBids");
             socket.off("secretBidWinnerAssigned");

@@ -605,12 +605,19 @@ const AdminPanel = () => {
     // Function to update theme
 
     const updateTheme = async () => {
+        const payload = { theme: selectedTheme };
+        if (tournamentSlug) {
+            payload.slug = tournamentSlug;
+        }
+
         await fetch(`${API}/api/theme`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ theme: selectedTheme }),
+            body: JSON.stringify(payload),
         });
-        alert(`🎨 Theme updated to: ${selectedTheme}`);
+
+        const scope = tournamentSlug ? ` for ${tournamentSlug}` : "";
+        alert(`🎨 Theme updated${scope} to: ${selectedTheme}`);
     };
 
     // Function to update increment

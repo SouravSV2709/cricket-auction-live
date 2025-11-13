@@ -4,6 +4,7 @@ import confetti from "canvas-confetti";
 import useWindowSize from "react-use/lib/useWindowSize";
 import CONFIG from '../components/config';
 import THEMES from '../components/themes';
+import { slugsMatch } from '../utils/slugUtils';
 import { io } from "socket.io-client";
 import PlayerCard3 from "../components/PlayerCard3";
 import "../App.css";
@@ -108,11 +109,26 @@ const SpectatorLiveDisplay = () => {
     }, []);
 
     useEffect(() => {
-        fetch(`${API}/api/theme`)
+        const controller = new AbortController();
+        const slugQuery = tournamentSlug ? `?slug=${encodeURIComponent(tournamentSlug)}` : "";
+        const applyTheme = (value) => {
+            if (typeof value === "string") {
+                const trimmed = value.trim();
+                if (trimmed.length > 0) {
+                    setTheme(trimmed);
+                    return;
+                }
+            }
+            setTheme("default");
+        };
+
+        fetch(`${API}/api/theme${slugQuery}`, { signal: controller.signal })
             .then(res => res.json())
-            .then(data => setTheme(data.theme || "default"))
+            .then(data => applyTheme(data?.theme))
             .catch(() => { });
-    }, []);
+
+        return () => controller.abort();
+    }, [tournamentSlug]);
 
 
     const [tournamentId, setTournamentId] = useState(null);
@@ -497,7 +513,15 @@ const SpectatorLiveDisplay = () => {
         socket.on("playerChanged", onPlayerChanged);
 
         // Theme + custom message + secret-bid toggle
-        socket.on("themeUpdate", (newTheme) => setTheme(newTheme || "default"));
+        const handleSocketThemeUpdate = (payload) => {
+            const incoming = typeof payload === "string"
+                ? { theme: payload, slug: null }
+                : (payload || {});
+            if (!slugsMatch(incoming.slug, tournamentSlug)) return;
+            const value = typeof incoming.theme === "string" ? incoming.theme.trim() : "";
+            setTheme(value.length ? value : "default");
+        };
+        socket.on("themeUpdate", handleSocketThemeUpdate);
         socket.on("customMessageUpdate", (payload) => {
             if (typeof payload === 'object') {
                 if (!matchesTournament(payload)) return;
@@ -524,7 +548,7 @@ const SpectatorLiveDisplay = () => {
             socket.off("playerSold", onPlayerSold);
             socket.off("playerUnsold", onPlayerUnsold);
             socket.off("playerChanged", onPlayerChanged);
-            socket.off("themeUpdate");
+            socket.off("themeUpdate", handleSocketThemeUpdate);
             socket.off("customMessageUpdate");
             socket.off("secretBiddingToggled");
             socket.disconnect();

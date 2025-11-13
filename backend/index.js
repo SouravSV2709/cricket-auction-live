@@ -563,29 +563,45 @@ io.on("connection", (socket) => {
 });
 
 // Adding themes to the layout
+const themeBySlug = new Map();
+let globalTheme = '';
 
-let currentTheme = '';
+const normalizeSlug = (value) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.toLowerCase() : null;
+};
+
+const getThemeForSlug = (slug) => {
+  const normalized = normalizeSlug(slug);
+  if (!normalized) return globalTheme;
+  return themeBySlug.get(normalized) ?? globalTheme;
+};
 
 app.get('/api/theme', (req, res) => {
-  res.json({ theme: currentTheme });
+  const theme = getThemeForSlug(req.query?.slug);
+  res.json({ theme });
 });
 
 app.post('/api/theme', (req, res) => {
-  const { theme } = req.body;
-  currentTheme = theme;
-  io.emit("themeUpdate", theme); // notify spectators
-  res.json({ message: "Theme updated", theme });
-});
+  const { theme } = req.body || {};
+  if (typeof theme !== 'string' || !theme.trim()) {
+    return res.status(400).json({ error: "Theme is required" });
+  }
 
-app.get('/api/theme', (req, res) => {
-  res.json({ theme: currentTheme });
-});
+  const cleanedTheme = theme.trim();
+  const slug = normalizeSlug(req.body?.slug ?? req.query?.slug);
 
-app.post('/api/theme', (req, res) => {
-  const { theme } = req.body;
-  currentTheme = theme;
-  io.emit("themeUpdate", theme); // ⬅️ Broadcast to spectators
-  res.json({ success: true });
+  if (slug) {
+    themeBySlug.set(slug, cleanedTheme);
+  } else {
+    globalTheme = cleanedTheme;
+  }
+
+  const payload = slug ? { theme: cleanedTheme, slug } : cleanedTheme;
+  io.emit("themeUpdate", payload);
+
+  res.json({ message: "Theme updated", theme: cleanedTheme, slug });
 });
 
 // ===== KCPL global flag (default OFF) =====
