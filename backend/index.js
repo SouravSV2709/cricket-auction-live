@@ -126,6 +126,19 @@ async function getTeamPoolSnapshot(teamId, tournamentId) {
 }
 
 
+// Basic tournaments directory for admin tooling
+app.get("/api/tournaments", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, slug, COALESCE(title, slug) AS title FROM tournaments ORDER BY id DESC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Failed to list tournaments", error);
+    res.status(500).json({ error: "Failed to load tournaments" });
+  }
+});
+
 app.use("/api/tournaments", groupRoutes({ pool, io }));
 
 

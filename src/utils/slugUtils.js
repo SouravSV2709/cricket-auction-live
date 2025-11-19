@@ -28,3 +28,19 @@ export const slugsMatch = (incomingSlug, currentSlug) => {
 
   return normalizedIncoming === normalizedCurrent;
 };
+
+/**
+ * Replace every "{slug}" token in a template URL with the provided slug.
+ * When slug is missing or blank the original template is returned so
+ * placeholders remain visible to the user.
+ */
+export const renderSlugTemplate = (template, slug) => {
+  if (typeof template !== "string") return "";
+  const normalizedSlug = normalizeSlug(slug);
+
+  if (!normalizedSlug) {
+    return template;
+  }
+
+  return template.split("{slug}").join(normalizedSlug);
+};
