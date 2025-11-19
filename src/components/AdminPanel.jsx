@@ -66,6 +66,7 @@ const AdminPanel = () => {
     const [serialView, setSerialView] = React.useState("paid"); // 'paid' | 'unpaid' | 'all'
     const [serialQuery, setSerialQuery] = React.useState("");
     const [roleFilter, setRoleFilter] = React.useState("all");
+    const [categoryFilter, setCategoryFilter] = React.useState("all");
 
 
     // helpers
@@ -89,6 +90,15 @@ const AdminPanel = () => {
         for (const p of players || []) {
             const r = String(p?.role || '').trim();
             if (r) set.add(r);
+        }
+        return Array.from(set).sort((a, b) => a.localeCompare(b));
+    }, [players]);
+
+    const availableCategories = React.useMemo(() => {
+        const set = new Set();
+        for (const p of players || []) {
+            const c = String(p?.base_category || '').trim();
+            if (c) set.add(c);
         }
         return Array.from(set).sort((a, b) => a.localeCompare(b));
     }, [players]);
@@ -163,7 +173,12 @@ const AdminPanel = () => {
                 const r = String(p?.role || '').toLowerCase();
                 if (r !== String(roleFilter).toLowerCase()) return false;
             }
-            // If no text query, role filter alone applies
+            // Category filter (exact match) if selected
+            if (categoryFilter !== 'all') {
+                const c = String(p?.base_category || '').toLowerCase();
+                if (c !== String(categoryFilter).toLowerCase()) return false;
+            }
+            // If no text query, role/category filters alone may apply
             if (!q) return true;
             // Text query can match serial, name, or nickname
             if (String(s).includes(q)) return true;
@@ -171,7 +186,7 @@ const AdminPanel = () => {
             const nick = String(p?.nickname || "").toLowerCase();
             return name.includes(q) || nick.includes(q);
         });
-    }, [serialsByView, serialQuery, serialToPlayer, roleFilter]);
+    }, [serialsByView, serialQuery, serialToPlayer, roleFilter, categoryFilter]);
 
     // generic color helper (Sold=Green, Unsold=Red, Ongoing=Yellow, Default=Gray)
     const getSerialChipClass = (serial) => {
@@ -2278,6 +2293,18 @@ const handleSearchById = async (idOverride) => {
                                             <option value="all">All roles</option>
                                             {availableRoles.map((role) => (
                                                 <option key={role} value={role}>{role}</option>
+                                            ))}
+                                        </select>
+
+                                        {/* Player category filter */}
+                                        <select
+                                            value={categoryFilter}
+                                            onChange={(e) => setCategoryFilter(e.target.value)}
+                                            className="px-3 py-1.5 text-sm rounded-md bg-gray-800 text-white border border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                            <option value="all">All categories</option>
+                                            {availableCategories.map((category) => (
+                                                <option key={category} value={category}>{category}</option>
                                             ))}
                                         </select>
 
