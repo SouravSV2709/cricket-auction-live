@@ -6,6 +6,7 @@ import SpectatorLiveDisplay2 from './components/SpectatorLiveDisplay2';
 import SpectatorLiveDisplay3 from './components/SpectatorLiveDisplay3';
 import SpectatorLiveDisplay4 from './components/SpectatorLiveDisplay4';
 import SpectatorLiveDisplay5 from './components/SpectatorLiveDisplay5';
+import SpectatorLiveDisplay6 from './components/SpectatorLiveDisplay6';
 import CONFIG from './components/config';
 import AllPlayerCards from './components/AllPlayerCards';
 import AllPlayerCards2 from './components/AllPlayerCards2';
@@ -159,6 +160,7 @@ const AppWrapper = () => {
           />
         }
       />
+      <Route path="/spectator6/:tournamentSlug" element={<SpectatorLiveDisplay6 />} />
       <Route path="/player-cards/:tournamentSlug" element={<AllPlayerCards />} />
       <Route path="/player-cards2/:tournamentSlug" element={<AllPlayerCards2 />} />
       <Route path="/team-cards/:tournamentSlug" element={<AllTeamCards />} />

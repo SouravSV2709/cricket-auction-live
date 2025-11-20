@@ -53,6 +53,7 @@ const Navbar = ({ tournamentSlug }) => {
         {/* Desktop Links */}
         <div className="hidden md:flex gap-6">
           {/* <Link to={`/secret-bid/${tournamentSlug}`} className="hover:text-yellow-400">Secret Bid</Link> */}
+          <Link to={`/spectator6/${tournamentSlug}`} className="hover:text-yellow-400">Live Auction</Link>
           <Link to={`/tournament/${tournamentSlug}`} className="hover:text-yellow-400">Dashboard</Link>
           <Link to={`/player-cards/${tournamentSlug}`} className="hover:text-yellow-400">Players</Link>
           <Link to={`/team-cards/${tournamentSlug}`} className="hover:text-yellow-400">Teams</Link>
@@ -66,6 +67,7 @@ const Navbar = ({ tournamentSlug }) => {
       >
         <div className="flex flex-col text-right mt-2 gap-2">
           {/* <Link to={`/secret-bid/${tournamentSlug}`} className="hover:text-yellow-400">Secret Bid</Link> */}
+          <Link to={`/spectator6/${tournamentSlug}`} className="hover:text-yellow-400">Live Auction</Link>
           <Link to={`/tournament/${tournamentSlug}`} className="hover:text-yellow-400">Dashboard</Link>
           <Link to={`/player-cards/${tournamentSlug}`} className="hover:text-yellow-400">Players</Link>
           <Link to={`/team-cards/${tournamentSlug}`} className="hover:text-yellow-400">Teams</Link>
