@@ -13,8 +13,8 @@ const ADMIN_LINKS = [
   },
   {
     id: 'spectator-tv',
-    description: 'UI for television view[Used to cast on big screens or youtube]',
-    hrefTemplate: 'Private- https://live.eaarena.in/spectator4/{slug}',
+    description: 'Private- UI for television view[Used to cast on big screens or youtube]',
+    hrefTemplate: 'https://live.eaarena.in/spectator4/{slug}',
   },
   {
     id: 'youtube-stream',
