@@ -2827,12 +2827,12 @@ const groups =
                                 <div className="px-3 py-2 tracking-wider uppercase">Role</div>
                                 <div className="px-3 py-2 uppercase">{player?.role || "-"}</div>
 
-                                {player?.age_category && (
+                                {/* {player?.age_category && (
                                     <>
                                         <div className="px-3 py-2 tracking-wider uppercase">Age Category</div>
                                         <div className="px-3 py-2">{player.age_category}</div>
                                     </>
-                                )}
+                                )} */}
 {/* 
                                 <div className="px-3 py-2 tracking-wider uppercase">Age Category</div>
                                 <div className="px-3 py-2 uppercase">{player?.age_category || "Below 40"}</div>  */}

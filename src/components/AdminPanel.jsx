@@ -97,7 +97,7 @@ const AdminPanel = () => {
     const availableCategories = React.useMemo(() => {
         const set = new Set();
         for (const p of players || []) {
-            const c = String(p?.base_category || '').trim();
+            const c = String(p?.age_category || '').trim();
             if (c) set.add(c);
         }
         return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -175,7 +175,7 @@ const AdminPanel = () => {
             }
             // Category filter (exact match) if selected
             if (categoryFilter !== 'all') {
-                const c = String(p?.base_category || '').toLowerCase();
+                const c = String(p?.age_category || '').toLowerCase();
                 if (c !== String(categoryFilter).toLowerCase()) return false;
             }
             // If no text query, role/category filters alone may apply

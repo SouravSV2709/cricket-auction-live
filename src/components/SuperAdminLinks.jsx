@@ -35,6 +35,11 @@ const ADMIN_LINKS = [
     id: 'admin-link-teams',
     description: 'Private- Manage teams for a tournament',
     hrefTemplate: 'https://registration.eaarena.in/super/{slug}/teams',
+  },
+  {
+    id: 'auctioneer-view',
+    description: 'UI for Auctioneer to conduct the auction smoothly',
+    hrefTemplate: 'https://live.eaarena.in/spectator6/{slug}',
   }
 ];
 
