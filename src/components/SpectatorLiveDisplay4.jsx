@@ -1141,10 +1141,19 @@ const SpectatorLiveDisplay = () => {
 
         // 🔴 LIVE: update bid instantly on every increment
         const onBidUpdated = ({ bid_amount, team_name }) => {
-            if (unsoldOverlayActive && Number(bid_amount) === 0 && (!team_name || team_name === "")) return;
+            const livePlayer = playerRef.current;
+            const isZero = Number(bid_amount) === 0 && (!team_name || team_name === "");
+            const isTerminal = livePlayer && (isValidSold(livePlayer) || isUnsold(livePlayer));
+
+            // Ignore zero-bid clear events while an UNSOLD overlay is active or
+            // when the card is already in a terminal state (sold/unsold).
+            if (isZero && (unsoldOverlayActive || isTerminal)) return;
+
             setHighestBid(Number(bid_amount) || 0);
             setLeadingTeam(team_name || "");
-            if (Number(bid_amount) === 0 && (!team_name || team_name === "")) fastRefresh();
+
+            // Only force-refresh when not already in a terminal state
+            if (isZero && !isTerminal) fastRefresh();
         };
 
         socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); }); // scoped
