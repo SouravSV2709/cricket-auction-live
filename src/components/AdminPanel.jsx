@@ -28,6 +28,7 @@ const AdminPanel = () => {
     const [searchId, setSearchId] = useState('');
     const [undoStack, setUndoStack] = useState([]);
     const [customMessage, setCustomMessage] = useState('');
+    const [tournamentTitle, setTournamentTitle] = useState('Tournament');
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
     const [resetUnsoldInProgress, setResetUnsoldInProgress] = useState(false);
@@ -161,6 +162,13 @@ const AdminPanel = () => {
             .filter(s => Number.isFinite(s) && s >= 1)
             .sort((a, b) => a - b);
     }, [players]);
+
+    const quickMessageOptions = [
+        { label: "Welcome", text: `Welcome to ${tournamentTitle}!` },
+        { label: "Lunch Break", text: "Lunch break in progress. Auction resumes shortly." },
+        { label: "We're Back", text: "Auction resuming now. Please take your seats." },
+        { label: "Congrats", text: `Congratulations to all teams at ${tournamentTitle}!` },
+    ];
 
 
 
@@ -372,6 +380,7 @@ const AdminPanel = () => {
 
                 if (res.ok && data.id) {
                     setTournamentId(data.id);
+                    setTournamentTitle(data.title || 'Tournament');
                 } else {
                     console.error("❌ Tournament not found for slug:", tournamentSlug);
                 }
@@ -2790,8 +2799,25 @@ const handleSearchById = async (idOverride) => {
                                 rows="3"
                                 placeholder="Enter message to show on spectator screen"
                                 className="w-full p-3 rounded text-black"
+                                value={customMessage}
                                 onChange={(e) => setCustomMessage(e.target.value)}
                             />
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {quickMessageOptions.map(({ label, text }) => (
+                                    <button
+                                        key={label}
+                                        type="button"
+                                        className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-700 text-white hover:bg-pink-600 transition"
+                                        onClick={() => setCustomMessage(text)}
+                                        title={`Use "${text}"`}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs text-gray-300 mt-1">
+                                Tap a tag to prefill, edit if needed, then broadcast.
+                            </p>
                             <div className="flex flex-wrap gap-3 mt-3">
                                 <button
                                     onClick={async () => {

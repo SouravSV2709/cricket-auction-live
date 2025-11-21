@@ -2176,54 +2176,87 @@ const groups =
 
     if (customMessage && customView !== "team-stats") {
         return (
-            <div className={`w-screen h-screen flex items-center justify-center ${bgGradientClass} ${activeTheme.text} text-5xl font-extrabold text-center px-10`}>
-                <div className="w-screen h-screen relative overflow-hidden">
-                    {isVideoTheme && <BackgroundEffect theme={theme} />}
+            <div className={`relative w-screen h-screen overflow-hidden ${bgGradientClass} ${activeTheme.text}`}>
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
 
-                    <div className="absolute inset-0 flex flex-row items-center justify-center h-screen px-6">
-
-                        {/* Left Branding Panel */}
-                        <div className="flex flex-col items-center justify-center text-left pr-10 gap-4 min-w-[420px] max-w-[440px]">
-                            <img
-                                src="/AuctionArena2.png"
-                                alt="EA ARENA"
-                                className="w-64 h-64 object-contain mb-2 animate-shake"
-                            />
-                            <div className="text-xl text-white text-center leading-snug">
-                                <p>Contact <span className="text-yellow-300 ">Auction-Arena</span> for</p>
-                                <p>seamless auction experience</p>
-                            </div>
-                            <div className="flex items-center justify-center gap-2 tracking-wider uppercase text-lg ">
-                                <span className="text-pink-400 text-xl">📞</span>
-                                <span>+91-9547652702</span>
-                            </div>
-                            <p className="text-sm text-white font-semibold italic">Sourav Mukherjee</p>
-                        </div>
-
-                        {/* 🔸 Pulse Divider Bar */}
-                        <div className="w-[2px] h-[300px] bg-white/30 animate-pulse mx-8 rounded-full" />
-
-                        {/* Center – Logo and Message */}
-                        <div className="flex flex-col items-center justify-center gap-6 text-center">
-                            {tournamentLogo && (
-                                <img
-                                    src={tournamentLogo}
-                                    alt="Tournament Logo"
-                                    className="w-64 h-64 object-contain animate-shake"
-                                />
-                            )}
-                            <div className="bg-white/10 border border-white/30 rounded-2xl px-10 py-6 backdrop-blur-sm shadow-2xl">
-                                <p className="text-3xl md:text-5xl font-extrabold text-white drop-shadow-md">
-                                    {customMessage}
-                                </p>
-                            </div>
-                        </div>
-
-                    </div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,192,203,0.16),transparent_36%),radial-gradient(circle_at_80%_10%,rgba(59,130,246,0.16),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(34,197,94,0.16),transparent_34%)]" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/55 pointer-events-none" />
+                <div className="absolute inset-0 opacity-10 pointer-events-none">
+                    <div className="absolute left-6 top-10 text-7xl md:text-8xl font-black tracking-[0.35em] text-white/45 rotate-[-8deg]">EA ARENA</div>
+                    <div className="absolute right-6 bottom-12 text-5xl md:text-6xl font-black tracking-[0.28em] text-white/35">PREMIUM AUCTION</div>
                 </div>
 
-            </div>
+                <div className="relative z-10 w-full h-full flex items-center justify-center px-6">
+                    <div className="relative w-full max-w-6xl">
+                        <div className="absolute -top-12 left-0 z-30 flex items-center gap-3 bg-black/65 border border-white/25 backdrop-blur-2xl rounded-2xl px-4 py-3 shadow-2xl">
+                            <img src="/AuctionArena2.png" alt="EA ARENA" className="w-12 h-12 object-contain" />
+                            <div className="leading-tight">
+                                <p className="text-[10px] uppercase tracking-[0.22em] text-amber-200">EA ARENA Live Studio</p>
+                                <p className="text-lg font-extrabold text-white drop-shadow">Auction Arena</p>
+                            </div>
+                            <span className="ml-auto hidden sm:inline px-3 py-1 rounded-full bg-emerald-500/35 border border-emerald-300/40 text-emerald-50 text-[10px] font-semibold uppercase tracking-[0.2em] drop-shadow">Spectator Feed</span>
+                        </div>
 
+                        <div className="absolute -bottom-12 right-0 flex flex-wrap gap-3 justify-end z-20">
+                            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-xs uppercase tracking-[0.2em] text-white/90 backdrop-blur">
+                                EA ARENA // Overlay Graphics
+                            </span>
+                            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-xs uppercase tracking-[0.2em] text-white/90 backdrop-blur">
+                                Smart Bidding Engine
+                            </span>
+                            <span className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-xs uppercase tracking-[0.2em] text-white/90 backdrop-blur">
+                                Real-time Dashboard
+                            </span>
+                        </div>
+
+                        <div className="relative rounded-[28px] border border-white/25 bg-black/70 backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.55)] p-[12px]">
+                            <div className="rounded-[24px] bg-gradient-to-r from-pink-500/40 via-purple-600/40 to-blue-500/35 p-[2px]">
+                                <div className="rounded-[22px] bg-black/80 px-8 md:px-14 py-12 md:py-16 text-center relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_40%),radial-gradient(circle_at_80%_60%,rgba(255,255,255,0.05),transparent_35%)]" />
+                                    <div className="relative flex flex-col gap-4 items-center">
+                                        {tournamentLogo && (
+                                            <img
+                                                src={tournamentLogo}
+                                                alt="Tournament Logo"
+                                                className="w-16 h-16 md:w-20 md:h-20 object-contain rounded-2xl bg-white/10 border border-white/20 shadow-lg"
+                                            />
+                                        )}
+                                        <p className="text-xs uppercase tracking-[0.28em] text-white/60">Live on EA ARENA</p>
+                                        <h1 className="text-3xl md:text-4xl font-black text-white leading-tight">{tournamentName}</h1>
+                                        <p className="text-4xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-xl">
+                                            {customMessage}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-white/85">
+                            <div className="flex items-center gap-3 bg-black/55 border border-white/15 rounded-2xl px-4 py-3 backdrop-blur">
+                                <div className="w-10 h-10 rounded-full bg-pink-500/30 border border-pink-200/40 flex items-center justify-center text-lg font-bold text-pink-100">EA</div>
+                                <div className="leading-tight">
+                                    <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Contact</p>
+                                    <p className="text-lg font-semibold text-white">+91-9547652702</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 bg-black/55 border border-white/15 rounded-2xl px-4 py-3 backdrop-blur">
+                                <div className="w-10 h-10 rounded-full bg-emerald-500/25 border border-emerald-200/40 flex items-center justify-center text-lg font-bold text-emerald-100">ON</div>
+                                <div className="leading-tight">
+                                    <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Coordinator</p>
+                                    <p className="text-lg font-semibold text-white">Sourav Mukherjee</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 bg-black/55 border border-white/15 rounded-2xl px-4 py-3 backdrop-blur">
+                                <div className="w-10 h-10 rounded-full bg-sky-500/25 border border-sky-200/40 flex items-center justify-center text-lg font-bold text-sky-100">FX</div>
+                                <div className="leading-tight">
+                                    <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Website</p>
+                                    <p className="text-lg font-semibold text-white">https://www.eaarena.in/</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         );
     }
 
