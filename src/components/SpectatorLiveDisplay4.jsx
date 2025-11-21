@@ -555,6 +555,10 @@ const SpectatorLiveDisplay = () => {
     const unsoldOverlayTimerRef = useRef(null);
     const [marqueeEnabled, setMarqueeEnabled] = useState(false);
     const { tournamentSlug } = useParams();
+    const qrTargetUrl = useMemo(
+        () => tournamentSlug ? `https://live.eaarena.in/tournament/${encodeURIComponent(tournamentSlug)}` : "https://live.eaarena.in/tournament",
+        [tournamentSlug]
+    );
     // guards for UNSOLD transition
     const unsoldLockRef = useRef(false);
     const unsoldLockTimerRef = useRef(null);
@@ -1347,6 +1351,8 @@ const SpectatorLiveDisplay = () => {
                 setMarqueeEnabled(false);
             } else if (msg === "__MARQUEE_ON__") {
                 setMarqueeEnabled(true);
+            } else if (msg === "__SHOW_QR__") {
+                setCustomView("qr-only"); setCustomMessage(null);
             } else {
                 setCustomMessage(msg); setCustomView(null);
             }
@@ -2174,6 +2180,39 @@ const groups =
 
 
 
+    if (customView === "qr-only") {
+        return (
+            <div className={`relative w-screen h-screen overflow-hidden ${bgGradientClass} ${activeTheme.text}`}>
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/60 pointer-events-none" />
+
+                <div className="relative z-10 w-full h-full flex items-center justify-center px-6">
+                    <div className="w-full max-w-5xl bg-black/70 border border-white/25 rounded-[28px] backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.55)] p-10 text-center">
+                        <p className="text-xs uppercase tracking-[0.28em] text-white/70">EA ARENA // Live Auction Updates</p>
+                        <h1 className="mt-2 text-4xl md:text-5xl font-black text-white">{tournamentName}</h1>
+                        <div className="mt-8 flex flex-col md:flex-row items-center justify-center gap-8">
+                            <img
+                                src={`https://quickchart.io/qr?text=${encodeURIComponent(qrTargetUrl)}&size=320&margin=2`}
+                                alt="Scan for live auction updates"
+                                className="w-56 h-56 md:w-64 md:h-64 rounded-2xl bg-white shadow-2xl"
+                            />
+                            <div className="text-left max-w-md">
+                                <p className="text-sm uppercase tracking-[0.2em] text-amber-200">Scan to get</p>
+                                <p className="text-3xl font-extrabold text-white leading-tight">Live auction updates</p>
+                                <p className="mt-4 text-sm text-white/75 break-all">{qrTargetUrl}</p>
+                                <div className="mt-4 inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 border border-white/15 text-xs uppercase tracking-[0.18em] text-white/85">
+                                    <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    Powered by EA ARENA
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+
     if (customMessage && customView !== "team-stats") {
         return (
             <div className={`relative w-screen h-screen overflow-hidden ${bgGradientClass} ${activeTheme.text}`}>
@@ -2226,6 +2265,18 @@ const groups =
                                         <p className="text-4xl md:text-6xl font-extrabold text-white leading-tight drop-shadow-xl">
                                             {customMessage}
                                         </p>
+                                        <div className="mt-4 flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 backdrop-blur">
+                                            <img
+                                                src={`https://quickchart.io/qr?text=${encodeURIComponent(qrTargetUrl)}&size=200&margin=2`}
+                                                alt="Scan for live auction updates"
+                                                className="w-20 h-20 md:w-24 md:h-24 rounded-lg bg-white"
+                                            />
+                                            <div className="text-left">
+                                                <p className="text-[11px] uppercase tracking-[0.16em] text-white/70">Scan to get</p>
+                                                <p className="text-lg font-semibold text-white">Live auction updates</p>
+                                                <p className="text-xs text-white/60 break-all max-w-[180px]">{qrTargetUrl}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

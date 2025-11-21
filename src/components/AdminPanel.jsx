@@ -2866,6 +2866,20 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: "__SHOW_QR__", tournament_id: tournamentId, slug: tournamentSlug }),
+                                        });
+                                        alert("QR code will be shown on spectator.");
+                                    }}
+                                    className="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-4 py-2 rounded shadow"
+                                >
+                                    Show QR Only
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({ message: "__CLEAR_CUSTOM_VIEW__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("✅ Cleared custom view.");
@@ -3009,4 +3023,3 @@ const handleSearchById = async (idOverride) => {
 };
 
 export default AdminPanel;
-
