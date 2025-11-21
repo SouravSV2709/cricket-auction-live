@@ -560,6 +560,11 @@ const SpectatorLiveDisplay = () => {
     const unsoldLockTimerRef = useRef(null);
     const lastUnsoldAtRef = useRef(0);
     const lastUnsoldPlayerIdRef = useRef(null);
+    const playerRef = useRef(null);
+
+    useEffect(() => {
+        playerRef.current = player;
+    }, [player]);
 
     // Treat as SOLD only when status is TRUE AND we have a non-zero price AND a real team_id
     const isValidSold = (p) =>
@@ -1223,12 +1228,13 @@ const SpectatorLiveDisplay = () => {
 
         socket.on("playerChanged", (payload) => {
             if (!matchesTournament(payload)) return;
+            const livePlayer = playerRef.current;
             const samePlayer =
-                payload?.id != null && player?.id != null &&
-                Number(payload.id) === Number(player.id);
+                payload?.id != null && livePlayer?.id != null &&
+                Number(payload.id) === Number(livePlayer.id);
             const isSoldOrUnsold =
                 ["TRUE", "true", true, "FALSE", "false", false].includes(
-                    payload?.sold_status ?? player?.sold_status
+                    payload?.sold_status ?? livePlayer?.sold_status
                 );
 
             // If this is the SAME player and we just handled UNSOLD,
