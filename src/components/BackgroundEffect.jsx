@@ -9,16 +9,18 @@ const BackgroundEffect = ({ theme }) => {
     const file = theme.slice(6).trim();
     const src = file.startsWith('http') ? file : `${PUB}/${file}`;
     return (
-      <video
-        key={src}
-        className="absolute inset-0 z-0 w-full h-full object-cover pointer-events-none"
-        src={src}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="auto"
-      />
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: -1 }}>
+        <video
+          key={src}
+          className="w-full h-full object-cover pointer-events-none"
+          src={src}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+        />
+      </div>
     );
   }
   if (theme === "neon") {
