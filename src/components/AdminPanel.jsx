@@ -55,6 +55,17 @@ const AdminPanel = () => {
     const [playerStats, setPlayerStats] = useState(null);
     const [isMarqueeOn, setIsMarqueeOn] = useState(false);
 
+    // Prevent accidental player switches while an active bid is in progress
+    const isBiddingLocked = React.useMemo(() => {
+        if (!currentPlayer) return false;
+        const st = currentPlayer.sold_status;
+        const isSold = st === true || String(st).toUpperCase() === "TRUE";
+        const isUnsold = st === false || String(st).toUpperCase() === "FALSE";
+        if (isSold || isUnsold) return false;
+        const hasBid = Number(bidAmount) > 0;
+        return hasBid || isSecretBiddingActive;
+    }, [currentPlayer, bidAmount, isSecretBiddingActive]);
+
 
     useEffect(() => {
         document.title = "Admin Panel | Auction Arena";
@@ -1274,6 +1285,10 @@ const AdminPanel = () => {
 
     const handleNextPlayer = async () => {
         try {
+            if (isBiddingLocked) {
+                alert("Bidding is in progress for the current player. Finish or clear it before moving to the next player.");
+                return;
+            }
             // 1. Get all players once
             const res = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
             const allPlayers = await res.json();
@@ -1407,6 +1422,10 @@ const prefetchBySerial = async (serial) => {
     // ---- Full replacement: ultra-fast selection by serial (optimistic + cached) ----
 const handleSearchById = async (idOverride) => {
   try {
+    if (isBiddingLocked) {
+      alert("Bidding is in progress for the current player. Finish or clear it before switching.");
+      return;
+    }
     // take from pill if provided, otherwise from the input
     const raw = idOverride ?? searchId;
     const idToFind = raw != null ? String(raw).trim() : "";
@@ -2336,6 +2355,13 @@ const handleSearchById = async (idOverride) => {
                                         </span>
                                     </div>
 
+                                    {/* Bidding lock notice */}
+                                    {isBiddingLocked && (
+                                        <div className="mb-2 px-3 py-2 rounded-md bg-yellow-900/80 border border-yellow-600 text-yellow-200 text-sm">
+                                            Finish or clear the current bid/secret bid to switch players.
+                                        </div>
+                                    )}
+
                                     {/* Chips */}
                                     <div className="max-h-50 overflow-y-auto bg-gray-900/70 border border-gray-700 rounded-lg p-2">
                                         {filteredSerials.length === 0 ? (
@@ -2344,7 +2370,7 @@ const handleSearchById = async (idOverride) => {
                                             <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 lg:grid-cols-16 gap-1">
                                                 {filteredSerials.map((s) => {
                                                     const p = serialToPlayer.get(s);
-                                                    const isDisabled = Number(currentPlayer?.auction_serial) === Number(s) || isTeamViewActive;
+                                                    const isDisabled = Number(currentPlayer?.auction_serial) === Number(s) || isTeamViewActive || isBiddingLocked;
                                                     return (
                                                         <button
                                                             id={`serial-chip-${s}`}
@@ -2378,14 +2404,16 @@ const handleSearchById = async (idOverride) => {
                                     <button
                                         onClick={() => handleSearchById()}
                                         className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded font-bold shadow"
-                                        disabled={isTeamViewActive}
+                                        disabled={isTeamViewActive || isBiddingLocked}
+                                        title={isBiddingLocked ? "Locked while a bid/secret bid is active for this player" : ""}
                                     >
                                         🔍 Show Player
                                     </button>
                                     <button
                                         className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded shadow"
                                         onClick={handleNextPlayer}
-                                        disabled={isTeamViewActive}
+                                        disabled={isTeamViewActive || isBiddingLocked}
+                                        title={isBiddingLocked ? "Complete or clear the current bid before moving to next player" : ""}
                                     >
                                         ➡️ Next Player
                                     </button>
