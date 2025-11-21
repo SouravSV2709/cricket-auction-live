@@ -1226,6 +1226,10 @@ const SpectatorLiveDisplay = () => {
             const samePlayer =
                 payload?.id != null && player?.id != null &&
                 Number(payload.id) === Number(player.id);
+            const isSoldOrUnsold =
+                ["TRUE", "true", true, "FALSE", "false", false].includes(
+                    payload?.sold_status ?? player?.sold_status
+                );
 
             // If this is the SAME player and we just handled UNSOLD,
             // treat it as a soft refresh (no transition loader / no reset).
@@ -1235,6 +1239,13 @@ const SpectatorLiveDisplay = () => {
             ) {
                 setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
                 // keep current highestBid/leadingTeam; do not set isLoading
+                return;
+            }
+
+            // If payload is for the same player already in a terminal state (SOLD/UNSOLD),
+            // merge it without clearing bids/loading to avoid flicker.
+            if (samePlayer && isSoldOrUnsold) {
+                setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
                 return;
             }
 
