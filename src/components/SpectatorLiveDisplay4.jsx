@@ -1201,6 +1201,15 @@ const SpectatorLiveDisplay = () => {
             lastUnsoldAtRef.current = Date.now();
             lastUnsoldPlayerIdRef.current = Number(player_id);
 
+            // Paint UNSOLD locally to avoid a flicker back to "Waiting for a Bid"
+            setPlayer(prev =>
+                prev && Number(prev.id) === Number(player_id)
+                    ? { ...prev, sold_status: "FALSE", team_id: null, sold_price: 0 }
+                    : prev
+            );
+            setHighestBid(0);
+            setLeadingTeam("");
+
             // overlay + audio
             setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
