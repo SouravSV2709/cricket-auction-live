@@ -501,9 +501,9 @@ let currentSoldAudio = null;
 
 const soldAudioFiles = [
     // '/sounds/clapping.wav',
-    '/sounds/bbpl1.wav',
-    '/sounds/bbpl2.wav',
-    '/sounds/bbpl3.wav'
+    // '/sounds/bbpl1.wav',
+    // '/sounds/bbpl2.wav',
+    // '/sounds/bbpl3.wav'
 ];
 
 const getRandomSoldAudio = () => {
