@@ -1739,6 +1739,50 @@ app.post("/api/reset-auction", async (req, res) => {
   }
 });
 
+// Reset only unsold players for a tournament (bulk)
+app.post("/api/reset-unsold", async (req, res) => {
+  try {
+    let { tournament_id, slug } = req.body || {};
+    let tournamentId = Number(tournament_id) || null;
+
+    // Allow lookup by slug if ID is not provided
+    if (!tournamentId && slug) {
+      const tRes = await pool.query("SELECT id FROM tournaments WHERE slug = $1", [slug]);
+      if (tRes.rowCount === 0) {
+        return res.status(404).json({ error: "Tournament not found" });
+      }
+      tournamentId = tRes.rows[0].id;
+    }
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "tournament_id or slug is required." });
+    }
+
+    const resetRes = await pool.query(
+      `
+      UPDATE players
+         SET sold_status = NULL,
+             team_id = NULL,
+             sold_price = NULL,
+             sold_pool = NULL
+       WHERE tournament_id = $1
+         AND (sold_status = FALSE OR sold_status = 'FALSE')
+         AND deleted_at IS NULL
+      RETURNING id
+      `,
+      [tournamentId]
+    );
+
+    res.json({
+      message: "Unsold players have been reset.",
+      resetCount: resetRes.rowCount,
+    });
+  } catch (err) {
+    console.error("Error resetting unsold players:", err);
+    res.status(500).json({ error: "Reset unsold failed." });
+  }
+});
+
 // Accepts and validates a secret bid based on team code and max bid limit
 
 app.post("/api/secret-bid", async (req, res) => {

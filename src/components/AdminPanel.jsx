@@ -30,6 +30,7 @@ const AdminPanel = () => {
     const [customMessage, setCustomMessage] = useState('');
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
+    const [resetUnsoldInProgress, setResetUnsoldInProgress] = useState(false);
     const [selectedTheme, setSelectedTheme] = useState("fireflies");
     const [isTeamViewActive, setIsTeamViewActive] = useState(false);
     const [isTeamLoopActive, setIsTeamLoopActive] = useState(false);
@@ -1736,27 +1737,28 @@ const handleSearchById = async (idOverride) => {
 
 
     const resetUnsoldPlayers = async () => {
-        const playersRes = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
-        const playersData = await playersRes.json();
-        let changes = 0;
+        try {
+            setResetUnsoldInProgress(true);
+            const res = await fetch(`${API}/api/reset-unsold`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tournament_id: tournamentId, slug: tournamentSlug })
+            });
 
-        for (const player of playersData) {
-            if (["FALSE", "false", false].includes(player.sold_status)) {
-                await fetch(`${API}/api/players/${player.id}?slug=${tournamentSlug}`, {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sold_status: null,
-                        team_id: null,
-                        sold_price: null
-                    })
-                });
-                changes++;
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || "Failed to reset unsold players.");
             }
-        }
 
-        alert(changes > 0 ? "Unsold players reset." : "No unsold players found.");
-        fetchPlayers();
+            const count = Number(data?.resetCount || 0);
+            alert(count > 0 ? `Reset ${count} unsold player${count === 1 ? "" : "s"}.` : "No unsold players found.");
+            fetchPlayers();
+        } catch (err) {
+            console.error("Error resetting unsold players:", err);
+            alert("Failed to reset unsold players.");
+        } finally {
+            setResetUnsoldInProgress(false);
+        }
     };
 
 
@@ -2918,10 +2920,11 @@ const handleSearchById = async (idOverride) => {
                             )}
 
                             <button
-                                className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded shadow"
+                                className={`bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded shadow ${resetUnsoldInProgress ? "opacity-70 cursor-not-allowed" : ""}`}
                                 onClick={resetUnsoldPlayers}
+                                disabled={resetUnsoldInProgress}
                             >
-                                🔄 Reset Unsold
+                                {resetUnsoldInProgress ? "Resetting unsold..." : "Reset Unsold"}
                             </button>
 
                             <button
