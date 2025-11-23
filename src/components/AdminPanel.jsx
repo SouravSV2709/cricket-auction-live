@@ -594,6 +594,15 @@ const AdminPanel = () => {
                     : prev
             );
 
+            // Keep cached detail data in sync for future selections
+            upsertDetailCache({
+                id: player_id,
+                sold_status: true,
+                team_id,
+                sold_price,
+                sold_pool,
+            });
+
             // 3) (optional) KCPL summary refresh
             refreshKcplTeamStates?.();
 
@@ -619,6 +628,15 @@ const AdminPanel = () => {
                     ? { ...prev, sold_status: false, team_id: null, sold_price: 0, sold_pool }
                     : prev
             );
+
+            // Keep cached detail data in sync for future selections
+            upsertDetailCache({
+                id: player_id,
+                sold_status: false,
+                team_id: null,
+                sold_price: 0,
+                sold_pool,
+            });
 
             refreshKcplTeamStates?.();
 
@@ -1158,6 +1176,15 @@ const AdminPanel = () => {
                 : prev
         );
 
+        // Keep cached detail copy aligned so revisits show the latest status
+        upsertDetailCache({
+            ...currentPlayer,
+            sold_status: "TRUE",
+            team_id: teamId,
+            sold_price: bidAmount,
+            sold_pool: activePool,
+        });
+
 
         // ✅ Immediately reset the bid on server & broadcast (no 3s delay)
         fetch(`${API}/api/current-bid`, {
@@ -1266,6 +1293,15 @@ const AdminPanel = () => {
                 )
                 : prev
         );
+
+        // Refresh cached detail so re-selecting the player keeps UNSOLD status
+        upsertDetailCache({
+            ...currentPlayer,
+            sold_status: "FALSE",
+            team_id: null,
+            sold_price: 0,
+            sold_pool: activePool,
+        });
 
 
         // Reset current bid immediately + broadcast
@@ -1403,6 +1439,13 @@ const AdminPanel = () => {
 
 // put near other refs
 const detailCacheRef = useRef(new Map()); // key: playerId, value: detailed player
+
+// Keep the local detail cache in sync when a player's status changes
+const upsertDetailCache = React.useCallback((player) => {
+    if (!player?.id) return;
+    const prev = detailCacheRef.current.get(player.id) || {};
+    detailCacheRef.current.set(player.id, { ...prev, ...player });
+}, []);
 
 const getDetailedPlayer = async (basic) => {
   if (!basic?.id) return basic;
@@ -1908,6 +1951,9 @@ const handleSearchById = async (idOverride) => {
             active_pool: activePool // ✅ for spectator context
         };
 
+        // Sync cache so revisiting the player shows the Reopen state immediately
+        upsertDetailCache(reopenedPlayer);
+
         // Update DB: current_player & players & current_bid
         await Promise.all([
             fetch(`${API}/api/current-player`, {
@@ -1938,6 +1984,24 @@ const handleSearchById = async (idOverride) => {
         setCurrentPlayer(reopenedPlayer);
         setBidAmount(0);
         setSelectedTeam('');
+
+        // Keep local list in sync so serial chip colour clears immediately
+        setPlayers(prev =>
+            Array.isArray(prev)
+                ? prev.map(p =>
+                    Number(p.id) === Number(currentPlayer.id)
+                        ? {
+                            ...p,
+                            sold_status: null,
+                            team_id: null,
+                            sold_price: null,
+                            sold_pool: null,
+                        }
+                        : p
+                )
+                : prev
+        );
+
         fetchTeams(tournamentId);
     };
 
