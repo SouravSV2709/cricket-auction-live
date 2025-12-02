@@ -103,7 +103,7 @@ const AllTeamCards = () => {
     const data = teamPlayers
         .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
         .map((player, idx) => {
-            const row = { "#": idx + 1 };
+            const row = { "Auction Serial": player.auction_serial ?? idx + 1 };
             usedFields.forEach(([label, getter]) => {
                 const value = getter(player);
                 if (value !== null && value !== undefined) {
@@ -291,9 +291,9 @@ const AllTeamCards = () => {
                                                     className="absolute inset-0 w-full h-full object-contain opacity-20 pointer-events-none z-10"
                                                 />
 
-                                                {/* Serial pill */}
+                                                {/* Serial pill shows auction serial when available */}
                                                 <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
-                                                    #{player?.auction_serial ?? idx + 1}
+                                                    {player?.auction_serial ?? idx + 1}
                                                 </span>
 
                                                 {/* Player image */}
@@ -374,7 +374,7 @@ const AllTeamCards = () => {
                             <table className="table-auto w-full text-sm text-left border border-gray-300 break-words">
                                 <thead>
                                     <tr className="bg-yellow-200 text-black font-bold text-center">
-                                        <th className="px-2 py-2 border whitespace-normal break-words">#</th>
+                                        <th className="px-2 py-2 border whitespace-normal break-words">Auction Serial</th>
                                         <th className="px-2 py-2 border whitespace-normal break-words">Name</th>
                                         <th className="px-2 py-2 border whitespace-normal break-words">Role</th>
                                         <th className="px-2 py-2 border whitespace-normal break-words w-[80px] max-w-[100px]">Kit Size<br />(Jersey / Pant)</th>
@@ -387,7 +387,7 @@ const AllTeamCards = () => {
                                         .sort((a, b) => (b.sold_price || 0) - (a.sold_price || 0))
                                         .map((player, idx) => (
                                             <tr key={player.id} className="bg-white even:bg-gray-50">
-                                                <td className="border px-2 py-1">{idx + 1}</td>
+                                                <td className="border px-2 py-1">{player.auction_serial ?? idx + 1}</td>
                                                 <td className="border px-2 py-1">{player.name} ({player.nickname})</td>
                                                 <td className="border px-2 py-1 text-center">{player.role}</td>
                                                 <td className="border px-2 py-1">
