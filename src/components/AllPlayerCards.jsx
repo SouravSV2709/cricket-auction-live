@@ -28,6 +28,7 @@ const AllPlayerCards = () => {
     const [filterName, setFilterName] = useState("");
     const [filterRole, setFilterRole] = useState("");
     const [filterDistrict, setFilterDistrict] = useState("");
+    const [filterLocation, setFilterLocation] = useState("");
     const [filtersoldstatus, setFiltersoldstatus] = useState("notauctioned");
     const [filterCategory, setFilterCategory] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
@@ -61,6 +62,7 @@ const AllPlayerCards = () => {
         (player.name || "").toLowerCase().includes(filterName.toLowerCase()) &&
         (player.role || "").toLowerCase().includes(filterRole.toLowerCase()) &&
         (player.district || "").toLowerCase().includes(filterDistrict.toLowerCase()) &&
+        (player.location || "").toLowerCase().includes(filterLocation.toLowerCase()) &&
         (player.auction_serial || "").toString().includes(filterSerial) &&
         (
             filtersoldstatus === "" ||
@@ -112,6 +114,7 @@ const AllPlayerCards = () => {
 
         if (filterRole) filters.push(`Role: ${filterRole}`);
         if (filterDistrict) filters.push(`District: ${filterDistrict}`);
+        if (filterLocation) filters.push(`Location: ${filterLocation}`);
         if (filterName) filters.push(`Name: ${filterName}`);
         if (filterSerial) filters.push(`Serial: ${filterSerial}`);
         if (filterCategory) filters.push(`Category: ${filterCategory}`);
@@ -485,7 +488,17 @@ const AllPlayerCards = () => {
 
     const uniqueRoles = [...new Set(players.map((p) => p.role).filter(Boolean))];
     const uniqueDistricts = [...new Set(players.map((p) => p.district).filter(Boolean))];
+    const uniqueLocations = [
+        ...new Set(
+            players
+                .map((p) => p.location)
+                .filter((v) => v !== undefined && v !== null && String(v).toLowerCase() !== "null" && String(v).trim() !== "")
+        ),
+    ];
     const hasAnyDistrict = players.some((p) => !!p.district);
+    const hasAnyLocation = players.some(
+        (p) => p.location && String(p.location).toLowerCase() !== "null" && String(p.location).trim() !== ""
+    );
     const uniqueAgeCategories = [
         ...new Set(
             players
@@ -749,6 +762,39 @@ const AllPlayerCards = () => {
                                 </Listbox>
 
 
+                                {hasAnyLocation && (
+                                    <Listbox value={filterLocation} onChange={setFilterLocation}>
+                                        <div className="relative w-60">
+                                            <Listbox.Button className="relative w-full cursor-default rounded-md border bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none">
+                                                <span className="block truncate">{filterLocation || "All Locations"}</span>
+                                                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                    <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                                </span>
+                                            </Listbox.Button>
+                                            <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5">
+                                                <Listbox.Option key="" value="">
+                                                    {({ active }) => (
+                                                        <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                            All Locations
+                                                        </li>
+                                                    )}
+                                                </Listbox.Option>
+                                                {uniqueLocations.map((location, idx) => (
+                                                    <Listbox.Option key={idx} value={location}>
+                                                        {({ selected, active }) => (
+                                                            <li className={`${active ? "bg-yellow-100" : ""} cursor-default select-none py-2 px-4`}>
+                                                                {selected && <CheckIcon className="h-4 w-4 inline mr-1 text-green-500" />}
+                                                                {location}
+                                                            </li>
+                                                        )}
+                                                    </Listbox.Option>
+                                                ))}
+                                            </Listbox.Options>
+                                        </div>
+                                    </Listbox>
+                                )}
+
+
                                 {hasAnyDistrict && (
                                     <Listbox value={filterDistrict} onChange={setFilterDistrict}>
                                         <div className="relative w-60">
@@ -871,6 +917,7 @@ const AllPlayerCards = () => {
                                         setFilterName("");
                                         setFilterRole("");
                                         setFilterDistrict("");
+                                        setFilterLocation("");
                                         setFiltersoldstatus("");
                                         setFilterCategory("")
                                     }}
