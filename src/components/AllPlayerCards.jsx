@@ -38,6 +38,7 @@ const AllPlayerCards = () => {
     const hoverTimeoutRef = useRef(null);
     const [openImage, setOpenImage] = useState(null);
     const [openDetails, setOpenDetails] = useState(null);
+    const [teams, setTeams] = useState([]);
 
     const CARD_ROW_HEIGHT =
         windowWidth < 640 ? 420 :   // more space for mobile
@@ -465,12 +466,17 @@ const AllPlayerCards = () => {
                 setTournamentLogo(tournamentData.logo);
                 const tournamentId = tournamentData.id;
 
-                const playerRes = await fetch(`${API}/api/players?tournament_id=${tournamentId}`);
+                const [playerRes, teamRes] = await Promise.all([
+                    fetch(`${API}/api/players?tournament_id=${tournamentId}`),
+                    fetch(`${API}/api/teams?tournament_id=${tournamentId}`)
+                ]);
                 const playerData = await playerRes.json();
+                const teamData = await teamRes.json();
                 const filteredPlayers = playerData.filter(
                     (p) => p.payment_success === true && p.deleted_at == null
                 );
                 setPlayers(filteredPlayers);
+                setTeams(Array.isArray(teamData) ? teamData : []);
             } catch (err) {
                 console.error("❌ Error loading players:", err);
             }
@@ -509,6 +515,24 @@ const AllPlayerCards = () => {
     const hasAnyAgeCategory = players.some(
         (p) => p.age_category && String(p.age_category).toLowerCase() !== "null" && String(p.age_category).trim() !== ""
     );
+    const teamById = useMemo(() => {
+        const map = {};
+        teams.forEach((team) => {
+            if (team?.id !== undefined && team?.id !== null) {
+                map[team.id] = team;
+            }
+        });
+        return map;
+    }, [teams]);
+    const teamByName = useMemo(() => {
+        const map = {};
+        teams.forEach((team) => {
+            if (team?.name) {
+                map[String(team.name).toLowerCase()] = team;
+            }
+        });
+        return map;
+    }, [teams]);
 
     const columnCount = getColumnCount();
     const rowCount = Math.ceil(filteredPlayers.length / columnCount);
@@ -516,6 +540,16 @@ const AllPlayerCards = () => {
 
     const PlayerCard = ({ player, style, serial }) => {
         const isActive = !disableHover && selectedPlayerId === player.id;
+        const soldState = player.sold_status === true ? "sold" : player.sold_status === false ? "unsold" : null;
+        const soldTeamNameRaw = player.team_name || player.team || player.teamname || "";
+        const teamMatch =
+            soldState === "sold"
+                ? (
+                    teamById[player.team_id] ||
+                    (soldTeamNameRaw ? teamByName[String(soldTeamNameRaw).toLowerCase()] : null)
+                )
+                : null;
+        const soldTeamName = teamMatch?.name || soldTeamNameRaw;
 
         return (
             <div
@@ -568,6 +602,25 @@ const AllPlayerCards = () => {
                     <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
                         #{player?.auction_serial ?? serial}
                     </span>
+
+                    {soldState && (
+                        <div className="absolute top-2 right-2 z-30 flex items-center gap-2">
+                            {soldState === "sold" ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="flex flex-col px-2 py-1 rounded-lg bg-gradient-to-r from-emerald-300 to-green-600 text-black shadow-md min-w-[96px]">
+                                        <span className="text-[10px] font-extrabold leading-none tracking-wide">SOLD</span>
+                                        <span className="text-[10px] font-semibold leading-tight text-emerald-900 truncate max-w-[140px]">
+                                            {soldTeamName || "Team"}
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full shadow bg-gradient-to-r from-rose-400 to-red-700 text-white">
+                                    UNSOLD
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     {/* Player image */}
                     <img
