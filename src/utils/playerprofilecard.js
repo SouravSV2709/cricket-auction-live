@@ -3,7 +3,7 @@
 // Exports a factory `getPlayerProfileCardExporter(ctx)`
 // Methods: renderBlob(player), downloadOne(player), downloadAll(players)
 //
-// This builds a branded Player Profile Card image in the browser and
+// Builds a branded Player Profile Card image in the browser and
 // downloads either a single PNG or a ZIP of many PNGs.
 
 const loadScript = (src) =>
@@ -28,9 +28,9 @@ const ensureLibs = async () => {
   }
 };
 
-// Default canvas size (landscape). Keep or change as you like.
-const CANVAS_W = 1011;
-const CANVAS_H = 638;
+// Canvas size tuned to the portrait design.
+const CANVAS_W = 750;
+const CANVAS_H = 1050;
 
 const clean = (v) => {
   const s = (v ?? "").toString().trim();
@@ -48,7 +48,7 @@ const safe = (name) =>
  *   serialResolver: (player:any)=>string|number,
  *   tournamentName?: string,
  *   tournamentLogo?: string, // raw filename in your IK bucket
- *   background?: string      // path to bg image in /public (default '/goldbg.jpg')
+ *   background?: string      // kept for backward compatibility
  * }} ctx
  */
 export function getPlayerProfileCardExporter(ctx) {
@@ -56,7 +56,7 @@ export function getPlayerProfileCardExporter(ctx) {
     serialResolver,
     tournamentName = "",
     tournamentLogo = "",
-    background = "/goldbg.jpg",
+    background = "/goldbg.jpg", // background kept for API parity even though design is inline
   } = ctx;
 
   const buildContainer = (player, serial) => {
@@ -68,213 +68,238 @@ export function getPlayerProfileCardExporter(ctx) {
       left: "-100000px",
       top: "0",
       zIndex: "-1",
-      padding: "12px",
-      borderRadius: "12px",
+      padding: "16px",
+      borderRadius: "22px",
       overflow: "hidden",
-      boxShadow: "0 10px 40px rgba(0,0,0,.55)",
-      background: `
-        radial-gradient(700px 380px at 0% 0%, rgba(250, 204, 21, .12), transparent 60%),
-        radial-gradient(560px 320px at 100% 0%, rgba(168, 85, 247, .12), transparent 60%),
-        linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
-      `,
-      border: "1px solid rgba(250,204,21,.32)",
       boxSizing: "border-box",
+      boxShadow: "0 18px 48px rgba(0,0,0,.55)",
+      background: "linear-gradient(135deg,#0c162b 0%,#0a0f1f 50%,#0b192f 100%)",
+      color: "#fff",
       fontFamily:
         "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
     });
 
-    // subtle watermark
-    const wm = document.createElement("img");
-    wm.src = "/AuctionArena2.png";
-    Object.assign(wm.style, {
-      position: "absolute",
-      inset: "0",
+    const frame = document.createElement("div");
+    Object.assign(frame.style, {
+      position: "relative",
       width: "100%",
       height: "100%",
-      objectFit: "contain",
-      opacity: ".05",
-      pointerEvents: "none",
-    });
-    container.appendChild(wm);
-
-    // header
-    const header = document.createElement("div");
-    Object.assign(header.style, {
-      display: "grid",
-      gridTemplateColumns: "auto 1fr auto",
-      alignItems: "center",
-      gap: "8px",
-      padding: "6px 8px",
-      background: "rgba(0,0,0,.35)",
-      border: "1px solid rgba(250,204,21,.28)",
-      borderRadius: "8px",
-      color: "#FDE68A",
-      fontSize: "12px",
-      lineHeight: "1",
-    });
-
-    const hdrLeft = document.createElement("div");
-    Object.assign(hdrLeft.style, { display: "flex", alignItems: "center", gap: "6px" });
-
-    if (tournamentLogo) {
-      const tourLogo = document.createElement("img");
-      tourLogo.src = `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}?tr=w-44,h-44`;
-      tourLogo.alt = tournamentName || "Tournament";
-      Object.assign(tourLogo.style, { height: "20px", objectFit: "contain" });
-      tourLogo.crossOrigin = "anonymous";
-      hdrLeft.appendChild(tourLogo);
-    }
-
-    if (tournamentName) {
-      const t = document.createElement("div");
-      Object.assign(t.style, { color: "#FDE68A", fontWeight: "800" });
-      t.textContent = tournamentName;
-      hdrLeft.appendChild(t);
-    }
-
-    const hdrCenter = document.createElement("div");
-    Object.assign(hdrCenter.style, { textAlign: "center", fontWeight: "800" });
-    hdrCenter.textContent = `#${serial} — ${clean(player.name)}`;
-
-    const hdrRight = document.createElement("div");
-    Object.assign(hdrRight.style, { opacity: ".9" });
-    hdrRight.textContent = "Auction Arena";
-
-    header.appendChild(hdrLeft);
-    header.appendChild(hdrCenter);
-    header.appendChild(hdrRight);
-    container.appendChild(header);
-
-    // body
-    const body = document.createElement("div");
-    Object.assign(body.style, {
-      display: "grid",
-      gridTemplateColumns: "320px 1fr",
-      gap: "10px",
-      marginTop: "8px",
-      height: `${CANVAS_H - 12 - 12 - 34 - 8 - 26}px`,
-    });
-
-    // left: photo panel
-    const left = document.createElement("div");
-    Object.assign(left.style, {
-      position: "relative",
-      borderRadius: "10px",
+      borderRadius: "18px",
       overflow: "hidden",
-      border: "1px solid rgba(250,204,21,.28)",
-      backgroundImage: `url('${background}')`,
-      backgroundPosition: "center",
-      backgroundSize: "cover",
-      minHeight: "100%",
+      border: "1px solid rgba(158,240,26,.3)",
+      background: "linear-gradient(180deg, rgba(20,30,50,.92) 0%, rgba(12,17,30,.95) 100%)",
+      boxShadow: "0 14px 38px rgba(0,0,0,.45)",
+      display: "flex",
+      flexDirection: "column",
     });
+    container.appendChild(frame);
 
-    const dim = document.createElement("div");
-    Object.assign(dim.style, { position: "absolute", inset: "0", background: "rgba(0,0,0,.33)" });
-    left.appendChild(dim);
-
-    const serialPill = document.createElement("div");
-    Object.assign(serialPill.style, {
-      position: "absolute",
-      top: "6px",
-      left: "6px",
-      background: "linear-gradient(90deg,#facc15,#f97316)",
-      color: "#111",
-      fontWeight: "900",
-      fontSize: "10px",
-      padding: "4px 7px",
-      borderRadius: "999px",
-      boxShadow: "0 2px 8px rgba(0,0,0,.35)",
-      zIndex: "2",
+    const photoSection = document.createElement("div");
+    Object.assign(photoSection.style, {
+      position: "relative",
+      flex: "1 1 68%",
+      minHeight: "620px",
+      overflow: "hidden",
+      background: background || "#0f1a2b",
     });
-    serialPill.textContent = `#${serial}`;
-    left.appendChild(serialPill);
+    frame.appendChild(photoSection);
 
     const pimg = document.createElement("img");
-    pimg.src = `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-900,q-92,e-sharpen,f-webp`;
+    pimg.src = `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-1100,q-95,e-sharpen,f-webp`;
     pimg.alt = clean(player.name);
     Object.assign(pimg.style, {
       position: "absolute",
       inset: "0",
       width: "100%",
       height: "100%",
-      objectFit: "contain",
-      filter: "drop-shadow(0 8px 20px rgba(0,0,0,.55))",
+      objectFit: "cover",
+      filter: "contrast(1.02) saturate(1.02)",
     });
     pimg.crossOrigin = "anonymous";
-    left.appendChild(pimg);
+    photoSection.appendChild(pimg);
 
-    body.appendChild(left);
-
-    // right: single details block
-    const right = document.createElement("div");
-    Object.assign(right.style, { display: "flex", flexDirection: "column" });
-
-    const details = document.createElement("div");
-    Object.assign(details.style, {
-      background: "rgba(255,255,255,.06)",
-      border: "1px solid rgba(255,255,255,.12)",
-      borderRadius: "10px",
-      padding: "10px 12px",
-      color: "white",
+    const vignette = document.createElement("div");
+    Object.assign(vignette.style, {
+      position: "absolute",
+      inset: "0",
+      background:
+        "linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.28) 50%, rgba(0,0,0,.55) 100%)",
     });
+    photoSection.appendChild(vignette);
 
-    const title = document.createElement("div");
-    title.textContent = "PLAYER DETAILS";
-    Object.assign(title.style, {
-      color: "#C0C0C0",
-      fontSize: "10px",
-      letterSpacing: ".7px",
-      marginBottom: "6px",
-      fontWeight: "700",
+    const edgeGlow = document.createElement("div");
+    Object.assign(edgeGlow.style, {
+      position: "absolute",
+      inset: "10px",
+      border: "1px solid rgba(255,255,255,.08)",
+      borderRadius: "14px",
+      pointerEvents: "none",
+      boxShadow: "0 0 0 1px rgba(0,0,0,.25)",
     });
-    details.appendChild(title);
+    photoSection.appendChild(edgeGlow);
+
+    const pattern = document.createElement("div");
+    pattern.textContent = "+ + + + + + + + + + + + + +";
+    Object.assign(pattern.style, {
+      position: "absolute",
+      left: "14px",
+      top: "14px",
+      color: "rgba(255,255,255,.35)",
+      fontSize: "13px",
+      letterSpacing: "6px",
+      lineHeight: "18px",
+      transform: "rotate(-6deg)",
+      pointerEvents: "none",
+    });
+    photoSection.appendChild(pattern);
+
+    const patternRight = pattern.cloneNode(true);
+    Object.assign(patternRight.style, {
+      right: "14px",
+      left: "auto",
+      bottom: "24px",
+      top: "auto",
+      transform: "rotate(6deg)",
+      color: "rgba(255,255,255,.25)",
+      textAlign: "right",
+    });
+    photoSection.appendChild(patternRight);
+
+    const serialBadge = document.createElement("div");
+    Object.assign(serialBadge.style, {
+      position: "absolute",
+      top: "16px",
+      left: "16px",
+      background: "linear-gradient(135deg,#8ef12a,#5ac81b)",
+      color: "#0f1b2e",
+      fontWeight: "900",
+      fontSize: "22px",
+      padding: "10px 16px",
+      borderRadius: "14px",
+      boxShadow: "0 8px 20px rgba(0,0,0,.38)",
+      zIndex: "3",
+      letterSpacing: "0.6px",
+    });
+    serialBadge.textContent = `#${serial}`;
+    photoSection.appendChild(serialBadge);
+
+    const tourTag = document.createElement("div");
+    Object.assign(tourTag.style, {
+      position: "absolute",
+      top: "16px",
+      right: "16px",
+      background: "rgba(15,23,42,.82)",
+      color: "#e2e8f0",
+      fontWeight: "800",
+      fontSize: "11px",
+      padding: "6px 10px",
+      borderRadius: "999px",
+      border: "1px solid rgba(158,240,26,.3)",
+      boxShadow: "0 6px 16px rgba(0,0,0,.35)",
+      maxWidth: "280px",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "8px",
+      letterSpacing: ".3px",
+    });
+    if (tournamentLogo) {
+      const logoImg = document.createElement("img");
+      logoImg.src = `https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournamentLogo}?tr=w-36,h-36`;
+      logoImg.alt = tournamentName || "Tournament";
+      Object.assign(logoImg.style, {
+        width: "26px",
+        height: "26px",
+        objectFit: "contain",
+        borderRadius: "6px",
+        background: "rgba(255,255,255,.08)",
+      });
+      logoImg.crossOrigin = "anonymous";
+      tourTag.appendChild(logoImg);
+    }
+    const tourText = document.createElement("div");
+    tourText.textContent = tournamentName || "Auction Arena";
+    tourTag.appendChild(tourText);
+    photoSection.appendChild(tourTag);
+
+    const infoSection = document.createElement("div");
+    Object.assign(infoSection.style, {
+      padding: "18px 18px 14px",
+      background:
+        "linear-gradient(180deg, rgba(12,17,32,.94) 0%, rgba(9,13,24,.96) 100%)",
+      borderTop: "1px solid rgba(255,255,255,.06)",
+      display: "grid",
+      gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+      gap: "12px",
+    });
+    frame.appendChild(infoSection);
+
+    const infoTitle = document.createElement("div");
+    infoTitle.textContent = "Player Details";
+    Object.assign(infoTitle.style, {
+      gridColumn: "1 / span 2",
+      fontSize: "13px",
+      letterSpacing: ".6px",
+      color: "#9ef01a",
+      fontWeight: "800",
+      textTransform: "uppercase",
+    });
+    infoSection.appendChild(infoTitle);
 
     const makeRow = (label, value) => {
       const row = document.createElement("div");
       Object.assign(row.style, {
         display: "grid",
-        gridTemplateColumns: "120px 1fr",
+        gridTemplateColumns: "110px 1fr",
         gap: "10px",
-        marginTop: "6px",
-        alignItems: "baseline",
+        padding: "8px 10px",
+        borderRadius: "10px",
+        background: "rgba(255,255,255,.04)",
+        border: "1px solid rgba(255,255,255,.05)",
+        alignItems: "center",
       });
 
       const l = document.createElement("div");
       l.textContent = label;
-      Object.assign(l.style, { color: "#C0C0C0", fontSize: "11px", letterSpacing: ".4px" });
+      Object.assign(l.style, {
+        color: "#cbd5e1",
+        fontSize: "11px",
+        letterSpacing: ".4px",
+        textTransform: "uppercase",
+        fontWeight: "700",
+      });
 
       const v = document.createElement("div");
       v.textContent = clean(value);
-      Object.assign(v.style, { fontWeight: "800", fontSize: "13px", lineHeight: "1.1" });
+      Object.assign(v.style, {
+        fontWeight: "800",
+        fontSize: "14px",
+        color: "#f8fafc",
+        letterSpacing: ".2px",
+      });
 
       row.appendChild(l);
       row.appendChild(v);
-      details.appendChild(row);
+      infoSection.appendChild(row);
     };
 
     makeRow("Full Name", player.name);
     makeRow("Nick Name", player.nickname);
     makeRow("Role", player.role);
     makeRow("Mobile", player.mobile);
+    makeRow("Location", player.district || player.location);
 
-    right.appendChild(details);
-    body.appendChild(right);
-    container.appendChild(body);
-
-    // footer (tiny brand line)
     const footer = document.createElement("div");
     Object.assign(footer.style, {
-      marginTop: "8px",
-      background: "rgba(0,0,0,.35)",
-      border: "1px solid rgba(168,85,247,.28)",
-      color: "#FDE68A",
-      fontSize: "10px",
+      gridColumn: "1 / span 2",
       textAlign: "center",
-      padding: "6px 8px",
-      borderRadius: "8px",
+      marginTop: "4px",
+      color: "#94a3b8",
+      fontSize: "11px",
+      letterSpacing: ".5px",
+      fontWeight: "600",
     });
-    footer.textContent = "EA ARENA • +91-9547652702";
-    container.appendChild(footer);
+    footer.textContent = "Auction Arena || +91-9547652702";
+    infoSection.appendChild(footer);
 
     document.body.appendChild(container);
     return container;
