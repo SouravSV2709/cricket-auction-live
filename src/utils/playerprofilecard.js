@@ -28,9 +28,66 @@ const ensureLibs = async () => {
   }
 };
 
-// Canvas size tuned to the portrait design.
-const CANVAS_W = 750;
-const CANVAS_H = 1050;
+// Print guidance: 300 DPI, 3mm bleed, 5mm safe margin inside trim.
+const DPI = 300;
+const MM_TO_PX = DPI / 25.4;
+const BLEED_MM = 3;
+const SAFE_MM = 5;
+const BLEED_PX = Math.round(BLEED_MM * MM_TO_PX); // ~36px
+const SAFE_PX = Math.round(SAFE_MM * MM_TO_PX); // ~59px
+const EXPORT_SCALE = DPI / 96; // html2canvas default is 96 CSS px per inch
+
+// Trimmed size for the portrait design; canvas adds bleed on all sides.
+const TRIM_W = 750;
+const TRIM_H = 1050;
+const CANVAS_W = TRIM_W + BLEED_PX * 2;
+const CANVAS_H = TRIM_H + BLEED_PX * 2;
+
+// CRC32 for PNG chunk creation
+const crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+const crc32 = (bytes) => {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    c = crcTable[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  }
+  return (c ^ 0xffffffff) >>> 0;
+};
+
+const addPngDpi = async (blob, dpi = DPI) => {
+  const buf = await blob.arrayBuffer();
+  const src = new Uint8Array(buf);
+  const ppm = Math.round(dpi / 0.0254); // pixels per meter for 300 DPI
+
+  // PNG signature (8) + IHDR chunk (4+4+13+4)
+  const insertAt = 8 + 4 + 4 + 13 + 4;
+
+  const chunk = new Uint8Array(4 + 4 + 9 + 4); // length + type + data + crc
+  const dv = new DataView(chunk.buffer);
+  dv.setUint32(0, 9); // length
+  chunk.set([0x70, 0x48, 0x59, 0x73], 4); // pHYs
+  dv.setUint32(8, ppm); // x ppm
+  dv.setUint32(12, ppm); // y ppm
+  chunk[16] = 1; // unit = meter
+  const crc = crc32(chunk.slice(4, 17));
+  dv.setUint32(17, crc);
+
+  const out = new Uint8Array(src.length + chunk.length);
+  out.set(src.slice(0, insertAt), 0);
+  out.set(chunk, insertAt);
+  out.set(src.slice(insertAt), insertAt + chunk.length);
+  return new Blob([out], { type: "image/png" });
+};
 
 const clean = (v) => {
   const s = (v ?? "").toString().trim();
@@ -68,7 +125,6 @@ export function getPlayerProfileCardExporter(ctx) {
       left: "-100000px",
       top: "0",
       zIndex: "-1",
-      padding: "16px",
       borderRadius: "22px",
       overflow: "hidden",
       boxSizing: "border-box",
@@ -81,18 +137,30 @@ export function getPlayerProfileCardExporter(ctx) {
 
     const frame = document.createElement("div");
     Object.assign(frame.style, {
-      position: "relative",
-      width: "100%",
-      height: "100%",
+      position: "absolute",
+      inset: `${BLEED_PX}px`,
+      width: `${TRIM_W}px`,
+      height: `${TRIM_H}px`,
       borderRadius: "18px",
       overflow: "hidden",
       border: "1px solid rgba(158,240,26,.3)",
       background: "linear-gradient(180deg, rgba(20,30,50,.92) 0%, rgba(12,17,30,.95) 100%)",
       boxShadow: "0 14px 38px rgba(0,0,0,.45)",
-      display: "flex",
-      flexDirection: "column",
     });
     container.appendChild(frame);
+
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      position: "relative",
+      width: "100%",
+      height: "100%",
+      display: "flex",
+      flexDirection: "column",
+      padding: `${SAFE_PX}px`,
+      boxSizing: "border-box",
+      gap: "0px",
+    });
+    frame.appendChild(content);
 
     const photoSection = document.createElement("div");
     Object.assign(photoSection.style, {
@@ -102,7 +170,7 @@ export function getPlayerProfileCardExporter(ctx) {
       overflow: "hidden",
       background: background || "#0f1a2b",
     });
-    frame.appendChild(photoSection);
+    content.appendChild(photoSection);
 
     const pimg = document.createElement("img");
     pimg.src = `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=fo-face,cm-pad_resize,w-1100,q-95,e-sharpen,f-webp`;
@@ -231,7 +299,7 @@ export function getPlayerProfileCardExporter(ctx) {
       gridTemplateColumns: "repeat(2,minmax(0,1fr))",
       gap: "12px",
     });
-    frame.appendChild(infoSection);
+    content.appendChild(infoSection);
 
     const infoTitle = document.createElement("div");
     infoTitle.textContent = "Player Details";
@@ -333,11 +401,12 @@ export function getPlayerProfileCardExporter(ctx) {
     await waitImages(container);
 
     const canvas = await window.html2canvas(container, {
-      scale: 1,
+      scale: EXPORT_SCALE,
       useCORS: true,
       backgroundColor: null,
     });
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1.0));
+    const rawBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1.0));
+    const blob = await addPngDpi(rawBlob, DPI);
     document.body.removeChild(container);
     return { blob, serial };
   };
