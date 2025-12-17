@@ -129,7 +129,7 @@ export function getPlayerProfileCardExporter(ctx) {
       overflow: "hidden",
       boxSizing: "border-box",
       boxShadow: "0 18px 48px rgba(0,0,0,.55)",
-      background: "linear-gradient(135deg,#0c162b 0%,#0a0f1f 50%,#0b192f 100%)",
+      background: "radial-gradient(1200px 700px at 0% 0%, rgba(250, 204, 21, .16), transparent 60%), radial-gradient(900px 600px at 100% 0%, rgba(168, 85, 247, .18), transparent 60%), linear-gradient(135deg, #0b1120 0%, #0f172a 55%, #0a0f1f 100%)",
       color: "#fff",
       fontFamily:
         "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
@@ -144,7 +144,7 @@ export function getPlayerProfileCardExporter(ctx) {
       borderRadius: "18px",
       overflow: "hidden",
       border: "1px solid rgba(158,240,26,.3)",
-      background: "linear-gradient(180deg, rgba(20,30,50,.92) 0%, rgba(12,17,30,.95) 100%)",
+      background: "linear-gradient(160deg, rgba(18,26,46,.96) 0%, rgba(12,17,30,.98) 55%, rgba(10,14,26,.98) 100%)",
       boxShadow: "0 14px 38px rgba(0,0,0,.45)",
     });
     container.appendChild(frame);
@@ -163,12 +163,19 @@ export function getPlayerProfileCardExporter(ctx) {
     frame.appendChild(content);
 
     const photoSection = document.createElement("div");
+    const classyPhotoGradient =
+      "linear-gradient(145deg, rgba(18,26,46,.92) 0%, rgba(12,17,30,.96) 60%, rgba(10,14,26,.98) 100%)";
+
     Object.assign(photoSection.style, {
       position: "relative",
       flex: "1 1 68%",
       minHeight: "620px",
       overflow: "hidden",
-      background: background || "#0f1a2b",
+      backgroundImage: background
+        ? `${classyPhotoGradient}, url('${background}')`
+        : classyPhotoGradient,
+      backgroundSize: background ? "cover" : "auto",
+      backgroundPosition: background ? "center" : "0 0",
     });
     content.appendChild(photoSection);
 
