@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+﻿import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import ReactDOM from "react-dom/client";
 import CONFIG from "../components/config";
@@ -33,7 +33,14 @@ const AllPlayerCards = () => {
     const [filterCategory, setFilterCategory] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
     const [isDownloading, setIsDownloading] = useState(false);
+    const [isZipDownloading, setIsZipDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+    const [zipProgress, setZipProgress] = useState({
+        phase: "render",
+        current: 0,
+        total: 0,
+        percent: 0,
+    });
     const [showToast, setShowToast] = useState(false);
     const hoverTimeoutRef = useRef(null);
     const [openImage, setOpenImage] = useState(null);
@@ -88,8 +95,8 @@ const AllPlayerCards = () => {
         return map;
     }, [players]);
 
-    // ✅ inside the component, after serialMap is defined
-    // ✅ inside the component, after serialMap is defined
+    // âœ… inside the component, after serialMap is defined
+    // âœ… inside the component, after serialMap is defined
     const exporter = useMemo(
         () =>
             getPlayerProfileCardExporter({
@@ -103,8 +110,34 @@ const AllPlayerCards = () => {
 
     // Use filtered list when present, otherwise all players
     const handleDownloadProfileCard = (player) => exporter.downloadOne(player);
-    const handleDownloadAllProfileCards = () =>
-        exporter.downloadAll(filteredPlayers.length ? filteredPlayers : players);
+    const handleDownloadAllProfileCards = async () => {
+        const playersToDownload = filteredPlayers.length ? filteredPlayers : players;
+        if (!playersToDownload.length) return;
+        setIsZipDownloading(true);
+        setZipProgress({
+            phase: "render",
+            current: 0,
+            total: playersToDownload.length,
+            percent: 0,
+        });
+        try {
+            await exporter.downloadAll(playersToDownload, {
+                onProgress: (next) =>
+                    setZipProgress((prev) => ({
+                        ...prev,
+                        ...next,
+                    })),
+            });
+        } finally {
+            setIsZipDownloading(false);
+            setZipProgress({
+                phase: "render",
+                current: 0,
+                total: 0,
+                percent: 0,
+            });
+        }
+    };
 
 
 
@@ -122,12 +155,12 @@ const AllPlayerCards = () => {
         if (filtersoldstatus) filters.push(`Sold Status: ${filtersoldstatus}`);
 
         if (filters.length > 0) {
-            return `Page ${pageIndex + 1} [Filtered – ${filters.join(" | ")}]`;
+            return `Page ${pageIndex + 1} [Filtered â€“ ${filters.join(" | ")}]`;
         } else {
             const serials = playersOnPage.map(p => serialMap[p.id]);
             const minSerial = Math.min(...serials);
             const maxSerial = Math.max(...serials);
-            return `Page ${pageIndex + 1} [Showing Serial No ${minSerial}–${maxSerial}]`;
+            return `Page ${pageIndex + 1} [Showing Serial No ${minSerial}â€“${maxSerial}]`;
         }
     };
 
@@ -147,7 +180,7 @@ const AllPlayerCards = () => {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
 
-        console.log(`📦 Preparing ${playersToRender.length} players in ${pages} page(s)...`);
+        console.log(`ðŸ“¦ Preparing ${playersToRender.length} players in ${pages} page(s)...`);
 
         for (let pageIndex = 0; pageIndex < pages; pageIndex++) {
             setDownloadProgress({ current: pageIndex + 1, total: pages });
@@ -362,12 +395,12 @@ const AllPlayerCards = () => {
             footer.style.textShadow = "0 1px 3px rgba(0,0,0,.6)";
             footer.style.paddingTop = "10px";
             footer.style.width = "100%";
-            footer.innerText = "🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨";
+            footer.innerText = "ðŸ”´ All rights reserved | Powered by Auction Arena | +91-9547652702 ðŸ§¨";
             container.appendChild(footer);
 
             document.body.appendChild(container);
 
-            // ✅ Proper way to hide from user but allow html2canvas to capture
+            // âœ… Proper way to hide from user but allow html2canvas to capture
             container.style.position = "absolute";
             container.style.top = "0";
             container.style.left = "-100000px";
@@ -414,13 +447,13 @@ const AllPlayerCards = () => {
             container.style.display = "none";
 
             document.body.removeChild(container);
-            console.log(`✅ Page ${pageIndex + 1} captured`);
+            console.log(`âœ… Page ${pageIndex + 1} captured`);
         }
 
         setDownloadProgress({ current: pages, total: pages });
 
         pdf.save("AllPlayerCards-Final.pdf");
-        console.log("🎉 PDF download completed.");
+        console.log("ðŸŽ‰ PDF download completed.");
         setIsDownloading(false);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000); // Hide after 3 seconds
@@ -458,7 +491,7 @@ const AllPlayerCards = () => {
                 const tournamentData = await tournamentRes.json();
 
                 if (!tournamentRes.ok || !tournamentData.id) {
-                    setErrorMessage("❌ Tournament not found. Please check the URL.");
+                    setErrorMessage("âŒ Tournament not found. Please check the URL.");
                     return;
                 }
 
@@ -478,7 +511,7 @@ const AllPlayerCards = () => {
                 setPlayers(filteredPlayers);
                 setTeams(Array.isArray(teamData) ? teamData : []);
             } catch (err) {
-                console.error("❌ Error loading players:", err);
+                console.error("âŒ Error loading players:", err);
             }
         };
         fetchPlayers();
@@ -983,9 +1016,16 @@ const AllPlayerCards = () => {
                                     onClick={downloadAllCardsAsPDF}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                                 >
-                                    📥 Download All Player Cards (PDF)
+                                    Download Player Book (PDF)
                                 </button>
 
+                                <button
+                                    onClick={handleDownloadAllProfileCards}
+                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                                    disabled={isZipDownloading}
+                                >
+                                    Download Player Cards (ZIP)
+                                </button>
 
                             </div>
 
@@ -1073,7 +1113,7 @@ const AllPlayerCards = () => {
                                         className="absolute top-6 right-6 text-white text-3xl font-bold hover:text-yellow-300 z-20"
                                         onClick={() => setOpenImage(null)}
                                     >
-                                        ✕
+                                        âœ•
                                     </button>
                                 </div>
                             )}
@@ -1110,7 +1150,7 @@ const AllPlayerCards = () => {
                                                     />
                                                 )}
                                                 <div className="text-yellow-300 font-bold text-base leading-none">
-                                                    #{openDetails.auction_serial ?? serialMap[openDetails.id]} — {openDetails.name}
+                                                    #{openDetails.auction_serial ?? serialMap[openDetails.id]} â€” {openDetails.name}
                                                 </div>
                                             </div>
                                             <button
@@ -1118,7 +1158,7 @@ const AllPlayerCards = () => {
                                                 onClick={() => setOpenDetails(null)}
                                                 aria-label="Close"
                                             >
-                                                ✕
+                                                âœ•
                                             </button>
                                         </div>
 
@@ -1222,7 +1262,7 @@ const AllPlayerCards = () => {
                                         {/* Footer actions */}
                                         <div className="px-5 py-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
                                             <div className="text-yellow-300 text-xs">
-                                                🔴 All rights reserved | EA Arena | +91-9547652702 🧨
+                                                ðŸ”´ All rights reserved | EA Arena | +91-9547652702 ðŸ§¨
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
@@ -1254,7 +1294,7 @@ const AllPlayerCards = () => {
 
 
                             <footer className="fixed bottom-0 left-0 w-full text-center text-white text-lg tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2 mt-5">
-                                🔴 All rights reserved | Powered by Auction Arena | +91-9547652702 🧨
+                                ðŸ”´ All rights reserved | Powered by Auction Arena | +91-9547652702 ðŸ§¨
                             </footer>
                         </div>
                     </>
@@ -1262,13 +1302,21 @@ const AllPlayerCards = () => {
 
                 {isDownloading && (
                     <div className="fixed inset-0 bg-black bg-opacity-70 z-[99999] flex flex-col items-center justify-center text-white text-xl font-semibold">
-                        📥 Downloading Page {downloadProgress.current} of {downloadProgress.total}...
+                        ðŸ“¥ Downloading Page {downloadProgress.current} of {downloadProgress.total}...
+                    </div>
+                )}
+
+                {isZipDownloading && (
+                    <div className="fixed inset-0 bg-black bg-opacity-70 z-[99999] flex flex-col items-center justify-center text-white text-xl font-semibold">
+                        {zipProgress.phase === "zip"
+                            ? `Creating ZIP... ${zipProgress.percent || 0}%`
+                            : `Rendering cards... ${zipProgress.current} of ${zipProgress.total}`}
                     </div>
                 )}
 
                 {showToast && (
                     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg z-[99999] animate-bounce">
-                        ✅ All Player Cards PDF Downloaded!
+                        âœ… All Player Cards PDF Downloaded!
                     </div>
                 )}
 
@@ -1279,3 +1327,4 @@ const AllPlayerCards = () => {
 };
 
 export default AllPlayerCards;
+

@@ -423,15 +423,30 @@ export function getPlayerProfileCardExporter(ctx) {
     URL.revokeObjectURL(url);
   };
 
-  const downloadAll = async (players) => {
+  const downloadAll = async (players, options = {}) => {
+    const { onProgress } = options;
     await ensureLibs();
     const zip = new window.JSZip();
+    const total = players.length;
+    if (onProgress) {
+      onProgress({ phase: "render", current: 0, total, percent: 0 });
+    }
     for (let i = 0; i < players.length; i++) {
       // eslint-disable-next-line no-await-in-loop
       const { blob, serial } = await renderBlob(players[i]);
       // eslint-disable-next-line no-await-in-loop
       const buf = await blob.arrayBuffer();
       zip.file(`player-profile-card-${serial}-${safe(players[i].name)}.png`, buf);
+      if (onProgress) {
+        onProgress({
+          phase: "render",
+          current: i + 1,
+          total,
+          percent: total ? Math.round(((i + 1) / total) * 100) : 0,
+          serial,
+          name: players[i].name,
+        });
+      }
     }
     const ts = new Date();
     const stamp = `${ts.getFullYear()}${String(ts.getMonth() + 1).padStart(2, "0")}${String(
@@ -441,11 +456,24 @@ export function getPlayerProfileCardExporter(ctx) {
       "0"
     )}`;
     const tour = safe(tournamentName || "tournament");
-    const zipBlob = await zip.generateAsync({
-      type: "blob",
-      compression: "DEFLATE",
-      compressionOptions: { level: 6 },
-    });
+    if (onProgress) {
+      onProgress({ phase: "zip", percent: 0 });
+    }
+    const zipBlob = await zip.generateAsync(
+      {
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      },
+      (metadata) => {
+        if (onProgress) {
+          onProgress({ phase: "zip", percent: Math.round(metadata.percent || 0) });
+        }
+      }
+    );
+    if (onProgress) {
+      onProgress({ phase: "zip", percent: 100 });
+    }
     window.saveAs(zipBlob, `auctionarena-player-profile-cards-${tour}-${stamp}.zip`);
   };
 
