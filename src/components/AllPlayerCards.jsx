@@ -129,7 +129,7 @@ const AllPlayerCards = () => {
             percent: 0,
         });
         try {
-            await exporter.downloadAll(playersToDownload, {
+            await exporter.downloadAllPdf(playersToDownload, {
                 onProgress: (next) =>
                     setZipProgress((prev) => ({
                         ...prev,
@@ -1265,7 +1265,7 @@ const AllPlayerCards = () => {
                                             </div>
                                             <div className="flex gap-2">
                                                 <button
-                                                    className="px-4 py-2 rounded-md bg-yellow-500/90 hover:bg-yellow-500 text-black font-semibold"
+                                                    className="px-4 py-2 rounded-md bg-gradient-to-r from-rose-600 via-red-600 to-amber-600 hover:from-red-600 hover:via-rose-600 hover:to-orange-600 text-white font-semibold shadow-md shadow-red-900/40"
                                                     onClick={() => handleDownloadProfileCard(openDetails)}
                                                 >
                                                     Download Card

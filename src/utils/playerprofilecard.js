@@ -1,7 +1,7 @@
 // src/utils/playerprofilecard.js
 //
 // Exports a factory `getPlayerProfileCardExporter(ctx)`
-// Methods: renderBlob(player), downloadOne(player), downloadAll(players)
+// Methods: renderBlob(player), downloadOne(player), downloadOnePdf(player), downloadAll(players), downloadAllPdf(players)
 //
 // Builds a branded Player Profile Card image in the browser and
 // downloads either a single PNG or a ZIP of many PNGs.
@@ -26,20 +26,27 @@ const ensureLibs = async () => {
   if (!window.saveAs) {
     await loadScript("https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js");
   }
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js");
+  }
 };
 
-// Print guidance: 300 DPI, 3mm bleed, 5mm safe margin inside trim.
-const DPI = 300;
+// Print guidance: 600 DPI, 3mm bleed, 5mm safe margin inside trim for sharper output
+const DPI = 600;
 const MM_TO_PX = DPI / 25.4;
+const BULK_DPI = 300; // lighter DPI for bulk ZIPs to speed up export
 const BLEED_MM = 3;
 const SAFE_MM = 5;
-const BLEED_PX = Math.round(BLEED_MM * MM_TO_PX); // ~36px
-const SAFE_PX = Math.round(SAFE_MM * MM_TO_PX); // ~59px
+const BLEED_PX = Math.round(BLEED_MM * MM_TO_PX);
+const SAFE_PX = Math.round(SAFE_MM * MM_TO_PX);
 const EXPORT_SCALE = DPI / 96; // html2canvas default is 96 CSS px per inch
+const BULK_EXPORT_SCALE = BULK_DPI / 96; // lower scale for faster bulk generation
 
-// Trimmed size for the portrait design; canvas adds bleed on all sides.
-const TRIM_W = 750;
-const TRIM_H = 1050;
+// ID-1 (credit card) size: 54mm x 86mm; trim is the printable area inside bleed
+const CARD_W_MM = 54;
+const CARD_H_MM = 86;
+const TRIM_W = Math.round(CARD_W_MM * MM_TO_PX); // ~1276px at 600 DPI
+const TRIM_H = Math.round(CARD_H_MM * MM_TO_PX); // ~2032px at 600 DPI
 const CANVAS_W = TRIM_W + BLEED_PX * 2;
 const CANVAS_H = TRIM_H + BLEED_PX * 2;
 
@@ -100,6 +107,13 @@ const safe = (name) =>
     .replace(/\s+/g, "-")
     .toLowerCase();
 
+const blobToDataUrl = (blob) =>
+  new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+
 /**
  * @param {{
  *   serialResolver: (player:any)=>string|number,
@@ -129,7 +143,8 @@ export function getPlayerProfileCardExporter(ctx) {
       overflow: "hidden",
       boxSizing: "border-box",
       boxShadow: "0 18px 48px rgba(0,0,0,.55)",
-      background: "radial-gradient(1200px 700px at 0% 0%, rgba(250, 204, 21, .16), transparent 60%), radial-gradient(900px 600px at 100% 0%, rgba(168, 85, 247, .18), transparent 60%), linear-gradient(135deg, #0b1120 0%, #0f172a 55%, #0a0f1f 100%)",
+      background:
+        "radial-gradient(1200px 700px at 0% 0%, rgba(255, 102, 126, .18), transparent 60%), radial-gradient(900px 600px at 100% 0%, rgba(255, 140, 102, .2), transparent 60%), linear-gradient(135deg, #1b0304 0%, #32080d 55%, #4a0a12 100%)",
       color: "#fff",
       fontFamily:
         "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
@@ -143,8 +158,9 @@ export function getPlayerProfileCardExporter(ctx) {
       height: `${TRIM_H}px`,
       borderRadius: "18px",
       overflow: "hidden",
-      border: "1px solid rgba(158,240,26,.3)",
-      background: "linear-gradient(160deg, rgba(18,26,46,.96) 0%, rgba(12,17,30,.98) 55%, rgba(10,14,26,.98) 100%)",
+      border: "1px solid rgba(255,159,128,.35)",
+      background:
+        "linear-gradient(160deg, rgba(46,10,14,.96) 0%, rgba(36,8,12,.98) 55%, rgba(28,6,10,.98) 100%)",
       boxShadow: "0 14px 38px rgba(0,0,0,.45)",
     });
     container.appendChild(frame);
@@ -162,6 +178,60 @@ export function getPlayerProfileCardExporter(ctx) {
     });
     frame.appendChild(content);
 
+    // Corner folded stripes
+    const addFoldedCorner = (corner) => {
+      const wrap = document.createElement("div");
+      const isTop = corner === "tl";
+      Object.assign(wrap.style, {
+        position: "absolute",
+        zIndex: "3",
+        top: isTop ? `${SAFE_PX - 10}px` : "auto",
+        left: isTop ? `${SAFE_PX - 10}px` : "auto",
+        right: !isTop ? `${SAFE_PX - 10}px` : "auto",
+        bottom: !isTop ? `${SAFE_PX - 10}px` : "auto",
+        width: "120px",
+        height: "60px",
+        pointerEvents: "none",
+      });
+
+      const strip1 = document.createElement("div");
+      Object.assign(strip1.style, {
+        position: "absolute",
+        width: "110px",
+        height: "9px",
+        backgroundImage: "linear-gradient(120deg, rgba(255,255,255,.18) 0%, rgba(255,159,128,.65) 50%, rgba(255,255,255,.14) 100%)",
+        borderRadius: "999px",
+        filter: "drop-shadow(0 4px 10px rgba(0,0,0,.35))",
+        transform: isTop ? "rotate(-12deg)" : "rotate(12deg)",
+        top: isTop ? "4px" : "auto",
+        bottom: !isTop ? "4px" : "auto",
+        left: isTop ? "0px" : "auto",
+        right: !isTop ? "0px" : "auto",
+      });
+
+      const strip2 = document.createElement("div");
+      Object.assign(strip2.style, {
+        position: "absolute",
+        width: "70px",
+        height: "9px",
+        backgroundImage: "linear-gradient(120deg, rgba(255,255,255,.2) 0%, rgba(255,159,128,.75) 60%, rgba(255,255,255,.14) 100%)",
+        borderRadius: "999px",
+        filter: "drop-shadow(0 4px 10px rgba(0,0,0,.35))",
+        transform: isTop ? "rotate(28deg)" : "rotate(-28deg)",
+        top: isTop ? "22px" : "auto",
+        bottom: !isTop ? "22px" : "auto",
+        left: isTop ? "34px" : "auto",
+        right: !isTop ? "34px" : "auto",
+      });
+
+      wrap.appendChild(strip1);
+      wrap.appendChild(strip2);
+      frame.appendChild(wrap);
+    };
+
+    addFoldedCorner("tl");
+    addFoldedCorner("br");
+
     const photoSection = document.createElement("div");
     const classyPhotoGradient =
       "linear-gradient(145deg, rgba(18,26,46,.92) 0%, rgba(12,17,30,.96) 60%, rgba(10,14,26,.98) 100%)";
@@ -169,7 +239,7 @@ export function getPlayerProfileCardExporter(ctx) {
     Object.assign(photoSection.style, {
       position: "relative",
       flex: "1 1 68%",
-      minHeight: "620px",
+      minHeight: "1100px",
       overflow: "hidden",
       backgroundImage: background
         ? `${classyPhotoGradient}, url('${background}')`
@@ -248,12 +318,12 @@ export function getPlayerProfileCardExporter(ctx) {
       background: "linear-gradient(135deg,#8ef12a,#5ac81b)",
       color: "#0f1b2e",
       fontWeight: "900",
-      fontSize: "22px",
-      padding: "10px 16px",
-      borderRadius: "14px",
+      fontSize: "26px",
+      padding: "12px 18px",
+      borderRadius: "16px",
       boxShadow: "0 8px 20px rgba(0,0,0,.38)",
       zIndex: "3",
-      letterSpacing: "0.6px",
+      letterSpacing: "0.8px",
     });
     serialBadge.textContent = `#${serial}`;
     photoSection.appendChild(serialBadge);
@@ -265,9 +335,9 @@ export function getPlayerProfileCardExporter(ctx) {
       right: "16px",
       background: "rgba(15,23,42,.82)",
       color: "#e2e8f0",
-      fontWeight: "800",
-      fontSize: "11px",
-      padding: "6px 10px",
+      fontWeight: "900",
+      fontSize: "12px",
+      padding: "8px 12px",
       borderRadius: "999px",
       border: "1px solid rgba(158,240,26,.3)",
       boxShadow: "0 6px 16px rgba(0,0,0,.35)",
@@ -299,8 +369,7 @@ export function getPlayerProfileCardExporter(ctx) {
     const infoSection = document.createElement("div");
     Object.assign(infoSection.style, {
       padding: "18px 18px 14px",
-      background:
-        "linear-gradient(180deg, rgba(12,17,32,.94) 0%, rgba(9,13,24,.96) 100%)",
+      background: "linear-gradient(180deg, rgba(36,8,12,.94) 0%, rgba(28,6,10,.96) 100%)",
       borderTop: "1px solid rgba(255,255,255,.06)",
       display: "grid",
       gridTemplateColumns: "repeat(2,minmax(0,1fr))",
@@ -312,10 +381,10 @@ export function getPlayerProfileCardExporter(ctx) {
     infoTitle.textContent = "Player Details";
     Object.assign(infoTitle.style, {
       gridColumn: "1 / span 2",
-      fontSize: "13px",
-      letterSpacing: ".6px",
+      fontSize: "16px",
+      letterSpacing: ".8px",
       color: "#9ef01a",
-      fontWeight: "800",
+      fontWeight: "900",
       textTransform: "uppercase",
     });
     infoSection.appendChild(infoTitle);
@@ -324,12 +393,12 @@ export function getPlayerProfileCardExporter(ctx) {
       const row = document.createElement("div");
       Object.assign(row.style, {
         display: "grid",
-        gridTemplateColumns: "110px 1fr",
-        gap: "10px",
-        padding: "8px 10px",
-        borderRadius: "10px",
-        background: "rgba(255,255,255,.04)",
-        border: "1px solid rgba(255,255,255,.05)",
+        gridTemplateColumns: "140px 1fr",
+        gap: "14px",
+        padding: "12px 14px",
+        borderRadius: "14px",
+        background: "rgba(255,255,255,.05)",
+        border: "1px solid rgba(255,255,255,.07)",
         alignItems: "center",
       });
 
@@ -337,19 +406,19 @@ export function getPlayerProfileCardExporter(ctx) {
       l.textContent = label;
       Object.assign(l.style, {
         color: "#cbd5e1",
-        fontSize: "11px",
-        letterSpacing: ".4px",
+        fontSize: "13px",
+        letterSpacing: ".55px",
         textTransform: "uppercase",
-        fontWeight: "700",
+        fontWeight: "800",
       });
 
       const v = document.createElement("div");
       v.textContent = clean(value);
       Object.assign(v.style, {
-        fontWeight: "800",
-        fontSize: "14px",
+        fontWeight: "900",
+        fontSize: "17px",
         color: "#f8fafc",
-        letterSpacing: ".2px",
+        letterSpacing: ".3px",
       });
 
       row.appendChild(l);
@@ -369,9 +438,9 @@ export function getPlayerProfileCardExporter(ctx) {
       textAlign: "center",
       marginTop: "4px",
       color: "#94a3b8",
-      fontSize: "11px",
-      letterSpacing: ".5px",
-      fontWeight: "600",
+      fontSize: "12px",
+      letterSpacing: ".6px",
+      fontWeight: "700",
     });
     footer.textContent = "Auction Arena || +91-9547652702";
     infoSection.appendChild(footer);
@@ -401,19 +470,20 @@ export function getPlayerProfileCardExporter(ctx) {
     );
   };
 
-  const renderBlob = async (player) => {
+  const renderBlob = async (player, opts = {}) => {
+    const { scale = EXPORT_SCALE, dpi = DPI } = opts;
     await ensureLibs();
     const serial = serialResolver(player);
     const container = buildContainer(player, serial);
     await waitImages(container);
 
     const canvas = await window.html2canvas(container, {
-      scale: EXPORT_SCALE,
+      scale,
       useCORS: true,
       backgroundColor: null,
     });
     const rawBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1.0));
-    const blob = await addPngDpi(rawBlob, DPI);
+    const blob = await addPngDpi(rawBlob, dpi);
     document.body.removeChild(container);
     return { blob, serial };
   };
@@ -430,6 +500,16 @@ export function getPlayerProfileCardExporter(ctx) {
     URL.revokeObjectURL(url);
   };
 
+  const downloadOnePdf = async (player) => {
+    const { blob, serial } = await renderBlob(player);
+    const dataUrl = await blobToDataUrl(blob);
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) throw new Error("jsPDF not loaded");
+    const pdf = new jsPDF("portrait", "mm", [CARD_W_MM, CARD_H_MM]);
+    pdf.addImage(dataUrl, "PNG", 0, 0, CARD_W_MM, CARD_H_MM, undefined, "FAST");
+    pdf.save(`player-profile-card-${serial}-${safe(player.name)}.pdf`);
+  };
+
   const downloadAll = async (players, options = {}) => {
     const { onProgress } = options;
     await ensureLibs();
@@ -440,7 +520,7 @@ export function getPlayerProfileCardExporter(ctx) {
     }
     for (let i = 0; i < players.length; i++) {
       // eslint-disable-next-line no-await-in-loop
-      const { blob, serial } = await renderBlob(players[i]);
+      const { blob, serial } = await renderBlob(players[i], { scale: BULK_EXPORT_SCALE, dpi: BULK_DPI });
       // eslint-disable-next-line no-await-in-loop
       const buf = await blob.arrayBuffer();
       zip.file(`player-profile-card-${serial}-${safe(players[i].name)}.png`, buf);
@@ -484,5 +564,64 @@ export function getPlayerProfileCardExporter(ctx) {
     window.saveAs(zipBlob, `auctionarena-player-profile-cards-${tour}-${stamp}.zip`);
   };
 
-  return { renderBlob, downloadOne, downloadAll };
+  const downloadAllPdf = async (players, options = {}) => {
+    const { onProgress } = options;
+    await ensureLibs();
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) throw new Error("jsPDF not loaded");
+    const zip = new window.JSZip();
+    const total = players.length;
+    if (onProgress) {
+      onProgress({ phase: "render", current: 0, total, percent: 0 });
+    }
+    for (let i = 0; i < players.length; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      const { blob, serial } = await renderBlob(players[i], { scale: BULK_EXPORT_SCALE, dpi: BULK_DPI });
+      // eslint-disable-next-line no-await-in-loop
+      const dataUrl = await blobToDataUrl(blob);
+      const pdf = new jsPDF("portrait", "mm", [CARD_W_MM, CARD_H_MM]);
+      pdf.addImage(dataUrl, "PNG", 0, 0, CARD_W_MM, CARD_H_MM, undefined, "FAST");
+      const pdfBuffer = pdf.output("arraybuffer");
+      zip.file(`player-profile-card-${serial}-${safe(players[i].name)}.pdf`, pdfBuffer);
+      if (onProgress) {
+        onProgress({
+          phase: "render",
+          current: i + 1,
+          total,
+          percent: total ? Math.round(((i + 1) / total) * 100) : 0,
+          serial,
+          name: players[i].name,
+        });
+      }
+    }
+    const ts = new Date();
+    const stamp = `${ts.getFullYear()}${String(ts.getMonth() + 1).padStart(2, "0")}${String(
+      ts.getDate()
+    ).padStart(2, "0")}-${String(ts.getHours()).padStart(2, "0")}${String(ts.getMinutes()).padStart(
+      2,
+      "0"
+    )}`;
+    const tour = safe(tournamentName || "tournament");
+    if (onProgress) {
+      onProgress({ phase: "zip", percent: 0 });
+    }
+    const zipBlob = await zip.generateAsync(
+      {
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      },
+      (metadata) => {
+        if (onProgress) {
+          onProgress({ phase: "zip", percent: Math.round(metadata.percent || 0) });
+        }
+      }
+    );
+    if (onProgress) {
+      onProgress({ phase: "zip", percent: 100 });
+    }
+    window.saveAs(zipBlob, `auctionarena-player-profile-cards-pdf-${tour}-${stamp}.zip`);
+  };
+
+  return { renderBlob, downloadOne, downloadOnePdf, downloadAll, downloadAllPdf };
 }
