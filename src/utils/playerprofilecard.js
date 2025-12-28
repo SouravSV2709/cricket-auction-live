@@ -123,11 +123,11 @@ const blobToDataUrl = (blob) =>
  * }} ctx
  */
 export function getPlayerProfileCardExporter(ctx) {
-  const {
+ const {
     serialResolver,
     tournamentName = "",
     tournamentLogo = "",
-    background = "/goldbg.jpg", // background kept for API parity even though design is inline
+    background = "/redbg.jpg", // background kept for API parity even though design is inline
   } = ctx;
 
   const buildContainer = (player, serial) => {
@@ -144,7 +144,7 @@ export function getPlayerProfileCardExporter(ctx) {
       boxSizing: "border-box",
       boxShadow: "0 18px 48px rgba(0,0,0,.55)",
       background:
-        "radial-gradient(1200px 700px at 0% 0%, rgba(255, 102, 126, .18), transparent 60%), radial-gradient(900px 600px at 100% 0%, rgba(255, 140, 102, .2), transparent 60%), linear-gradient(135deg, #1b0304 0%, #32080d 55%, #4a0a12 100%)",
+        "radial-gradient(1100px 650px at 0% 0%, rgba(255, 255, 255, .16), transparent 60%), radial-gradient(900px 550px at 100% 0%, rgba(255, 235, 235, .18), transparent 60%), linear-gradient(135deg, #d41424 0%, #f0493c 55%, #ff7c6b 100%)",
       color: "#fff",
       fontFamily:
         "Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
@@ -160,7 +160,7 @@ export function getPlayerProfileCardExporter(ctx) {
       overflow: "hidden",
       border: "1px solid rgba(255,159,128,.35)",
       background:
-        "linear-gradient(160deg, rgba(46,10,14,.96) 0%, rgba(36,8,12,.98) 55%, rgba(28,6,10,.98) 100%)",
+        "linear-gradient(160deg, rgba(248,72,72,.95) 0%, rgba(232,44,54,.96) 55%, rgba(210,28,40,.97) 100%)",
       boxShadow: "0 14px 38px rgba(0,0,0,.45)",
     });
     container.appendChild(frame);
@@ -234,7 +234,7 @@ export function getPlayerProfileCardExporter(ctx) {
 
     const photoSection = document.createElement("div");
     const classyPhotoGradient =
-      "linear-gradient(145deg, rgba(18,26,46,.92) 0%, rgba(12,17,30,.96) 60%, rgba(10,14,26,.98) 100%)";
+      "linear-gradient(145deg, rgba(255,122,122,.9) 0%, rgba(240,74,74,.92) 60%, rgba(212,44,44,.94) 100%)";
 
     Object.assign(photoSection.style, {
       position: "relative",
@@ -268,7 +268,7 @@ export function getPlayerProfileCardExporter(ctx) {
       position: "absolute",
       inset: "0",
       background:
-        "linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.28) 50%, rgba(0,0,0,.55) 100%)",
+        "linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(255,140,140,.16) 50%, rgba(230,72,72,.32) 100%)",
     });
     photoSection.appendChild(vignette);
 
@@ -369,7 +369,7 @@ export function getPlayerProfileCardExporter(ctx) {
     const infoSection = document.createElement("div");
     Object.assign(infoSection.style, {
       padding: "18px 18px 14px",
-      background: "linear-gradient(180deg, rgba(36,8,12,.94) 0%, rgba(28,6,10,.96) 100%)",
+      background: "linear-gradient(180deg, rgba(255,122,122,.9) 0%, rgba(240,84,84,.92) 100%)",
       borderTop: "1px solid rgba(255,255,255,.06)",
       display: "grid",
       gridTemplateColumns: "repeat(2,minmax(0,1fr))",
@@ -397,7 +397,7 @@ export function getPlayerProfileCardExporter(ctx) {
         gap: "14px",
         padding: "12px 14px",
         borderRadius: "14px",
-        background: "rgba(255,255,255,.05)",
+        background: "rgba(255,255,255,.12)",
         border: "1px solid rgba(255,255,255,.07)",
         alignItems: "center",
       });

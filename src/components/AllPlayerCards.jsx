@@ -111,7 +111,7 @@ const AllPlayerCards = () => {
                 serialResolver: (p) => p?.auction_serial ?? serialMap[p.id],
                 tournamentName,
                 tournamentLogo,
-                background: "/goldbg.jpg", // or '/redbg.jpg'
+                background: "/redbg.jpg", // switched to red to avoid dark prints
             }),
         [serialMap, tournamentName, tournamentLogo]
     );
