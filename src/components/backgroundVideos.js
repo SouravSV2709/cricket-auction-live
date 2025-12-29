@@ -14,7 +14,7 @@ export const BACKGROUND_VIDEOS = [
   'bg10.mp4',
   'bg11.mp4',
   'bg13.mp4',
-  'bg14.mp4',
+  'bg15.mp4',
 ];
 
 export default BACKGROUND_VIDEOS;
