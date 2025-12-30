@@ -2717,6 +2717,10 @@ const groups =
     0%,100% { transform: translateY(0) scale(1.1); }
     50%     { transform: translateY(-6px) scale(1.12); }
   }
+  @keyframes slowPulse {
+    0%, 100% { opacity: 0.35; transform: scale(1.05); }
+    50%      { opacity: 0.6; transform: scale(1.1); }
+  }
 `}</style>
 
     return (
@@ -2802,6 +2806,19 @@ const groups =
                         </div>
 
 
+                        {/* Team logo backdrop when SOLD */}
+                        {isValidSold(player) && teamLogoId && (
+                            <div className="absolute inset-0 z-8 pointer-events-none animate-[slowPulse_5s_ease-in-out_infinite]">
+                                <div
+                                    className="absolute inset-0 bg-center bg-contain bg-no-repeat opacity-65 blur-[1px] scale-[1.08] contrast-[1.1] brightness-[1.05]"
+                                    style={{
+                                        backgroundImage: `url(https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId})`,
+                                    }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/15" />
+                            </div>
+                        )}
+
                         {/* Player Image with gentle Ken Burns */}
                         <img
                             src={player.profile_image}
@@ -2811,6 +2828,17 @@ const groups =
         drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]
         animate-[kenburns_6s_ease-in-out_infinite]"
                         />
+
+                        {isValidSold(player) && teamLogoId && (
+                            <div className="pointer-events-none absolute bottom-6 right-6 z-20 w-32 h-32 opacity-70">
+                                <div
+                                    className="w-full h-full bg-center bg-contain bg-no-repeat blur-[0.5px] drop-shadow-lg"
+                                    style={{
+                                        backgroundImage: `url(https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId})`,
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         {/* Serial No – Top Left (with SOLD/UNSOLD image below) */}
                         <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2">
