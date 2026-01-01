@@ -636,6 +636,7 @@ const SpectatorLiveDisplay = () => {
     const { tournamentSlug } = useParams();
     const mainSpacingClass = marqueeEnabled ? "pt-4 pb-6" : "pt-12 pb-16";
     const mainVerticalAlignClass = marqueeEnabled ? "items-start" : "items-center";
+    const [activeBidders, setActiveBidders] = useState([]);
     const qrTargetUrl = useMemo(
         () => tournamentSlug ? `https://live.eaarena.in/tournament/${encodeURIComponent(tournamentSlug)}` : "https://live.eaarena.in/tournament",
         [tournamentSlug]
@@ -650,6 +651,11 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         playerRef.current = player;
     }, [player]);
+
+    // Reset active bidders when player changes
+    useEffect(() => {
+        setActiveBidders([]);
+    }, [player?.id]);
 
     // Treat as SOLD only when status is TRUE AND we have a non-zero price AND a real team_id
     const isValidSold = (p) =>
@@ -1093,6 +1099,30 @@ const SpectatorLiveDisplay = () => {
     const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
     const [teams, setTeams] = useState([]);
     const [players, setPlayers] = useState([]);
+    const [showPurse, setShowPurse] = useState(false);
+    const [showMaxBid, setShowMaxBid] = useState(true);
+    const [showPlayersToBuy, setShowPlayersToBuy] = useState(false);
+
+    const MIN_BASE_PRICE = 1700;
+    const computeTeamFinancials = (teamObj) => {
+        if (!teamObj) return null;
+        const teamPlayers = (playerList || []).filter(
+            (p) =>
+                Number(p.team_id) === Number(teamObj.id) &&
+                (p.sold_status === true || p.sold_status === "TRUE")
+        );
+        const spent = teamPlayers.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
+        const purse = Math.max(Number(teamObj.budget || 0) - spent, 0);
+        const playersBought = Number(teamObj.bought_count || 0);
+        const slotsTotal = Number(totalPlayersToBuy) || Number(teamObj.team_squad) || playersBought || 0;
+        const playersToBuy = Math.max(slotsTotal - playersBought, 0);
+        const computedMax = purse - Math.max(playersToBuy - 1, 0) * MIN_BASE_PRICE;
+        const maxBidAllowed = Math.max(
+            Number.isFinite(Number(teamObj.max_bid_allowed)) ? Number(teamObj.max_bid_allowed) : computedMax,
+            0
+        );
+        return { purse, playersBought, playersToBuy, maxBidAllowed };
+    };
 
 
 
@@ -1237,6 +1267,19 @@ const SpectatorLiveDisplay = () => {
 
             setHighestBid(Number(bid_amount) || 0);
             setLeadingTeam(team_name || "");
+            if (!isZero && team_name) {
+                setActiveBidders((prev) => {
+                    const now = Date.now();
+                    const cleaned = String(team_name || "").trim();
+                    if (!cleaned) return prev;
+                    const existing = prev.find((t) => t.teamName === cleaned);
+                    const updatedEntry = { teamName: cleaned, lastBid: Number(bid_amount) || 0, updatedAt: now };
+                    if (existing) {
+                        return prev.map((t) => (t.teamName === cleaned ? { ...t, ...updatedEntry } : t));
+                    }
+                    return [...prev, updatedEntry];
+                });
+            }
 
             // Only force-refresh when not already in a terminal state
             if (isZero && !isTerminal) fastRefresh();
@@ -1400,10 +1443,41 @@ const SpectatorLiveDisplay = () => {
 
         socket.on("customMessageUpdate", (payload) => {
             // Support legacy string payloads (treated as global/ignored here), and new scoped objects
-            if (!payload) return;
+            if (payload == null) return;
+
+            // Structured admin controls for Active Bidders
+            let activeEnvelope = null;
+            if (typeof payload === "object") {
+                if (payload?.activeBidderDisplay) {
+                    activeEnvelope = payload;
+                } else if (payload?.message && typeof payload.message === "object" && payload.message?.activeBidderDisplay) {
+                    activeEnvelope = payload.message;
+                }
+            }
+
+            if (activeEnvelope?.activeBidderDisplay) {
+                const scopedOk = (!activeEnvelope.tournament_id && !activeEnvelope.slug) || matchesTournament(activeEnvelope);
+                if (scopedOk) {
+                    const cfg = activeEnvelope.activeBidderDisplay || {};
+                    if (cfg.showPurse !== undefined) setShowPurse(!!cfg.showPurse);
+                    if (cfg.showMaxBid !== undefined) setShowMaxBid(!!cfg.showMaxBid);
+                    if (cfg.showPlayersToBuy !== undefined) setShowPlayersToBuy(!!cfg.showPlayersToBuy);
+                    return;
+                }
+            }
+
             if (typeof payload === "object" && !matchesTournament(payload)) return;
+
             const msg = typeof payload === "string" ? payload : payload.message;
             if (!msg || typeof msg !== "string") return;
+
+            // Admin toggles for Active Bidders fields (string commands fallback)
+            if (msg === "__SHOW_BIDDER_PURSE_ON__") { setShowPurse(true); return; }
+            if (msg === "__SHOW_BIDDER_PURSE_OFF__") { setShowPurse(false); return; }
+            if (msg === "__SHOW_BIDDER_PLAYERS_ON__") { setShowPlayersToBuy(true); return; }
+            if (msg === "__SHOW_BIDDER_PLAYERS_OFF__") { setShowPlayersToBuy(false); return; }
+            if (msg === "__SHOW_BIDDER_MAXBID_ON__") { setShowMaxBid(true); return; }
+            if (msg === "__SHOW_BIDDER_MAXBID_OFF__") { setShowMaxBid(false); return; }
 
             if (msg === "__SHOW_TEAM_STATS__") {
                 setCustomView("team-stats"); setCustomMessage(null);
@@ -1526,6 +1600,34 @@ const SpectatorLiveDisplay = () => {
             });
 
     }, []);
+
+    const activeBidderDetails = useMemo(() => {
+        if (!Array.isArray(activeBidders) || activeBidders.length === 0) return [];
+        return activeBidders
+            .map((entry) => {
+                const teamObj = teamSummaries.find(
+                    (t) => (t?.name || "").trim().toLowerCase() === (entry.teamName || "").trim().toLowerCase()
+                );
+                if (!teamObj) return null;
+                const fin = computeTeamFinancials(teamObj);
+                if (!fin) return null;
+                return {
+                    ...entry,
+                    purse: fin.purse,
+                    maxBidAllowed: fin.maxBidAllowed,
+                    playersToBuy: fin.playersToBuy,
+                    logo: teamObj.logo,
+                    id: teamObj.id,
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }, [activeBidders, teamSummaries, playerList, totalPlayersToBuy]);
+    const visibleActiveBidders = useMemo(
+        () => activeBidderDetails.slice(0, 4),
+        [activeBidderDetails]
+    );
+    const showAnyActiveBidderFields = showPurse || showMaxBid || showPlayersToBuy;
 
     // When secret-bid is revealed
 
@@ -2697,8 +2799,6 @@ const groups =
 
     const availablePurse = Math.max(Number(leadingTeamObj?.budget || 0) - spentByLeadingTeam, 0);
 
-
-
     const isWaitingForBid =
         !isValidSold(player) &&
         !isUnsold(player) &&
@@ -2720,6 +2820,10 @@ const groups =
   @keyframes slowPulse {
     0%, 100% { opacity: 0.35; transform: scale(1.05); }
     50%      { opacity: 0.6; transform: scale(1.1); }
+  }
+  @keyframes logoFloat {
+    0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 4px 18px rgba(0,0,0,0.35)); }
+    50%      { transform: translateY(-10px) scale(1.03); filter: drop-shadow(0 10px 25px rgba(0,0,0,0.5)); }
   }
 `}</style>
 
@@ -2770,6 +2874,21 @@ const groups =
                         className="relative w-[48rem] h-[56rem] rounded-[32px] overflow-hidden shadow-2xl border border-gray-300 mt-4"
                         style={{ backgroundColor: cardBgColor }}
                     >
+                        {(player?.name || player?.role) && (
+                            <div className="absolute top-4 inset-x-4 z-30 flex flex-col items-center pointer-events-none">
+                                <div className="px-5 py-2 rounded-2xl bg-black/70 border border-white/10 shadow-lg max-w-[80%] text-center">
+                                    <div
+                                        className="text-4xl font-black tracking-wide uppercase text-white drop-shadow"
+                                        style={{ WebkitTextStroke: "1px rgba(0,0,0,0.35)" }}
+                                    >
+                                        {player?.name || "Player"}
+                                    </div>
+                                    <div className="mt-1 text-lg text-yellow-300 uppercase tracking-wide">
+                                        {player?.role || "Role"}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {/* FLAG WATERMARK — boosted visibility */}
                         {isLinkedToTeam && teamFlagSrc && (
                             <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
@@ -2908,21 +3027,6 @@ const groups =
 
                 <div className="flex-1 min-w-[22rem] flex flex-col justify-items-center-safe space-y-8 mt-10 order-3">
 
-                    {/* Player header — always visible */}
-                    <div className="w-full max-w-md mx-auto text-center -mt-1">
-                        <div className="inline-block rounded-2xl px-5 py-2 bg-black/55 backdrop-blur-sm shadow-lg">
-                            <h2
-                                className="text-5xl font-black tracking-wide uppercase text-white drop-shadow"
-                                style={{ WebkitTextStroke: "1px rgba(0,0,0,0.35)" }}
-                            >
-                                {player?.name || "Player"}
-                            </h2>
-                        </div>
-                        <p className="mt-2 text-xl text-yellow-300 uppercase tracking-wide">
-                            {player?.role || "Role"}
-                        </p>
-                    </div>
-
                     {isValidSold(player) &&
                         !["FALSE", "false", false].includes(player?.sold_status) &&
                         !unsoldOverlayActive && (() => {
@@ -3018,27 +3122,91 @@ const groups =
 
                                     return (
                                         <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
+                                            <p className="text-xl font-extrabold uppercase tracking-[0.18em] text-white drop-shadow mb-3">Leading Team</p>
                                             {leadingTeamLogo && (
                                                 <img
                                                     src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
                                                     alt={leadingTeamName}
                                                     className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
+                                                    style={{ animation: "logoFloat 6s ease-in-out infinite" }}
                                                 />
                                             )}
                                         </div>
                                     );
                                 })()}
 
-                                {!unsoldOverlayActive && ( 
-                                    <div className="w-auto text-center mt-2 ml-5">
-                                    <div className="bg-black/60 border border-yellow-400/30 rounded-2xl px-2 py-2 animate-pulse shadow-lg">
-                                        <p className="text-2xl uppercase tracking-wider text-white/70 mb-2">Current Bid</p>
-                                        <p className="text-6xl md:text-8xl font-extrabold text-yellow-300 drop-shadow-lg">
-                                        {formatLakhs(highestBid)}
-                                        </p>
-                                    </div>
-                                    </div>
+                                {!unsoldOverlayActive && (
+                                    <div className="w-full flex flex-col items-center mt-4">
+                                        {activeBidderDetails.length === 0 && (
+                                            <div className="w-auto text-center">
+                                                <div className="bg-black/60 border border-yellow-400/30 rounded-2xl px-4 py-3 animate-pulse shadow-lg">
+                                                    <p className="text-2xl uppercase tracking-wider text-white/70 mb-2">Current Bid</p>
+                                                    <p className="text-6xl md:text-8xl font-extrabold text-yellow-300 drop-shadow-lg">
+                                                        {formatLakhs(highestBid)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
 
+                                        {visibleActiveBidders.length > 0 && showAnyActiveBidderFields && (
+                                            <div className="w-full max-w-6xl space-y-4">
+                                                <div className="flex items-center justify-between text-white/80 text-base uppercase tracking-widest px-1">
+                                                    <span className="text-lg font-extrabold text-white">Active Bidders</span>
+                                                    <span className="text-sm text-white/70">{visibleActiveBidders.length} shown</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                                    {visibleActiveBidders.map((bidder, idx) => (
+                                                        <div
+                                                            key={bidder.id || bidder.teamName || idx}
+                                                            className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur px-5 py-5 shadow-xl flex flex-col gap-3 min-h-[200px]"
+                                                        >
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-16 h-16 rounded-full bg-black/30 border border-white/15 flex items-center justify-center overflow-hidden">
+                                                                    {bidder.logo ? (
+                                                                        <img
+                                                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bidder.logo}?tr=w-150,h-150,q-95`}
+                                                                            alt={bidder.teamName}
+                                                                            className="w-full h-full object-contain"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-[11px] text-white/60 text-center px-1">No Logo</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-xl font-extrabold text-white truncate uppercase">
+                                                                        {bidder.teamName}
+                                                                    </div>
+                                                                    <div className="text-sm text-white/70">
+                                                                        Last bid: <span className="text-yellow-300 font-bold">{formatLakhs(bidder.lastBid)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-3 text-sm text-white/80">
+                                                                {showPurse && (
+                                                                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 flex flex-col">
+                                                                        <span className="text-[11px] uppercase tracking-wide text-white/60">Purse</span>
+                                                                        <span className="text-lg font-bold text-green-300">{formatLakhs(bidder.purse)}</span>
+                                                                    </div>
+                                                                )}
+                                                                {showMaxBid && (
+                                                                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 flex flex-col">
+                                                                        <span className="text-[11px] uppercase tracking-wide text-white/60">Max Bid</span>
+                                                                        <span className="text-lg font-bold text-blue-300">{formatLakhs(bidder.maxBidAllowed)}</span>
+                                                                    </div>
+                                                                )}
+                                                                {showPlayersToBuy && (
+                                                                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 col-span-2 flex flex-col">
+                                                                        <span className="text-[11px] uppercase tracking-wide text-white/60">Players To Buy</span>
+                                                                        <span className="text-lg font-bold text-amber-200">{bidder.playersToBuy}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
 
                                 <div>

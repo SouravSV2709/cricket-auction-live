@@ -28,6 +28,9 @@ const AdminPanel = () => {
     const [searchId, setSearchId] = useState('');
     const [undoStack, setUndoStack] = useState([]);
     const [customMessage, setCustomMessage] = useState('');
+    const [showBidderPurse, setShowBidderPurse] = useState(false);
+    const [showBidderMaxBid, setShowBidderMaxBid] = useState(true);
+    const [showBidderPlayersToBuy, setShowBidderPlayersToBuy] = useState(false);
     const [tournamentTitle, setTournamentTitle] = useState('Tournament');
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
@@ -854,6 +857,26 @@ const AdminPanel = () => {
         const res = await fetch(url);
         const data = await res.json();
         setPlayers(data);
+    };
+
+    const broadcastActiveBidderDisplay = async (opts) => {
+        try {
+            await fetch(`${API}/api/custom-message`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: {
+                        activeBidderDisplay: opts,
+                        tournament_id: tournamentId,
+                        tournament_slug: tournamentSlug,
+                    },
+                    tournament_id: tournamentId,
+                    slug: tournamentSlug,
+                }),
+            });
+        } catch (err) {
+            console.error("Failed to update active bidder display prefs", err);
+        }
     };
 
 
@@ -2672,7 +2695,7 @@ const handleSearchById = async (idOverride) => {
                         </div>
 
                         {/* 🔄 Toggles */}
-                        <div className="flex items-center space-x-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:space-x-4">
                             <label className="flex items-center cursor-pointer space-x-2">
                                 <span className="text-sm text-white">Team Squad</span>
                                 <input
@@ -2765,6 +2788,78 @@ const handleSearchById = async (idOverride) => {
                                     <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${isMarqueeOn ? 'translate-x-5' : ''}`}></div>
                                 </div>
                             </label>
+
+                            {/* Active Bidders display toggles */}
+                            <div className="mt-4 p-3 rounded border border-pink-500/40 bg-pink-900/20 space-y-2 w-full">
+                                <div className="text-sm font-semibold text-pink-200 uppercase tracking-wide">
+                                    Active Bidders Display (Spectator)
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-white text-sm">
+                                    <label className="flex items-center justify-between cursor-pointer space-x-2">
+                                        <span>Purse</span>
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={showBidderPurse}
+                                            onChange={async () => {
+                                                const next = !showBidderPurse;
+                                                setShowBidderPurse(next);
+                                                await broadcastActiveBidderDisplay({
+                                                    showPurse: next,
+                                                    showMaxBid: showBidderMaxBid,
+                                                    showPlayersToBuy: showBidderPlayersToBuy,
+                                                });
+                                            }}
+                                        />
+                                        <div className={`w-10 h-5 rounded-full ${showBidderPurse ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                            <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${showBidderPurse ? 'translate-x-5' : ''}`}></div>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center justify-between cursor-pointer space-x-2">
+                                        <span>Max Bid</span>
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={showBidderMaxBid}
+                                            onChange={async () => {
+                                                const next = !showBidderMaxBid;
+                                                setShowBidderMaxBid(next);
+                                                await broadcastActiveBidderDisplay({
+                                                    showPurse: showBidderPurse,
+                                                    showMaxBid: next,
+                                                    showPlayersToBuy: showBidderPlayersToBuy,
+                                                });
+                                            }}
+                                        />
+                                        <div className={`w-10 h-5 rounded-full ${showBidderMaxBid ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                            <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${showBidderMaxBid ? 'translate-x-5' : ''}`}></div>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center justify-between cursor-pointer space-x-2">
+                                        <span>Players to Buy</span>
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={showBidderPlayersToBuy}
+                                            onChange={async () => {
+                                                const next = !showBidderPlayersToBuy;
+                                                setShowBidderPlayersToBuy(next);
+                                                await broadcastActiveBidderDisplay({
+                                                    showPurse: showBidderPurse,
+                                                    showMaxBid: showBidderMaxBid,
+                                                    showPlayersToBuy: next,
+                                                });
+                                            }}
+                                        />
+                                        <div className={`w-10 h-5 rounded-full ${showBidderPlayersToBuy ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                            <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${showBidderPlayersToBuy ? 'translate-x-5' : ''}`}></div>
+                                        </div>
+                                    </label>
+                                </div>
+                                <p className="text-[11px] text-pink-100/70">
+                                    Sends a live update to the Spectator active-bidders panel. Default: only Max Bid is shown.
+                                </p>
+                            </div>
 
                         </div>
 
@@ -2882,7 +2977,8 @@ const handleSearchById = async (idOverride) => {
                             <p className="text-xs text-gray-300 mt-1">
                                 Tap a tag to prefill, edit if needed, then broadcast.
                             </p>
-                            <div className="flex flex-wrap gap-3 mt-3">
+
+                            <div className="flex flex-col sm:flex-wrap sm:flex-row gap-3 mt-3">
                                 <button
                                     onClick={async () => {
                                         await fetch(`${API}/api/custom-message`, {
