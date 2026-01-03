@@ -37,6 +37,23 @@ const unsoldMedia = [
 
 const unsoldAudio = new Audio('/sounds/unsold4.mp3');
 
+// Helper: format rupees into lakhs-friendly text for compact bidder info
+const formatLakhs = (amt) => {
+    const n = Number(amt) || 0;
+    if (n === 0) return "0";
+    if (n < 1000) return String(n);
+
+    if (n >= 100000) {
+        const lakhs = n / 100000;
+        const str = (Number.isInteger(lakhs) ? lakhs.toFixed(0) : lakhs.toFixed(2)).replace(/\.0$/, "");
+        return `${str} ${parseFloat(str) === 1 ? "lakh" : "lakhs"}`;
+    }
+
+    const thousands = n / 1000;
+    const str = (Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(2)).replace(/\.0$/, "");
+    return `${str}k`;
+};
+
 const SpectatorLiveDisplay = () => {
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
@@ -52,6 +69,12 @@ const SpectatorLiveDisplay = () => {
     const [tournamentName, setTournamentName] = useState("Loading Tournament...");
     const [tournamentLogo, setTournamentLogo] = useState("");
     const [secretBidActive, setSecretBidActive] = useState(false);
+    const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
+    const [showPurse, setShowPurse] = useState(false);
+    const [showMaxBid, setShowMaxBid] = useState(true);
+    const [showPlayersToBuy, setShowPlayersToBuy] = useState(false);
+    const [showActiveBidders, setShowActiveBidders] = useState(true);
+    const [activeBidders, setActiveBidders] = useState([]);
     const { tournamentSlug } = useParams();
     const [cricheroesStats, setCricheroesStats] = useState(null);
     const lastConfettiPlayerId = useRef(null);
@@ -185,12 +208,31 @@ const SpectatorLiveDisplay = () => {
 
 
 
-
-
+    const MIN_BASE_PRICE = 1700;
     const computeBasePrice = (player) => {
         if (player.base_price && player.base_price > 0) return player.base_price;
         const map = { A: 1700, B: 3000, C: 5000 };
         return map[player.base_category] || 0;
+    };
+
+    const computeTeamFinancials = (teamObj) => {
+        if (!teamObj) return null;
+        const teamPlayers = (playerList || []).filter(
+            (p) =>
+                Number(p.team_id) === Number(teamObj.id) &&
+                (p.sold_status === true || p.sold_status === "TRUE")
+        );
+        const spent = teamPlayers.reduce((sum, p) => sum + (Number(p.sold_price) || 0), 0);
+        const purse = Math.max(Number(teamObj.budget || 0) - spent, 0);
+        const playersBought = Number(teamObj.bought_count || 0);
+        const slotsTotal = Number(totalPlayersToBuy) || Number(teamObj.team_squad) || playersBought || 0;
+        const playersToBuy = Math.max(slotsTotal - playersBought, 0);
+        const computedMax = purse - Math.max(playersToBuy - 1, 0) * MIN_BASE_PRICE;
+        const maxBidAllowed = Math.max(
+            Number.isFinite(Number(teamObj.max_bid_allowed)) ? Number(teamObj.max_bid_allowed) : computedMax,
+            0
+        );
+        return { purse, playersBought, playersToBuy, maxBidAllowed };
     };
 
     const triggerConfettiIfSold = (playerData) => {
@@ -359,6 +401,7 @@ const SpectatorLiveDisplay = () => {
             const res = await fetch(`${API}/api/tournaments/${tournamentId}`);
             const data = await res.json();
             setTournamentName(data.title || "AUCTION ARENA LIVE");
+            setTotalPlayersToBuy(data.players_per_team || 0);
             if (data.logo) {
                 setTournamentLogo(`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${data.logo}?tr=w-300,q-95,e-sharpen`);
             }
@@ -404,8 +447,21 @@ const SpectatorLiveDisplay = () => {
 
         // 🔴 Live bid updates (optimistic)
         const onBidUpdated = ({ bid_amount, team_name }) => {
-            setHighestBid(Number(bid_amount) || 0);
-            setLeadingTeam(team_name || "");
+            const amount = Number(bid_amount) || 0;
+            const cleanedTeam = String(team_name || "").trim();
+            setHighestBid(amount);
+            setLeadingTeam(cleanedTeam);
+            if (cleanedTeam) {
+                setActiveBidders((prev) => {
+                    const now = Date.now();
+                    const existing = prev.find((t) => t.teamName === cleanedTeam);
+                    const updatedEntry = { teamName: cleanedTeam, lastBid: amount, updatedAt: now };
+                    if (existing) {
+                        return prev.map((t) => (t.teamName === cleanedTeam ? { ...t, ...updatedEntry } : t));
+                    }
+                    return [...prev, updatedEntry];
+                });
+            }
         };
         socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); });
 
@@ -518,14 +574,57 @@ const SpectatorLiveDisplay = () => {
                 ? { theme: payload, slug: null }
                 : (payload || {});
             if (!slugsMatch(incoming.slug, tournamentSlug)) return;
-            const value = typeof incoming.theme === "string" ? incoming.theme.trim() : "";
-            setTheme(value.length ? value : "default");
+            const nextTheme = typeof incoming.theme === "string" ? incoming.theme.trim() : "";
+            setTheme(nextTheme.length ? nextTheme : "default");
         };
         socket.on("themeUpdate", handleSocketThemeUpdate);
         socket.on("customMessageUpdate", (payload) => {
-            if (typeof payload === 'object') {
-                if (!matchesTournament(payload)) return;
-                setCustomMessage(payload?.message ?? null);
+            // Structured admin controls for Active Bidders
+            let activeEnvelope = null;
+            if (typeof payload === "object") {
+                if (payload?.activeBidderDisplay) {
+                    activeEnvelope = payload;
+                } else if (payload?.message && typeof payload.message === "object" && payload.message?.activeBidderDisplay) {
+                    activeEnvelope = payload.message;
+                }
+            }
+
+            if (activeEnvelope?.activeBidderDisplay) {
+                const scopedOk = (!activeEnvelope.tournament_id && !activeEnvelope.slug) || matchesTournament(activeEnvelope);
+                if (scopedOk) {
+                    const cfg = activeEnvelope.activeBidderDisplay || {};
+                    const parseBool = (v) => {
+                        if (v === undefined) return undefined;
+                        if (typeof v === "string") return v.trim().toLowerCase() === "true";
+                        return !!v;
+                    };
+                    const active = parseBool(cfg.showActiveBidders);
+                    const purse = parseBool(cfg.showPurse);
+                    const maxBid = parseBool(cfg.showMaxBid);
+                    const players = parseBool(cfg.showPlayersToBuy);
+                    if (active !== undefined) setShowActiveBidders(active);
+                    if (purse !== undefined) setShowPurse(purse);
+                    if (maxBid !== undefined) setShowMaxBid(maxBid);
+                    if (players !== undefined) setShowPlayersToBuy(players);
+                    return;
+                }
+            }
+
+            if (typeof payload === "object" && !matchesTournament(payload)) return;
+
+            const msg = typeof payload === "string" ? payload : payload?.message;
+
+            if (msg === "__SHOW_BIDDER_PURSE_ON__") { setShowPurse(true); return; }
+            if (msg === "__SHOW_BIDDER_PURSE_OFF__") { setShowPurse(false); return; }
+            if (msg === "__SHOW_BIDDER_PLAYERS_ON__") { setShowPlayersToBuy(true); return; }
+            if (msg === "__SHOW_BIDDER_PLAYERS_OFF__") { setShowPlayersToBuy(false); return; }
+            if (msg === "__SHOW_BIDDER_MAXBID_ON__") { setShowMaxBid(true); return; }
+            if (msg === "__SHOW_BIDDER_MAXBID_OFF__") { setShowMaxBid(false); return; }
+            if (msg === "__SHOW_ACTIVE_BIDDERS_ON__") { setShowActiveBidders(true); return; }
+            if (msg === "__SHOW_ACTIVE_BIDDERS_OFF__") { setShowActiveBidders(false); return; }
+
+            if (typeof msg === "string" && msg.length > 0) {
+                setCustomMessage(msg);
             } else {
                 setCustomMessage(null);
             }
@@ -559,17 +658,160 @@ const SpectatorLiveDisplay = () => {
 
     console.log("VIS PLAYER:", vis);
 
+    useEffect(() => {
+        setActiveBidders([]);
+    }, [player?.id]);
+
+    const activeBidderDetails = useMemo(() => {
+        if (!Array.isArray(activeBidders) || activeBidders.length === 0) return [];
+        return activeBidders
+            .map((entry) => {
+                const teamObj = teamSummaries.find(
+                    (t) => (t?.name || "").trim().toLowerCase() === (entry.teamName || "").trim().toLowerCase()
+                );
+                if (!teamObj) return null;
+                const fin = computeTeamFinancials(teamObj);
+                if (!fin) return null;
+                return {
+                    ...entry,
+                    purse: fin.purse,
+                    maxBidAllowed: fin.maxBidAllowed,
+                    playersToBuy: fin.playersToBuy,
+                    logo: teamObj.logo,
+                    id: teamObj.id,
+                };
+            })
+            .filter(Boolean)
+            .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }, [activeBidders, teamSummaries, playerList, totalPlayersToBuy]);
+
+    const visibleActiveBidders = useMemo(
+        () => activeBidderDetails.slice(0, 4),
+        [activeBidderDetails]
+    );
+
+    const activeBidderDisplayEnabled = showActiveBidders && (showPurse || showMaxBid || showPlayersToBuy);
+    const bidderGridTemplate = useMemo(() => {
+        const cols = ["1fr"]; // teams column
+        if (showPurse) cols.push("minmax(86px,92px)");
+        if (showMaxBid) cols.push("minmax(86px,92px)");
+        if (showPlayersToBuy) cols.push("minmax(68px,78px)");
+        return cols.join(" ");
+    }, [showPurse, showMaxBid, showPlayersToBuy]);
+
+    const { min: squadSizeMin, max: squadSizeMax } = useMemo(() => {
+        const sizes = Array.isArray(teamSummaries)
+            ? teamSummaries
+                .map((team) => Number(team?.team_squad))
+                .filter((n) => Number.isFinite(n) && n > 0)
+            : [];
+        if (sizes.length > 0) {
+            return { min: Math.min(...sizes), max: Math.max(...sizes) };
+        }
+        const fallback = Number(totalPlayersToBuy);
+        const safeFallback = Number.isFinite(fallback) && fallback > 0 ? fallback : null;
+        return { min: safeFallback, max: safeFallback };
+    }, [teamSummaries, totalPlayersToBuy]);
+
 
     const team = Array.isArray(teamSummaries)
         ? teamSummaries.find(t => t.id === Number(vis?.team_id))
         : null;
     const isSold = isSoldFlag(vis?.sold_status);
     const isUnsold = isUnsoldFlag(vis?.sold_status);
-
+    const showActivePanel =
+        activeBidderDisplayEnabled &&
+        visibleActiveBidders.length > 0 &&
+        !isSold &&
+        !isUnsold;
 
 
     return (
         <div className="relative w-screen h-screen">
+            {showActivePanel && (
+                <div className="absolute bottom-52 left-[70%] -translate-x-1/2 w-[78vw] max-w-lg md:max-w-md z-20">
+                    <div className="rounded-xl border border-white/20 bg-black/80 backdrop-blur shadow-[0_14px_36px_rgba(0,0,0,0.45)] overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 text-white/80 text-[11px] uppercase tracking-[0.16em] bg-white/5 border-b border-white/10">
+                            <span className="text-sm font-extrabold text-white">Active Bidders</span>
+                            <span className="text-[10px] text-white/70">{visibleActiveBidders.length} shown</span>
+                        </div>
+                        <div
+                            className="grid items-center text-[9px] md:text-[10px] uppercase tracking-[0.14em] text-white/70 bg-white/5 border-b border-white/10"
+                            style={{ gridTemplateColumns: bidderGridTemplate }}
+                        >
+                            <div className="px-3 py-1.5">Teams</div>
+                            {showPurse && (
+                                <div className="px-2.5 py-1.5 text-right justify-self-end">Purse</div>
+                            )}
+                            {showMaxBid && (
+                                <div className="px-2.5 py-1.5 text-right justify-self-end">Max Bid</div>
+                            )}
+                            {showPlayersToBuy && (
+                                <div className="px-2.5 py-1.5 text-right justify-self-end">To Buy</div>
+                            )}
+                        </div>
+                        <div className="divide-y divide-white/10">
+                            {visibleActiveBidders.map((bidder, idx) => {
+                                const isLatest = idx === 0;
+                                return (
+                                    <div
+                                        key={bidder.id || bidder.teamName || idx}
+                                        className={`grid items-center bg-white/[0.04] ${isLatest ? "ring-2 ring-amber-400/70 animate-pulse" : ""}`}
+                                        style={{ gridTemplateColumns: bidderGridTemplate }}
+                                    >
+                                        <div className="flex items-center gap-3 px-3 py-2.5 min-w-0">
+                                            <div className="w-10 h-10 rounded-md bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
+                                                {bidder.logo ? (
+                                                    <img
+                                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bidder.logo}?tr=w-140,h-140,q-95`}
+                                                        alt={bidder.teamName}
+                                                        className="w-full h-full object-contain"
+                                                    />
+                                                ) : (
+                                                    <span className="text-[9px] text-white/60 text-center px-1">No Logo</span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-base font-extrabold text-white uppercase truncate max-w-[10rem] md:max-w-[13rem]">
+                                                    {bidder.teamName}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {showPurse && (
+                                            <div className="px-2.5 py-2 text-right justify-self-end">
+                                                <span className="inline-block px-2.5 py-0.5 rounded-md bg-amber-300 text-black font-black text-sm tabular-nums shadow-[0_3px_12px_rgba(251,191,36,0.35)]">
+                                                    {formatLakhs(bidder.purse)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {showMaxBid && (
+                                            <div className="px-2.5 py-2 text-right justify-self-end">
+                                                <span className={`text-sm font-bold tabular-nums ${isLatest ? "text-amber-300 animate-pulse" : "text-white"}`}>
+                                                    {formatLakhs(bidder.maxBidAllowed)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {showPlayersToBuy && (
+                                            <div className="px-2.5 py-2 text-right justify-self-end">
+                                                <span className="text-sm font-bold text-white tabular-nums">
+                                                    {Number.isFinite(Number(bidder.playersToBuy)) ? bidder.playersToBuy : "-"}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex items-center justify-between px-3 py-2 text-[9px] uppercase tracking-[0.14em] bg-black/85 border-t border-white/10 text-white/70">
+                            <span>Squad Size</span>
+                            <div className="flex items-center gap-3">
+                                <span>Min: <span className="text-amber-200 font-semibold">{squadSizeMin ?? "-"}</span></span>
+                                <span>Max: <span className="text-amber-200 font-semibold">{squadSizeMax ?? "-"}</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {vis && (
                 <div key={`${vis?.id}-${animTick}`} className={`relative w-full h-full ${animClass}`}>
                     <PlayerCard3

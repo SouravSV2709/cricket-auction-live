@@ -3182,57 +3182,60 @@ const groups =
                                                         )}
                                                     </div>
                                                     <div className="divide-y divide-white/10">
-                                                        {visibleActiveBidders.map((bidder, idx) => (
-                                                            <div
-                                                                key={bidder.id || bidder.teamName || idx}
-                                                                className="flex items-center bg-white/[0.03]"
-                                                            >
-                                                                <div className="flex items-center gap-3 flex-1 px-4 py-3">
-                                                                    <div className="w-12 h-12 rounded-md bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
-                                                                        {bidder.logo ? (
-                                                                            <img
-                                                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bidder.logo}?tr=w-150,h-150,q-95`}
-                                                                                alt={bidder.teamName}
-                                                                                className="w-full h-full object-contain"
-                                                                            />
-                                                                        ) : (
-                                                                            <span className="text-[10px] text-white/60 text-center px-1">No Logo</span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex flex-col min-w-0">
-                                                                        <span className="text-lg font-extrabold text-white uppercase truncate">
-                                                                            {bidder.teamName}
-                                                                        </span>
-                                                                        {showMaxBid && !showPurse && !showPlayersToBuy && (
-                                                                            <span className="text-[11px] text-white/60">
-                                                                                Max Bid {formatLakhs(bidder.maxBidAllowed)}
+                                                        {visibleActiveBidders.map((bidder, idx) => {
+                                                            const isLatest = idx === 0;
+                                                            return (
+                                                                <div
+                                                                    key={bidder.id || bidder.teamName || idx}
+                                                                    className={`flex items-center bg-white/[0.03] ${isLatest ? "ring-2 ring-amber-300/70 animate-pulse" : ""}`}
+                                                                >
+                                                                    <div className="flex items-center gap-3 flex-1 px-4 py-3">
+                                                                        <div className="w-12 h-12 rounded-md bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
+                                                                            {bidder.logo ? (
+                                                                                <img
+                                                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bidder.logo}?tr=w-150,h-150,q-95`}
+                                                                                    alt={bidder.teamName}
+                                                                                    className="w-full h-full object-contain"
+                                                                                />
+                                                                            ) : (
+                                                                                <span className="text-[10px] text-white/60 text-center px-1">No Logo</span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex flex-col min-w-0">
+                                                                            <span className="text-lg font-extrabold text-white uppercase truncate">
+                                                                                {bidder.teamName}
                                                                             </span>
-                                                                        )}
+                                                                            {showMaxBid && !showPurse && !showPlayersToBuy && (
+                                                                                <span className="text-[11px] text-white/60">
+                                                                                    Max Bid {formatLakhs(bidder.maxBidAllowed)}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
+                                                                    {showPurse && (
+                                                                        <div className="w-44 px-4 py-3 text-center">
+                                                                            <span className="inline-block px-3 py-1 rounded-md bg-amber-300 text-black font-black text-lg tabular-nums shadow-[0_4px_18px_rgba(251,191,36,0.35)]">
+                                                                                {formatLakhs(bidder.purse)}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                    {showMaxBid && (
+                                                                        <div className="w-36 px-4 py-3 text-center">
+                                                                            <span className={`text-base font-bold tabular-nums ${isLatest ? "text-amber-200 animate-pulse" : "text-white"}`}>
+                                                                                {formatLakhs(bidder.maxBidAllowed)}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                    {showPlayersToBuy && (
+                                                                        <div className="w-32 px-4 py-3 text-center">
+                                                                            <span className="text-base font-bold text-white tabular-nums">
+                                                                                {Number.isFinite(Number(bidder.playersToBuy)) ? bidder.playersToBuy : "-"}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                {showPurse && (
-                                                                    <div className="w-44 px-4 py-3 text-center">
-                                                                        <span className="inline-block px-3 py-1 rounded-md bg-amber-300 text-black font-black text-lg tabular-nums shadow-[0_4px_18px_rgba(251,191,36,0.35)]">
-                                                                            {formatLakhs(bidder.purse)}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                                {showMaxBid && (
-                                                                    <div className="w-36 px-4 py-3 text-center">
-                                                                        <span className="text-base font-bold text-white tabular-nums">
-                                                                            {formatLakhs(bidder.maxBidAllowed)}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                                {showPlayersToBuy && (
-                                                                    <div className="w-32 px-4 py-3 text-center">
-                                                                        <span className="text-base font-bold text-white tabular-nums">
-                                                                            {Number.isFinite(Number(bidder.playersToBuy)) ? bidder.playersToBuy : "-"}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                     <div className="flex items-center justify-between px-4 py-2 text-[11px] uppercase tracking-[0.2em] bg-black/80 border-t border-white/10 text-white/70">
                                                         <span>Squad Size</span>

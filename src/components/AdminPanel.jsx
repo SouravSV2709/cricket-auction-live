@@ -31,6 +31,7 @@ const AdminPanel = () => {
     const [showBidderPurse, setShowBidderPurse] = useState(false);
     const [showBidderMaxBid, setShowBidderMaxBid] = useState(true);
     const [showBidderPlayersToBuy, setShowBidderPlayersToBuy] = useState(false);
+    const [showBidderPanel, setShowBidderPanel] = useState(true);
     const [tournamentTitle, setTournamentTitle] = useState('Tournament');
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
@@ -2794,8 +2795,29 @@ const handleSearchById = async (idOverride) => {
                                 <div className="text-sm font-semibold text-pink-200 uppercase tracking-wide">
                                     Active Bidders Display (Spectator)
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-white text-sm">
-                                    <label className="flex items-center justify-between cursor-pointer space-x-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-white text-sm">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <span>Show Panel (Youtube view)</span>
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={showBidderPanel}
+                                            onChange={async () => {
+                                                const next = !showBidderPanel;
+                                                setShowBidderPanel(next);
+                                                await broadcastActiveBidderDisplay({
+                                                    showActiveBidders: next,
+                                                    showPurse: showBidderPurse,
+                                                    showMaxBid: showBidderMaxBid,
+                                                    showPlayersToBuy: showBidderPlayersToBuy,
+                                                });
+                                            }}
+                                        />
+                                        <div className={`w-10 h-5 rounded-full ${showBidderPanel ? 'bg-green-500' : 'bg-red-400'} relative`}>
+                                            <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${showBidderPanel ? 'translate-x-5' : ''}`}></div>
+                                        </div>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
                                         <span>Purse</span>
                                         <input
                                             type="checkbox"
@@ -2805,6 +2827,7 @@ const handleSearchById = async (idOverride) => {
                                                 const next = !showBidderPurse;
                                                 setShowBidderPurse(next);
                                                 await broadcastActiveBidderDisplay({
+                                                    showActiveBidders: showBidderPanel,
                                                     showPurse: next,
                                                     showMaxBid: showBidderMaxBid,
                                                     showPlayersToBuy: showBidderPlayersToBuy,
@@ -2815,7 +2838,7 @@ const handleSearchById = async (idOverride) => {
                                             <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${showBidderPurse ? 'translate-x-5' : ''}`}></div>
                                         </div>
                                     </label>
-                                    <label className="flex items-center justify-between cursor-pointer space-x-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
                                         <span>Max Bid</span>
                                         <input
                                             type="checkbox"
@@ -2825,6 +2848,7 @@ const handleSearchById = async (idOverride) => {
                                                 const next = !showBidderMaxBid;
                                                 setShowBidderMaxBid(next);
                                                 await broadcastActiveBidderDisplay({
+                                                    showActiveBidders: showBidderPanel,
                                                     showPurse: showBidderPurse,
                                                     showMaxBid: next,
                                                     showPlayersToBuy: showBidderPlayersToBuy,
@@ -2835,7 +2859,7 @@ const handleSearchById = async (idOverride) => {
                                             <div className={`absolute left-0 top-0 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${showBidderMaxBid ? 'translate-x-5' : ''}`}></div>
                                         </div>
                                     </label>
-                                    <label className="flex items-center justify-between cursor-pointer space-x-2">
+                                    <label className="flex items-center gap-2 cursor-pointer">
                                         <span>Players to Buy</span>
                                         <input
                                             type="checkbox"
@@ -2845,6 +2869,7 @@ const handleSearchById = async (idOverride) => {
                                                 const next = !showBidderPlayersToBuy;
                                                 setShowBidderPlayersToBuy(next);
                                                 await broadcastActiveBidderDisplay({
+                                                    showActiveBidders: showBidderPanel,
                                                     showPurse: showBidderPurse,
                                                     showMaxBid: showBidderMaxBid,
                                                     showPlayersToBuy: next,
@@ -2857,7 +2882,7 @@ const handleSearchById = async (idOverride) => {
                                     </label>
                                 </div>
                                 <p className="text-[11px] text-pink-100/70">
-                                    Sends a live update to the Spectator active-bidders panel. Default: only Max Bid is shown.
+                                    Sends a live update to the Spectator active-bidders panel. Default: panel on with only Max Bid shown.
                                 </p>
                             </div>
 
