@@ -2880,29 +2880,27 @@ const groups =
 `}</style>
 
                 {/* Glow wrapper */}
-                <div className="relative order-2 flex-[1.2] flex justify-center">
+                <div className="relative order-2 flex-[1.2] flex flex-col items-center">
 
+                    {(player?.name || player?.role) && (
+                        <div className="mb-4 px-5 py-2 rounded-2xl bg-black/70 border border-white/10 shadow-lg max-w-[36rem] text-center">
+                            <div
+                                className="text-4xl font-black tracking-wide uppercase text-white drop-shadow"
+                                style={{ WebkitTextStroke: "1px rgba(0,0,0,0.35)" }}
+                            >
+                                {player?.name || "Player"}
+                            </div>
+                            <div className="mt-1 text-lg text-yellow-300 uppercase tracking-wide">
+                                {player?.role || "Role"}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Card */}
                     <div
                         className="relative w-[48rem] h-[56rem] rounded-[32px] overflow-hidden shadow-2xl border border-gray-300 mt-4"
                         style={{ backgroundColor: cardBgColor }}
                     >
-                        {(player?.name || player?.role) && (
-                            <div className="absolute top-4 inset-x-4 z-30 flex flex-col items-center pointer-events-none">
-                                <div className="px-5 py-2 rounded-2xl bg-black/70 border border-white/10 shadow-lg max-w-[80%] text-center">
-                                    <div
-                                        className="text-4xl font-black tracking-wide uppercase text-white drop-shadow"
-                                        style={{ WebkitTextStroke: "1px rgba(0,0,0,0.35)" }}
-                                    >
-                                        {player?.name || "Player"}
-                                    </div>
-                                    <div className="mt-1 text-lg text-yellow-300 uppercase tracking-wide">
-                                        {player?.role || "Role"}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                         {/* FLAG WATERMARK — boosted visibility */}
                         {isLinkedToTeam && teamFlagSrc && (
                             <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
@@ -3318,6 +3316,9 @@ const groups =
 
                             <div className="px-3 py-2 tracking-wider uppercase">Serial No</div>
                                 <div className="px-3 py-2">{player?.auction_serial || "-"}</div>
+
+                                <div className="px-3 py-2 tracking-wider uppercase">Name</div>
+                                <div className="px-3 py-2">{player?.name || player?.fullname || "-"}</div>
 
                                 <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
                                 <div className="px-3 py-2">{player?.nickname || "-"}</div>
