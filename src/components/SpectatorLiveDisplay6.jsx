@@ -420,6 +420,18 @@ const SpectatorLiveDisplay6 = () => {
             ? { label: "Status", value: "Unsold", badge: "Unsold", badgeClass: "bg-rose-500/15 border-rose-400/50 text-rose-100" }
             : { label: "Highest Bid", value: formatLakhs(highestBid), badge: "Live", badgeClass: "bg-amber-400/20 border-amber-300/60 text-amber-100" };
 
+    const districtValue =
+        typeof player?.district === "string" ? player.district.trim() : player?.district;
+    const locationValue =
+        typeof player?.location === "string" ? player.location.trim() : player?.location;
+    const vitals = [
+        { label: "Role", value: player.role || "N/A" },
+        ...(districtValue ? [{ label: "District", value: districtValue }] : []),
+        ...(locationValue ? [{ label: "Location", value: locationValue }] : []),
+        { label: "Batting", value: player.batting_hand || "-" },
+        { label: "Bowling", value: player.bowling_hand || "-" },
+    ];
+
     return (
         <div className="min-h-screen w-screen relative overflow-hidden text-white px-4 py-5 pb-24">
             <video
@@ -457,7 +469,12 @@ const SpectatorLiveDisplay6 = () => {
                         className="w-32 h-32 rounded-2xl object-contain border border-white/10 shadow-lg bg-black/40 p-1"
                     />
                     <div className="flex-1 min-w-0">
-                        <p className="text-[11px] uppercase tracking-[0.4em] text-white/50 mb-1">Player #{player.auction_serial || "-"}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] uppercase tracking-[0.35em] text-white/50">Player</span>
+                            <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-300/60 text-amber-50 text-xs font-semibold shadow-lg shadow-amber-500/20 backdrop-blur-sm">
+                                #{player.auction_serial || "-"}
+                            </span>
+                        </div>
                         <h2 className="text-2xl font-extrabold leading-tight break-words">{player.name}</h2>
                         {playerTags.length > 0 && <p className="text-sm text-white/70 mt-1">{playerTags.join(" • ")}</p>}
                         <div className="flex flex-wrap gap-2 mt-3 text-xs">
@@ -517,22 +534,17 @@ const SpectatorLiveDisplay6 = () => {
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-2xl bg-black/40 border border-white/10 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Role</p>
-                        <p className="text-base">{player.role || "N/A"}</p>
-                    </div>
-                    <div className="rounded-2xl bg-black/40 border border-white/10 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">District</p>
-                        <p className="text-base">{player.district || "NA"}</p>
-                    </div>
-                    <div className="rounded-2xl bg-black/40 border border-white/10 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Batting</p>
-                        <p className="text-base">{player.batting_hand || "-"}</p>
-                    </div>
-                    <div className="rounded-2xl bg-black/40 border border-white/10 px-3 py-3">
-                        <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">Bowling</p>
-                        <p className="text-base">{player.bowling_hand || "-"}</p>
-                    </div>
+                    {vitals.map((item) => (
+                        <div
+                            key={item.label}
+                            className="rounded-2xl bg-black/40 border border-white/10 px-3 py-3"
+                        >
+                            <p className="text-[11px] uppercase tracking-[0.3em] text-white/50">
+                                {item.label}
+                            </p>
+                            <p className="text-base">{item.value || "-"}</p>
+                        </div>
+                    ))}
                 </div>
             </section>
 
