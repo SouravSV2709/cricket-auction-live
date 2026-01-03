@@ -1615,6 +1615,7 @@ const SpectatorLiveDisplay = () => {
                     ...entry,
                     purse: fin.purse,
                     maxBidAllowed: fin.maxBidAllowed,
+                    playersBought: fin.playersBought,
                     playersToBuy: fin.playersToBuy,
                     logo: teamObj.logo,
                     id: teamObj.id,
@@ -1627,7 +1628,20 @@ const SpectatorLiveDisplay = () => {
         () => activeBidderDetails.slice(0, 4),
         [activeBidderDetails]
     );
-    const showAnyActiveBidderFields = showPurse || showMaxBid || showPlayersToBuy;
+    const activeBidderDisplayEnabled = showPurse || showMaxBid || showPlayersToBuy;
+    const { min: squadSizeMin, max: squadSizeMax } = useMemo(() => {
+        const sizes = Array.isArray(teamSummaries)
+            ? teamSummaries
+                .map((team) => Number(team?.team_squad))
+                .filter((n) => Number.isFinite(n) && n > 0)
+            : [];
+        if (sizes.length > 0) {
+            return { min: Math.min(...sizes), max: Math.max(...sizes) };
+        }
+        const fallback = Number(totalPlayersToBuy);
+        const safeFallback = Number.isFinite(fallback) && fallback > 0 ? fallback : null;
+        return { min: safeFallback, max: safeFallback };
+    }, [teamSummaries, totalPlayersToBuy]);
 
     // When secret-bid is revealed
 
@@ -3148,61 +3162,85 @@ const groups =
                                             </div>
                                         )}
 
-                                        {visibleActiveBidders.length > 0 && showAnyActiveBidderFields && (
-                                            <div className="w-full max-w-6xl space-y-4">
+                                        {activeBidderDisplayEnabled && visibleActiveBidders.length > 0 && (
+                                            <div className="w-full max-w-5xl space-y-3">
                                                 <div className="flex items-center justify-between text-white/80 text-base uppercase tracking-widest px-1">
                                                     <span className="text-lg font-extrabold text-white">Active Bidders</span>
                                                     <span className="text-sm text-white/70">{visibleActiveBidders.length} shown</span>
                                                 </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                                                    {visibleActiveBidders.map((bidder, idx) => (
-                                                        <div
-                                                            key={bidder.id || bidder.teamName || idx}
-                                                            className="rounded-2xl border border-white/10 bg-black/60 backdrop-blur px-5 py-5 shadow-xl flex flex-col gap-3 min-h-[200px]"
-                                                        >
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-16 h-16 rounded-full bg-black/30 border border-white/15 flex items-center justify-center overflow-hidden">
-                                                                    {bidder.logo ? (
-                                                                        <img
-                                                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bidder.logo}?tr=w-150,h-150,q-95`}
-                                                                            alt={bidder.teamName}
-                                                                            className="w-full h-full object-contain"
-                                                                        />
-                                                                    ) : (
-                                                                        <span className="text-[11px] text-white/60 text-center px-1">No Logo</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <div className="text-xl font-extrabold text-white truncate uppercase">
-                                                                        {bidder.teamName}
+                                                <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur shadow-2xl overflow-hidden">
+                                                    <div className="flex items-center text-[11px] uppercase tracking-[0.24em] text-white/70 bg-white/5 border-b border-white/10">
+                                                        <div className="flex-1 px-4 py-2">Teams</div>
+                                                        {showPurse && (
+                                                            <div className="w-44 px-4 py-2 text-center">Purse Rem</div>
+                                                        )}
+                                                        {showMaxBid && (
+                                                            <div className="w-36 px-4 py-2 text-center">Max Bid</div>
+                                                        )}
+                                                        {showPlayersToBuy && (
+                                                            <div className="w-32 px-4 py-2 text-center">To Buy</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="divide-y divide-white/10">
+                                                        {visibleActiveBidders.map((bidder, idx) => (
+                                                            <div
+                                                                key={bidder.id || bidder.teamName || idx}
+                                                                className="flex items-center bg-white/[0.03]"
+                                                            >
+                                                                <div className="flex items-center gap-3 flex-1 px-4 py-3">
+                                                                    <div className="w-12 h-12 rounded-md bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden">
+                                                                        {bidder.logo ? (
+                                                                            <img
+                                                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${bidder.logo}?tr=w-150,h-150,q-95`}
+                                                                                alt={bidder.teamName}
+                                                                                className="w-full h-full object-contain"
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="text-[10px] text-white/60 text-center px-1">No Logo</span>
+                                                                        )}
                                                                     </div>
-                                                                    <div className="text-sm text-white/70">
-                                                                        Last bid: <span className="text-yellow-300 font-bold">{formatLakhs(bidder.lastBid)}</span>
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <span className="text-lg font-extrabold text-white uppercase truncate">
+                                                                            {bidder.teamName}
+                                                                        </span>
+                                                                        {showMaxBid && !showPurse && !showPlayersToBuy && (
+                                                                            <span className="text-[11px] text-white/60">
+                                                                                Max Bid {formatLakhs(bidder.maxBidAllowed)}
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-3 text-sm text-white/80">
                                                                 {showPurse && (
-                                                                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 flex flex-col">
-                                                                        <span className="text-[11px] uppercase tracking-wide text-white/60">Purse</span>
-                                                                        <span className="text-lg font-bold text-green-300">{formatLakhs(bidder.purse)}</span>
+                                                                    <div className="w-44 px-4 py-3 text-center">
+                                                                        <span className="inline-block px-3 py-1 rounded-md bg-amber-300 text-black font-black text-lg tabular-nums shadow-[0_4px_18px_rgba(251,191,36,0.35)]">
+                                                                            {formatLakhs(bidder.purse)}
+                                                                        </span>
                                                                     </div>
                                                                 )}
                                                                 {showMaxBid && (
-                                                                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 flex flex-col">
-                                                                        <span className="text-[11px] uppercase tracking-wide text-white/60">Max Bid</span>
-                                                                        <span className="text-lg font-bold text-blue-300">{formatLakhs(bidder.maxBidAllowed)}</span>
+                                                                    <div className="w-36 px-4 py-3 text-center">
+                                                                        <span className="text-base font-bold text-white tabular-nums">
+                                                                            {formatLakhs(bidder.maxBidAllowed)}
+                                                                        </span>
                                                                     </div>
                                                                 )}
                                                                 {showPlayersToBuy && (
-                                                                    <div className="rounded-lg bg-white/5 border border-white/10 px-3 py-2 col-span-2 flex flex-col">
-                                                                        <span className="text-[11px] uppercase tracking-wide text-white/60">Players To Buy</span>
-                                                                        <span className="text-lg font-bold text-amber-200">{bidder.playersToBuy}</span>
+                                                                    <div className="w-32 px-4 py-3 text-center">
+                                                                        <span className="text-base font-bold text-white tabular-nums">
+                                                                            {Number.isFinite(Number(bidder.playersToBuy)) ? bidder.playersToBuy : "-"}
+                                                                        </span>
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="flex items-center justify-between px-4 py-2 text-[11px] uppercase tracking-[0.2em] bg-black/80 border-t border-white/10 text-white/70">
+                                                        <span>Squad Size</span>
+                                                        <div className="flex items-center gap-5">
+                                                            <span>Min: <span className="text-amber-200 font-semibold">{squadSizeMin ?? "-"}</span></span>
+                                                            <span>Max: <span className="text-amber-200 font-semibold">{squadSizeMax ?? "-"}</span></span>
                                                         </div>
-                                                    ))}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
