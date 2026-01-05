@@ -647,6 +647,8 @@ const SpectatorLiveDisplay = () => {
     const lastUnsoldAtRef = useRef(0);
     const lastUnsoldPlayerIdRef = useRef(null);
     const playerRef = useRef(null);
+    const [rebidCountdown, setRebidCountdown] = useState(null);
+    const rebidCountdownIntervalRef = useRef(null);
 
     useEffect(() => {
         playerRef.current = player;
@@ -1486,13 +1488,17 @@ const SpectatorLiveDisplay = () => {
             } else if (msg === "__CLEAR_CUSTOM_VIEW__") {
                 setIsLoading(false); setCustomView(null); setCustomMessage(null);
                 setCountdownTime(null);
+                setRebidCountdown(null);
                 if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+                if (rebidCountdownIntervalRef.current) clearInterval(rebidCountdownIntervalRef.current);
                 fetchPlayer();
             } else if (msg === "__RESET_AUCTION__") {
                 fetchAllPlayers(); fetchTeams();
                 setCustomView("no-players"); setCustomMessage(null);
                 setCountdownTime(null);
+                setRebidCountdown(null);
                 if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+                if (rebidCountdownIntervalRef.current) clearInterval(rebidCountdownIntervalRef.current);
             } else if (msg.startsWith("__START_COUNTDOWN__")) {
                 const seconds = parseInt(msg.replace("__START_COUNTDOWN__", ""), 10) || 0;
                 setCustomMessage(null);
@@ -1500,6 +1506,16 @@ const SpectatorLiveDisplay = () => {
                 if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
                 countdownIntervalRef.current = setInterval(() => {
                     setCountdownTime(prev => (prev <= 1 ? (clearInterval(countdownIntervalRef.current), 0) : prev - 1));
+                }, 1000);
+            } else if (msg.startsWith("__START_REBID_COUNTDOWN__")) {
+                const seconds = parseInt(msg.replace("__START_REBID_COUNTDOWN__", ""), 10) || 0;
+                setCustomMessage(null);
+                setCustomView("rebid-list");
+                setTeamIdToShow(null);
+                setRebidCountdown(seconds);
+                if (rebidCountdownIntervalRef.current) clearInterval(rebidCountdownIntervalRef.current);
+                rebidCountdownIntervalRef.current = setInterval(() => {
+                    setRebidCountdown(prev => (prev <= 1 ? (clearInterval(rebidCountdownIntervalRef.current), 0) : prev - 1));
                 }, 1000);
             } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
                 setCustomView("top-10-expensive"); setCustomMessage(null);
@@ -1576,6 +1592,12 @@ const SpectatorLiveDisplay = () => {
             socketRef.current = null;
         };
     }, [tournamentId]);
+
+    useEffect(() => {
+        return () => {
+            if (rebidCountdownIntervalRef.current) clearInterval(rebidCountdownIntervalRef.current);
+        };
+    }, []);
 
 
 
@@ -2346,6 +2368,29 @@ const SpectatorLiveDisplay = () => {
                 {isVideoTheme && <BackgroundEffect theme={theme} />}
                 <div className="absolute inset-0 bg-black/75" />
 
+                {rebidCountdown !== null && (
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50">
+                        <div className="px-6 py-4 rounded-2xl bg-black/75 border border-amber-400/70 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur">
+                            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-200/80">
+                                Re-bid Deadline
+                            </p>
+                            <div
+                                className={`text-3xl md:text-4xl font-black tabular-nums ${
+                                    rebidCountdown === 0 ? "text-red-400 animate-pulse" : "text-amber-300"
+                                }`}
+                            >
+                                {Math.floor(rebidCountdown / 60)}:
+                                {(rebidCountdown % 60).toString().padStart(2, "0")}
+                            </div>
+                            {rebidCountdown === 0 && (
+                                <p className="mt-1 text-xs font-semibold text-red-300 uppercase tracking-[0.2em] animate-pulse">
+                                    Time's Up
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 <div className="relative z-10 flex flex-col h-full px-6 py-8 gap-6">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div className="space-y-1">
@@ -2402,9 +2447,6 @@ const SpectatorLiveDisplay = () => {
                         </div>
                     )}
                 </div>
-                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black/70 border-t border-purple-600 z-50 py-2">
-                    All rights reserved | Powered by EA ARENA | +91-9547652702
-                </footer>
             </div>
         );
     }

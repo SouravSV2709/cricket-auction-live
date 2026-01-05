@@ -3115,6 +3115,20 @@ const handleSearchById = async (idOverride) => {
                                 >
                                     🚀 Start Countdown
                                 </button>
+                                <button
+                                    className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded shadow"
+                                    onClick={async () => {
+                                        const message = `__START_REBID_COUNTDOWN__${countdownDuration}`;
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message, tournament_id: tournamentId, slug: tournamentSlug }),
+                                        });
+                                        alert("Re-bid countdown started on unsold list view.");
+                                    }}
+                                >
+                                    Start Countdown (Unsold list)
+                                </button>
                             </div>
                         </div>
 
