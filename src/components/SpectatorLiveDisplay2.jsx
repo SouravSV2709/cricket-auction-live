@@ -3293,21 +3293,21 @@ const groups =
 
                                         {activeBidderDisplayEnabled && visibleActiveBidders.length > 0 && (
                                             <div className="w-full max-w-5xl space-y-3">
-                                                <div className="flex items-center justify-between text-white/80 text-base uppercase tracking-widest px-1">
-                                                    <span className="text-lg font-extrabold text-white">Active Bidders</span>
-                                                    <span className="text-sm text-white/70">{visibleActiveBidders.length} shown</span>
+                                                <div className="flex items-center justify-between text-white/80 text-xl uppercase tracking-widest px-1">
+                                                    <span className="text-2xl font-extrabold text-white">Active Bidders</span>
+                                                    <span className="text-lg text-white/70">{visibleActiveBidders.length} shown</span>
                                                 </div>
                                                 <div className="rounded-2xl border border-white/15 bg-black/70 backdrop-blur shadow-2xl overflow-hidden">
-                                                    <div className="flex items-center text-[11px] uppercase tracking-[0.24em] text-white/70 bg-white/5 border-b border-white/10">
-                                                        <div className="flex-1 px-4 py-2">Teams</div>
+                                                    <div className="flex items-center text-base uppercase tracking-[0.24em] text-white/70 bg-white/5 border-b border-white/10">
+                                                        <div className="flex-1 px-4 py-3">Teams</div>
                                                         {showPurse && (
-                                                            <div className="w-44 px-4 py-2 text-center">Purse Rem</div>
+                                                            <div className="w-44 px-4 py-3 text-center">Purse Rem</div>
                                                         )}
                                                         {showMaxBid && (
-                                                            <div className="w-36 px-4 py-2 text-center">Max Bid</div>
+                                                            <div className="w-36 px-4 py-3 text-center">Max Bid</div>
                                                         )}
                                                         {showPlayersToBuy && (
-                                                            <div className="w-32 px-4 py-2 text-center">To Buy</div>
+                                                            <div className="w-32 px-4 py-3 text-center">To Buy</div>
                                                         )}
                                                     </div>
                                                     <div className="divide-y divide-white/10">
@@ -3327,15 +3327,15 @@ const groups =
                                                                                     className="w-full h-full object-contain"
                                                                                 />
                                                                             ) : (
-                                                                                <span className="text-[10px] text-white/60 text-center px-1">No Logo</span>
+                                                                                <span className="text-sm text-white/60 text-center px-1">No Logo</span>
                                                                             )}
                                                                         </div>
                                                                         <div className="flex flex-col min-w-0">
-                                                                            <span className="text-lg font-extrabold text-white uppercase truncate">
+                                                                            <span className="text-2xl font-extrabold text-white uppercase truncate">
                                                                                 {bidder.teamName}
                                                                             </span>
                                                                             {showMaxBid && !showPurse && !showPlayersToBuy && (
-                                                                                <span className="text-[11px] text-white/60">
+                                                                                <span className="text-base text-white/60">
                                                                                     Max Bid {formatLakhs(bidder.maxBidAllowed)}
                                                                                 </span>
                                                                             )}
@@ -3343,21 +3343,21 @@ const groups =
                                                                     </div>
                                                                     {showPurse && (
                                                                         <div className="w-44 px-4 py-3 text-center">
-                                                                            <span className="inline-block px-3 py-1 rounded-md bg-amber-300 text-black font-black text-lg tabular-nums shadow-[0_4px_18px_rgba(251,191,36,0.35)]">
+                                                                            <span className="inline-block px-3 py-1 rounded-md bg-amber-300 text-black font-black text-2xl tabular-nums shadow-[0_4px_18px_rgba(251,191,36,0.35)]">
                                                                                 {formatLakhs(bidder.purse)}
                                                                             </span>
                                                                         </div>
                                                                     )}
                                                                     {showMaxBid && (
                                                                         <div className="w-36 px-4 py-3 text-center">
-                                                                            <span className={`text-base font-bold tabular-nums ${isLatest ? "text-amber-200 animate-pulse" : "text-white"}`}>
+                                                                            <span className={`text-xl font-bold tabular-nums ${isLatest ? "text-amber-200 animate-pulse" : "text-white"}`}>
                                                                                 {formatLakhs(bidder.maxBidAllowed)}
                                                                             </span>
                                                                         </div>
                                                                     )}
                                                                     {showPlayersToBuy && (
                                                                         <div className="w-32 px-4 py-3 text-center">
-                                                                            <span className="text-base font-bold text-white tabular-nums">
+                                                                            <span className="text-xl font-bold text-white tabular-nums">
                                                                                 {Number.isFinite(Number(bidder.playersToBuy)) ? bidder.playersToBuy : "-"}
                                                                             </span>
                                                                         </div>
@@ -3366,7 +3366,7 @@ const groups =
                                                             );
                                                         })}
                                                     </div>
-                                                    <div className="flex items-center justify-between px-4 py-2 text-[11px] uppercase tracking-[0.2em] bg-black/80 border-t border-white/10 text-white/70">
+                                                    <div className="flex items-center justify-between px-4 py-3 text-base uppercase tracking-[0.2em] bg-black/80 border-t border-white/10 text-white/70">
                                                         <span>Squad Size</span>
                                                         <div className="flex items-center gap-5">
                                                             <span>Min: <span className="text-amber-200 font-semibold">{squadSizeMin ?? "-"}</span></span>
