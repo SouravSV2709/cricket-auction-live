@@ -688,7 +688,7 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-        document.title = "Live4 | EA ARENA";
+        document.title = "Live2 | EA ARENA";
     }, []);
 
     // Preload UNSOLD GIFs so they render instantly
