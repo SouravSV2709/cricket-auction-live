@@ -2015,212 +2015,177 @@ const SpectatorLiveDisplay = () => {
     // 🔁 Show TEAM SQUAD if selected
 
     if (teamIdToShow && teamSummaries.length > 0 && playerList.length > 0) {
+        const isSold = (status) => {
+            if (status === true) return true;
+            if (typeof status === "string") {
+                const normalized = status.trim().toUpperCase();
+                return normalized === "TRUE" || normalized === "SOLD" || normalized === "YES";
+            }
+            return false;
+        };
+
         const teamPlayers = playerList.filter(
             (p) =>
                 Number(p.team_id) === Number(teamIdToShow) &&
-                (p.sold_status === true || p.sold_status === "TRUE")
+                isSold(p.sold_status)
         );
 
         const sortedByPrice = [...teamPlayers].sort(
             (a, b) => (b.sold_price || 0) - (a.sold_price || 0)
         );
-        const topPlayer = sortedByPrice[0];
-        const restPlayers = sortedByPrice.slice(1);
+        const displayedPlayers = sortedByPrice.slice(0, 20); // cap to max 20 displayed
+        const topPlayer = displayedPlayers[0];
 
         const team = teamSummaries.find((t) => Number(t.id) === Number(teamIdToShow));
         const totalSlots = Number(totalPlayersToBuy) || Number(team?.team_squad) || teamPlayers.length || 0;
         const teamTint = TEAM_BG_MAP[team?.name?.trim()] || "rgba(255,255,255,0.06)";
         const teamFlag = TEAM_FLAG_MAP[team?.name?.trim() || ""] || null;
 
+        const playerImage = (p, size = 500) => {
+            if (p?.profile_image) {
+                return String(p.profile_image).startsWith("http")
+                    ? p.profile_image
+                    : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${p.profile_image}?tr=w-${size},h-${Math.round(size * 1.2)},fo-face,z-0.4,q-95,e-sharpen`;
+            }
+            if (p?.image_url) return p.image_url;
+            if (p?.photo_url) return p.photo_url;
+            return "/no-image-found.png";
+        };
+
+        // Fixed column count (8 per row)
+        const playerGridColumns = 8;
+
         return (
             <div className="w-screen h-screen relative overflow-hidden text-white">
                 {isVideoTheme && <BackgroundEffect theme={theme} />}
 
-                {/* Soft flag / tint backdrop */}
-                {teamFlag && (
-                    <div className="absolute inset-0 opacity-25 mix-blend-screen">
-                        <img
-                            src={teamFlag}
-                            alt={`${team?.name} flag`}
-                            className="w-full h-full object-cover blur-sm scale-105"
-                        />
-                    </div>
-                )}
-                <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 20% 30%, ${teamTint}, transparent 40%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.08), transparent 45%)` }} />
-                <div className="absolute inset-0 bg-black/55" />
-
-                <div className="relative w-full h-full flex flex-col lg:flex-row gap-6 p-6">
-                    {/* Top-left overlay icons */}
-                    {tournamentLogo && (
-                        <div className="absolute top-4 left-4 z-50 flex items-center gap-3">
-                            <img
-                                src={tournamentLogo}
-                                alt="Tournament Logo"
-                                className="w-16 h-16 object-contain drop-shadow-md"
-                            />
-                            {team?.logo && (
-                                <div className="p-3 rounded-3xl bg-white/10 border border-white/20 backdrop-blur shadow-xl">
-                                    <img
-                                        src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
-                                        alt={team.name}
-                                        className="w-16 h-16 object-contain drop-shadow"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Highlight player */}
-                    <div className="lg:w-1/3 w-full flex flex-col gap-4 justify-center">
-                        <div className="bg-white/5 rounded-3xl border border-white/15 shadow-2xl backdrop-blur p-6 relative overflow-hidden">
-                            <div className="absolute inset-0 opacity-50" style={{ background: `linear-gradient(160deg, ${teamTint}, transparent 45%)` }} />
-                            <div className="relative flex items-start justify-between">
-                                <div>
-                                    <p className="text-xs uppercase tracking-[0.25em] text-yellow-200/80">Most Valuable</p>
-                                    <h2 className="text-3xl font-extrabold leading-tight mt-1">{topPlayer?.name || "No Player"}</h2>
-                                    <div className="mt-2 flex items-center gap-2 text-sm uppercase tracking-[0.2em] text-white/70">
-                                        <span className="px-3 py-1 rounded-full bg-black/40 border border-white/10">{topPlayer?.role || "Role"}</span>
-                                        {topPlayer?.base_category && (
-                                            <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10">
-                                                Pool {String(topPlayer.base_category).toUpperCase()}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-xs uppercase tracking-[0.25em] text-white/60">Sold</p>
-                                    <p className="text-3xl font-black text-emerald-300 drop-shadow-sm">
-                                        {formatLakhs(topPlayer?.sold_price || 0)}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-4 relative">
-                                <div className="absolute -left-3 -top-3 w-20 h-20 rounded-full bg-white/10 blur-2xl" />
-                                <img
-                                    src={
-                                        topPlayer?.profile_image
-                                            ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${topPlayer.profile_image}?tr=w-500,h-600,fo-face,z-0.4,q-95,e-sharpen`
-                                            : "/no-image-found.png"
-                                    }
-                                    alt={topPlayer?.name || "No Player"}
-                                    onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = "/no-image-found.png";
-                                    }}
-                                    className="w-full max-h-[70vh] object-contain rounded-2xl border border-white/15 shadow-[0_20px_60px_rgba(0,0,0,0.45)] bg-white/10"
-                                />
-                            </div>
-                            <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs uppercase tracking-[0.2em] text-white/70">
-                                <div className="bg-black/30 border border-white/10 rounded-xl py-2">
-                                    <p className="text-[10px] text-white/60">Serial</p>
-                                    <p className="text-lg font-bold text-white/90">{topPlayer?.auction_serial || "?"}</p>
-                                </div>
-                                <div className="bg-black/30 border border-white/10 rounded-xl py-2">
-                                    <p className="text-[10px] text-white/60">Batting</p>
-                                    <p className="text-sm font-semibold">{topPlayer?.batting_hand || "-"}</p>
-                                </div>
-                                <div className="bg-black/30 border border-white/10 rounded-xl py-2">
-                                    <p className="text-[10px] text-white/60">Bowling</p>
-                                    <p className="text-sm font-semibold">{topPlayer?.bowling_hand || "-"}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Rest of squad */}
-                    <div className="lg:w-2/3 w-full flex flex-col gap-4">
-                        <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 backdrop-blur shadow-2xl p-5">
-                            <div className="absolute inset-0 opacity-50" style={{ background: `linear-gradient(120deg, ${teamTint}, transparent 55%)` }} />
-                            <div className="relative flex items-center justify-between flex-wrap gap-3">
-                                <div className="flex items-center gap-4">
-                                    {team?.logo && (
-                                        <div className="p-3 rounded-3xl bg-black/30 border border-white/15 shadow-lg backdrop-blur">
-                                            <img
-                                                src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
-                                                alt={team.name}
-                                                className="w-20 h-20 object-contain drop-shadow"
-                                            />
-                                        </div>
-                                    )}
-                                    <div>
-                                        <p className="text-xs uppercase tracking-[0.3em] text-white/70">Team Squad</p>
-                                        <h2 className="text-4xl font-extrabold text-yellow-200 leading-tight">{team?.name || "Team"}</h2>
-                                        <p className="text-sm text-white/70 mt-1">{teamPlayers.length} / {totalSlots || teamPlayers.length || "?"} players bought</p>
-                                    </div>
-                                </div>
-                                {teamFlag && (
-                                    <img
-                                        src={teamFlag}
-                                        alt={`${team?.name} flag`}
-                                        className="w-16 h-10 object-cover rounded border border-white/30 shadow-sm"
-                                    />
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid lg:grid-cols-2 gap-4 overflow-y-auto pr-2" style={{ maxHeight: "calc(100vh - 220px)" }}>
-                            {restPlayers.length === 0 && (
-                                <div className="col-span-full text-center text-white/70 bg-white/5 border border-white/10 rounded-2xl py-6 backdrop-blur">
-                                    No other players bought yet.
-                                </div>
-                            )}
-                            {restPlayers.map((player, idx) => (
-                                <div
-                                    key={player?.id ?? idx}
-                                    className="relative flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 shadow-lg backdrop-blur"
-                                >
-                                    <span className="absolute -left-3 top-1/2 -translate-y-1/2 px-3 py-1 rounded-full bg-black/70 border border-white/15 text-xs tracking-[0.2em]">
-                                        #{idx + 2}
-                                    </span>
-                                    <div className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-white/15 bg-black/30">
-                                        <img
-                                            src={
-                                                player?.profile_image
-                                                    ? `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${player.profile_image}?tr=w-140,h-140,fo-face,z-0.4,q-95,e-sharpen`
-                                                    : "/no-image-found.png"
-                                            }
-                                            alt={player?.name || "No Player"}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                e.currentTarget.onerror = null;
-                                                e.currentTarget.src = "/no-image-found.png";
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="flex flex-col flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-white/70">
-                                            <span className="px-2 py-0.5 rounded-full bg-black/30 border border-white/10">
-                                                {player?.role || "TBD"}
-                                            </span>
-                                            {player?.base_category && (
-                                                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10">
-                                                    Pool {String(player.base_category).toUpperCase()}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-xl font-bold leading-tight truncate">
-                                            {player?.name || "Awaiting pick"}
-                                        </p>
-                                        <p className="text-xs text-white/60 flex gap-3">
-                                            {player?.batting_hand && <span>{player.batting_hand}</span>}
-                                            {player?.bowling_hand && <span>{player.bowling_hand}</span>}
-                                        </p>
-                                    </div>
-                                    <div className="text-right flex flex-col items-end">
-                                        <span className="text-[10px] uppercase tracking-[0.25em] text-white/60">Sold</span>
-                                        <span className="text-2xl font-black text-emerald-300">
-                                            {formatLakhs(player?.sold_price || 0)}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                <div className={`absolute inset-0 bg-gradient-to-br from-[#0a5257] via-[#0b6d73] to-[#063a43] ${isVideoTheme ? "opacity-70" : ""}`} />
+                <div className="absolute inset-0 pointer-events-none">
+                    <div className={`absolute -left-28 -top-10 w-[420px] h-[420px] bg-[#10bfb0]/25 rotate-12 rounded-[60px] ${isVideoTheme ? "opacity-70" : ""}`} />
+                    <div className={`absolute right-[-160px] top-16 w-[540px] h-[540px] bg-[#094b54]/55 -rotate-6 rounded-[72px] ${isVideoTheme ? "opacity-70" : ""}`} />
+                    <div className={`absolute left-1/2 bottom-[-240px] -translate-x-1/2 w-[760px] h-[760px] bg-[#10d0ba]/14 rounded-full blur-3xl ${isVideoTheme ? "opacity-80" : ""}`} />
                 </div>
 
-                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black/70 border-t border-purple-600 animate-pulse z-50 py-2 backdrop-blur">
-                    All rights reserved | Powered by EA ARENA | +91-9547652702
-                </footer>
+                <div className="relative z-10 flex flex-col h-full p-6 gap-5">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-3">
+                            {tournamentLogo && (
+                                <img
+                                    src={tournamentLogo}
+                                    alt="Tournament Logo"
+                                    className="w-14 h-14 object-contain drop-shadow-md"
+                                />
+                            )}
+                        </div>
+                        <div className="flex-1 text-right min-w-[220px]">
+                            <p className="text-[11px] uppercase tracking-[0.32em] text-[#d6f3f2]/80">Team Squad</p>
+                            <div className="flex items-center justify-end gap-3">
+                                {team?.logo && (
+                                    <div className="p-2 rounded-2xl bg-white/10 border border-white/20 backdrop-blur shadow-lg">
+                                        <img
+                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
+                                            alt={team.name}
+                                            className="w-12 h-12 md:w-14 md:h-14 object-contain drop-shadow"
+                                        />
+                                    </div>
+                                )}
+                                <h1 className="text-4xl md:text-5xl font-black text-[#ffd752] leading-tight uppercase">{team?.name || "Team"}</h1>
+                            </div>
+                            <p className="text-sm text-[#d0e9eb] mt-1">{tournamentName || "EA ARENA"}</p>
+                            {customMessage && (
+                                <p className="text-xs text-amber-100/80 mt-1 tracking-[0.12em]">{customMessage}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 flex-wrap text-[11px] md:text-sm uppercase tracking-[0.18em] text-[#c9e7ec]">
+                        <div className="flex items-center gap-3">
+                            <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 shadow-sm">
+                                {teamPlayers.length} / {totalSlots || teamPlayers.length} players bought
+                            </span>
+                            <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20 shadow-sm">
+                                Top pick: {topPlayer?.name || "TBD"}
+                            </span>
+                        </div>
+                        {teamFlag && (
+                            <img
+                                src={teamFlag}
+                                alt={`${team?.name} flag`}
+                                className="w-16 h-10 object-cover rounded border border-white/30 shadow-sm"
+                            />
+                        )}
+                    </div>
+
+                    <div className="relative flex-1 overflow-hidden rounded-3xl border border-white/12 bg-white/5 backdrop-blur shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+                        <div className="absolute inset-0 opacity-55" style={{ background: `linear-gradient(135deg, ${teamTint}, transparent 58%)` }} />
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-black/20" />
+                        <div className="relative h-full p-2">
+                            <div
+                                className="grid gap-2"
+                                style={{ gridTemplateColumns: `repeat(${playerGridColumns}, minmax(0, 1fr))` }}
+                            >
+                                {displayedPlayers.map((player, idx) => {
+                                    const img = playerImage(player, 480);
+                                    return (
+                                        <div
+                                            key={player?.id ?? idx}
+                                            className="group relative rounded-md bg-[#0c4b52]/80 border border-[#1ba698] shadow-sm overflow-hidden backdrop-blur"
+                                        >
+                                            <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-[0.14em] bg-black/60 border border-white/10 text-white/80">
+                                                #{idx + 1}
+                                            </div>
+                                            {idx === 0 && (
+                                                <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-[#ffd752] text-[#0a3a43] border border-black/10 shadow-md">
+                                                    Top Pick
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="relative w-full aspect-[4/5] bg-black/30 overflow-hidden border-[2px] border-[#ffd752] rounded-sm shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+                                                    <img
+                                                        src={img}
+                                                        alt={player?.name || player?.fullname || "Player"}
+                                                        onError={(e) => {
+                                                            e.currentTarget.onerror = null;
+                                                            e.currentTarget.src = "/no-image-found.png";
+                                                        }}
+                                                        className="w-full h-full object-cover transition duration-200 group-hover:scale-[1.02]"
+                                                    />
+                                                </div>
+
+                                                <div className="bg-[#ffd752] text-[#0a3b45] font-black uppercase text-2xl text-center py-1 px-1.5 tracking-wide shadow-[0_4px_12px_rgba(0,0,0,0.35)] leading-tight">
+                                                    {player?.name || player?.fullname || "Awaiting pick"}
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-1.5 text-[8px] text-[#bdeaf0] uppercase">
+                                                    <span className="px-1.5 py-0.5 rounded-full bg-white/10 border border-white/10 font-semibold">
+                                                        Serial {player?.auction_serial || "-"}
+                                                    </span>
+                                                    <span className="px-1.5 py-0.5 rounded-full bg-white/10 border border-white/10 font-semibold">
+                                                        {player?.role || "Player"}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center justify-between px-1.5 pb-1.5 text-[9px] text-[#bdeaf0] uppercase">
+                                                    <span className="text-2xl font-black text-[#9ff0c6] leading-none">
+                                                        {formatLakhs(player?.sold_price || 0)}
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-[#bdeaf0]">
+                                                        Sold
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer className="text-center text-white text-[11px] md:text-xs uppercase tracking-[0.28em] bg-black/40 border border-white/10 rounded-full px-5 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
+                        All rights reserved | Powered by EA ARENA | +91-9547652702
+                    </footer>
+                </div>
             </div>
         );
     }
