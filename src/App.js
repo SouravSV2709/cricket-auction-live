@@ -15,6 +15,7 @@ import TournamentDashboard from "./components/TournamentDashboard";
 import SecretBidPage from './components/SecretBidPage';
 import TournamentGroupDraw from "./components/TournamentGroupDraw";
 import SuperAdminLinks from "./components/SuperAdminLinks";
+import ReauctionAnalyzer from "./components/ReauctionAnalyzer";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -168,6 +169,7 @@ const AppWrapper = () => {
       <Route path="/secret-bid/:tournamentSlug" element={<SecretBidPage />} />
       <Route path="/grouping/:tournamentSlug" element={<TournamentGroupDraw />} />
       <Route path="/superadmin/eaarena/" element={<SuperAdminLinks />} />
+      <Route path="/reauction/:tournamentSlug" element={<ReauctionAnalyzer />} />
     </Routes>
   );
 };

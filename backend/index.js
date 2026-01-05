@@ -56,6 +56,14 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// Resolve tournament id from slug or id
+async function resolveTournamentId({ tournament_id, slug }) {
+  if (tournament_id) return Number(tournament_id);
+  if (!slug) return null;
+  const res = await pool.query('SELECT id FROM tournaments WHERE slug = $1 LIMIT 1', [slug]);
+  return res.rows[0]?.id ? Number(res.rows[0].id) : null;
+}
+
 // Idempotent schema updates to support per-tournament current_* rows
 async function ensureSchema() {
   try {
@@ -77,6 +85,18 @@ async function ensureSchema() {
       CREATE UNIQUE INDEX IF NOT EXISTS ux_current_bid_tournament_all
         ON current_bid (tournament_id);
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reauction_picks (
+        id SERIAL PRIMARY KEY,
+        tournament_id INTEGER NOT NULL,
+        team_id INTEGER NOT NULL,
+        player_id INTEGER NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (tournament_id, team_id, player_id)
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_reauction_picks_tournament ON reauction_picks (tournament_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_reauction_picks_team ON reauction_picks (team_id);`);
   } catch (e) {
     console.warn('ensureSchema skipped:', e?.message || e);
   }
@@ -1780,6 +1800,176 @@ app.post("/api/reset-unsold", async (req, res) => {
   } catch (err) {
     console.error("Error resetting unsold players:", err);
     res.status(500).json({ error: "Reset unsold failed." });
+  }
+});
+
+// ===== Re-auction picks (per-team selections of unsold/unauctioned players) =====
+app.get("/api/reauction/picks", async (req, res) => {
+  try {
+    const tournamentId = await resolveTournamentId(req.query);
+    if (!tournamentId) {
+      return res.status(400).json({ error: "tournament_id or slug is required" });
+    }
+
+    const { rows } = await pool.query(
+      `
+      SELECT rp.tournament_id,
+             rp.team_id,
+             rp.player_id,
+             rp.created_at,
+             t.name AS team_name,
+             t.bought_count,
+             p.name AS player_name,
+             p.auction_serial,
+             p.role,
+             p.base_category,
+             p.sold_status
+        FROM reauction_picks rp
+        LEFT JOIN teams t   ON rp.team_id = t.id
+        LEFT JOIN players p ON rp.player_id = p.id
+       WHERE rp.tournament_id = $1
+       ORDER BY rp.team_id, p.auction_serial NULLS LAST, rp.player_id
+      `,
+      [tournamentId]
+    );
+
+    res.json({ picks: rows });
+  } catch (err) {
+    console.error("Error fetching re-auction picks:", err);
+    res.status(500).json({ error: "Failed to fetch re-auction picks" });
+  }
+});
+
+app.post("/api/reauction/picks", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { team_id, player_ids, tournament_id, slug } = req.body || {};
+    const tournamentId = await resolveTournamentId({ tournament_id, slug });
+    const teamId = Number(team_id);
+    const ids = Array.isArray(player_ids)
+      ? Array.from(new Set(player_ids.map(Number).filter(Number.isFinite)))
+      : [];
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "tournament_id or slug is required" });
+    }
+    if (!teamId) {
+      return res.status(400).json({ error: "team_id is required" });
+    }
+
+    await client.query("BEGIN");
+    await client.query(
+      `DELETE FROM reauction_picks WHERE tournament_id = $1 AND team_id = $2`,
+      [tournamentId, teamId]
+    );
+
+    for (const pid of ids) {
+      await client.query(
+        `
+        INSERT INTO reauction_picks (tournament_id, team_id, player_id)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (tournament_id, team_id, player_id) DO NOTHING
+        `,
+        [tournamentId, teamId, pid]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Re-auction picks saved", team_id: teamId, count: ids.length });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error saving re-auction picks:", err);
+    res.status(500).json({ error: "Failed to save re-auction picks" });
+  } finally {
+    client.release();
+  }
+});
+
+app.post("/api/reauction/evaluate", async (req, res) => {
+  try {
+    const { tournament_id, slug } = req.body || {};
+    const tournamentId = await resolveTournamentId({ tournament_id, slug });
+    if (!tournamentId) {
+      return res.status(400).json({ error: "tournament_id or slug is required" });
+    }
+
+    const { rows } = await pool.query(
+      `
+      SELECT rp.team_id,
+             rp.player_id,
+             t.name AS team_name,
+             p.name AS player_name,
+             p.auction_serial
+        FROM reauction_picks rp
+        LEFT JOIN teams t   ON rp.team_id = t.id
+        LEFT JOIN players p ON rp.player_id = p.id
+       WHERE rp.tournament_id = $1
+      `,
+      [tournamentId]
+    );
+
+    const byPlayer = new Map();
+    for (const row of rows) {
+      if (!byPlayer.has(row.player_id)) byPlayer.set(row.player_id, []);
+      byPlayer.get(row.player_id).push(row);
+    }
+
+    const nonConflicting = [];
+    const conflicts = [];
+
+    for (const [playerId, entries] of byPlayer.entries()) {
+      if (entries.length === 1) {
+        const e = entries[0];
+        nonConflicting.push({
+          player_id: playerId,
+          player_name: e.player_name,
+          auction_serial: e.auction_serial,
+          team_id: e.team_id,
+          team_name: e.team_name,
+        });
+      } else if (entries.length > 1) {
+        conflicts.push({
+          player_id: playerId,
+          player_name: entries[0]?.player_name,
+          auction_serial: entries[0]?.auction_serial,
+          teams: entries.map(e => ({ team_id: e.team_id, team_name: e.team_name })),
+        });
+      }
+    }
+
+    // Sort for stable UI
+    nonConflicting.sort((a, b) => (a.auction_serial || 0) - (b.auction_serial || 0));
+    conflicts.sort((a, b) => (a.auction_serial || 0) - (b.auction_serial || 0));
+
+    res.json({
+      nonConflicting,
+      conflicts,
+      totalPicks: rows.length,
+      totalPlayers: byPlayer.size,
+    });
+  } catch (err) {
+    console.error("Error evaluating re-auction picks:", err);
+    res.status(500).json({ error: "Failed to evaluate re-auction picks" });
+  }
+});
+
+app.post("/api/reauction/reset", async (req, res) => {
+  try {
+    const { tournament_id, slug } = req.body || {};
+    const tournamentId = await resolveTournamentId({ tournament_id, slug });
+    if (!tournamentId) {
+      return res.status(400).json({ error: "tournament_id or slug is required" });
+    }
+
+    const result = await pool.query(
+      `DELETE FROM reauction_picks WHERE tournament_id = $1`,
+      [tournamentId]
+    );
+
+    res.json({ message: "Re-auction picks cleared", deleted: result.rowCount });
+  } catch (err) {
+    console.error("Error resetting re-auction picks:", err);
+    res.status(500).json({ error: "Failed to reset re-auction picks" });
   }
 });
 
