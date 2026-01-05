@@ -1503,6 +1503,9 @@ const SpectatorLiveDisplay = () => {
                 }, 1000);
             } else if (msg === "__SHOW_TOP_10_EXPENSIVE__") {
                 setCustomView("top-10-expensive"); setCustomMessage(null);
+            } else if (msg === "__SHOW_REBID_NON_SOLD__") {
+                setCustomView("rebid-list"); setCustomMessage(null); setTeamIdToShow(null);
+                fetchAllPlayers();
             } else if (msg === "__MARQUEE_OFF__") {
                 setMarqueeEnabled(false);
             } else if (msg === "__MARQUEE_ON__") {
@@ -1628,6 +1631,54 @@ const SpectatorLiveDisplay = () => {
         () => activeBidderDetails.slice(0, 4),
         [activeBidderDetails]
     );
+
+    const nonSoldPlayers = useMemo(() => {
+        const list = Array.isArray(playerList) ? playerList : [];
+        const sanitizeToken = (value) => {
+            if (value == null) return null;
+            const trimmed = typeof value === "string" ? value.trim() : value;
+            if (!trimmed) return null;
+            const upper = String(trimmed).toUpperCase();
+            if (["POOL", "NULL", "N/A", "NA", "NONE", "UNDEFINED"].includes(upper)) return null;
+            return trimmed;
+        };
+
+        return list
+            .filter((p) => {
+                const status = String(p?.sold_status).toUpperCase();
+                const isSold = status === "TRUE";
+                const isDeleted = Boolean(p?.deleted_at);
+                return !isSold && !isDeleted;
+            })
+            .map((p) => {
+                const serialNum = Number(p?.auction_serial);
+                const serialText = Number.isFinite(serialNum) ? serialNum : (p?.auction_serial || "-");
+                const role = sanitizeToken(p?.role ?? p?.player_role ?? p?.primary_role ?? p?.base_category ?? p?.base ?? p?.pool ?? "");
+                return {
+                    id: p?.id ?? `${p?.auction_serial || p?.name || "player"}-${role || "norole"}`,
+                    serial: serialText,
+                    serialSort: Number.isFinite(serialNum) ? serialNum : Number.MAX_SAFE_INTEGER,
+                    name: p?.name || p?.fullname || "Awaiting name",
+                    role,
+                };
+            })
+            .sort((a, b) => {
+                if (a.serialSort !== b.serialSort) return a.serialSort - b.serialSort;
+                return String(a.name).localeCompare(String(b.name));
+            });
+    }, [playerList]);
+
+    const rebidLayout = useMemo(() => {
+        const rowHeight = 62;
+        const usableHeight = Math.max((height || 720) - 240, 320); // account for header/padding
+        const maxRows = Math.max(4, Math.floor(usableHeight / rowHeight));
+        const columnCount = Math.max(1, Math.ceil(nonSoldPlayers.length / maxRows));
+        const columns = Array.from({ length: columnCount }, (_, idx) =>
+            nonSoldPlayers.slice(idx * maxRows, (idx + 1) * maxRows)
+        );
+        return { columns, maxRows };
+    }, [nonSoldPlayers, height]);
+
     const activeBidderDisplayEnabled = showPurse || showMaxBid || showPlayersToBuy;
     const { min: squadSizeMin, max: squadSizeMax } = useMemo(() => {
         const sizes = Array.isArray(teamSummaries)
@@ -2280,6 +2331,79 @@ const SpectatorLiveDisplay = () => {
 
                 <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black border-t border-purple-600 animate-pulse z-50 py-2">
                     🔴 All rights reserved | Powered by EA ARENA | +91-9547652702 🧨
+                </footer>
+            </div>
+        );
+    }
+
+
+
+    // Re-bid view: show non-sold players (unsold + not auctioned)
+
+    if (customView === "rebid-list") {
+        return (
+            <div className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}>
+                {isVideoTheme && <BackgroundEffect theme={theme} />}
+                <div className="absolute inset-0 bg-black/75" />
+
+                <div className="relative z-10 flex flex-col h-full px-6 py-8 gap-6">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="space-y-1">
+                            <p className="text-xs uppercase tracking-[0.28em] text-white/70">Re-bid Round</p>
+                            <h1 className="text-4xl font-black text-yellow-200 leading-tight">Non-sold Players</h1>
+                            <p className="text-sm text-white/70">Includes UNSOLD and not auctioned players</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-sm text-white/80">
+                                {nonSoldPlayers.length} players
+                            </span>
+                            {tournamentLogo && (
+                                <img
+                                    src={tournamentLogo}
+                                    alt="Tournament Logo"
+                                    className="w-16 h-16 object-contain rounded-xl border border-white/20 bg-white/5 p-2"
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    {nonSoldPlayers.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="px-6 py-4 rounded-2xl bg-white/10 border border-white/15 text-2xl font-extrabold text-emerald-200 shadow-2xl">
+                                All players have been auctioned. Nothing pending for re-bid.
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex items-stretch gap-4 overflow-hidden">
+                            {rebidLayout.columns.map((column, colIdx) => (
+                                <div key={colIdx} className="flex-1 flex flex-col gap-3">
+                                    {column.map((p, idx) => (
+                                        <div
+                                            key={p.id ?? `${colIdx}-${idx}`}
+                                            className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white/10 border border-white/10 shadow-lg backdrop-blur-sm"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <span className="px-3 py-1 rounded-lg bg-black/50 border border-white/15 text-sm font-black text-yellow-200 shrink-0">
+                                                    #{p.serial}
+                                                </span>
+                                                <span className="text-lg font-bold text-white truncate">
+                                                    {p.name}
+                                                </span>
+                                            </div>
+                                            {p.role && (
+                                                <span className="text-[10px] uppercase tracking-[0.22em] text-white/70 bg-black/30 border border-white/10 rounded-full px-3 py-1">
+                                                    {String(p.role).toUpperCase()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <footer className="fixed bottom-0 left-0 w-full text-center text-white text-sm tracking-widest bg-black/70 border-t border-purple-600 z-50 py-2">
+                    All rights reserved | Powered by EA ARENA | +91-9547652702
                 </footer>
             </div>
         );

@@ -3051,6 +3051,20 @@ const handleSearchById = async (idOverride) => {
                                         await fetch(`${API}/api/custom-message`, {
                                             method: "POST",
                                             headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({ message: "__SHOW_REBID_NON_SOLD__", tournament_id: tournamentId, slug: tournamentSlug }),
+                                        });
+                                        alert("Re-bid list of non-sold players will be shown on spectator.");
+                                    }}
+                                    className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded shadow"
+                                >
+                                    Show Non-Sold List
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        await fetch(`${API}/api/custom-message`, {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
                                             body: JSON.stringify({ message: "__SHOW_QR__", tournament_id: tournamentId, slug: tournamentSlug }),
                                         });
                                         alert("QR code will be shown on spectator.");
