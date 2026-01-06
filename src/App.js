@@ -16,6 +16,7 @@ import SecretBidPage from './components/SecretBidPage';
 import TournamentGroupDraw from "./components/TournamentGroupDraw";
 import SuperAdminLinks from "./components/SuperAdminLinks";
 import ReauctionAnalyzer from "./components/ReauctionAnalyzer";
+import SoftAdminPanel from "./components/SoftAdminPanel";
 
 
 const API = CONFIG.API_BASE_URL;
@@ -106,6 +107,7 @@ const AppWrapper = () => {
   return (
     <Routes>
       <Route path="2709/:tournamentSlug" element={<AdminPanel />} />
+      <Route path="/soft-admin/:tournamentSlug" element={<SoftAdminPanel />} />
       <Route
         path="/spectator/:tournamentSlug"
         element={

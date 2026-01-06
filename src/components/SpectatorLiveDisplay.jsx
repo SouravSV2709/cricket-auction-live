@@ -2468,22 +2468,25 @@ const groups =
                     alt="EA ARENA"
                     className="w-20 h-20 object-contain animate-pulse"
                 />
-                <h1 className="text-4xl font-extrabold tracking-wide text-center flex-1 animate-pulse">
-                    {tournamentName?.toUpperCase() || "EA ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
-                </h1>
-                {tournamentLogo && (
-                    <img
-                        src="/AuctionArena2.png"
-                        alt="EA ARENA"
-                        className="w-20 h-20 object-contain ml-4 animate-pulse"
-                    />
-                )}
+                <div className="flex items-center gap-4 flex-1 justify-center">
+                    {tournamentLogo && (
+                        <img
+                            src={tournamentLogo}
+                            alt="Tournament Logo"
+                            className="w-16 h-16 object-contain animate-pulse"
+                        />
+                    )}
+                    <h1 className="text-4xl font-extrabold tracking-wide text-center animate-pulse">
+                        {tournamentName?.toUpperCase() || "EA ARENA LIVE"}-AUCTION <span animate-pulse>🔴 LIVE</span>
+                    </h1>
+                </div>
+                <div className="w-20 h-20" />
             </div>
 
 
-            <div
+                        <div
                 key={player.id}
-                className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-2 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
+                className={`flex h-[calc(100%-120px)] px-12 pt-6 pb-10 gap-10 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
             >
                 {/* one-time tiny keyframes for fade-in */}
                 <style>{`
@@ -2493,131 +2496,27 @@ const groups =
   }
 `}</style>
 
-                {/* Glow wrapper */}
-                <div className="relative">
-
-
-                    {/* Card */}
-                    <div
-                        className="relative w-[48rem] h-[56rem] rounded-[32px] overflow-hidden shadow-2xl border border-gray-300 mt-4"
-                        style={{ backgroundColor: cardBgColor }}
-                    >
-                        {/* FLAG WATERMARK — boosted visibility */}
-                        {isLinkedToTeam && teamFlagSrc && (
-                            <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
-                                {/* Dark parts pop */}
-                                <img
-                                    src={teamFlagSrc}
-                                    alt={`${playerTeam?.name || "Team"} flag`}
-                                    className="absolute inset-0 w-full h-full object-cover
-                 opacity-45 mix-blend-multiply
-                 [filter:contrast(1.25)_saturate(1.2)_brightness(1.05)]
-                 scale-[1.15]"
-                                    style={{ transformOrigin: "50% 55%" }}
-                                />
-                                {/* Light parts pop */}
-                                <img
-                                    src={teamFlagSrc}
-                                    alt=""
-                                    className="absolute inset-0 w-full h-full object-cover
-                 opacity-20 mix-blend-screen scale-[1.15]"
-                                    style={{ transformOrigin: "50% 55%" }}
-                                />
-                            </div>
-                        )}
-
-
-                        {/* Moving sheen across the white background */}
-                        <div className="pointer-events-none absolute inset-0 overflow-hidden z-[6]">
-                            <div className="absolute -left-1/2 top-0 h-full w-[200%]
-                  bg-[linear-gradient(100deg,transparent,rgba(255,255,255,0.25),transparent)]
-                  translate-x-[-100%] animate-[sheen_6s_ease-in-out_infinite]"></div>
-                            {/* Soften the global white veil */}
-                            <div className="absolute inset-0"
-                                style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.06), rgba(255,255,255,0.18) 60%, rgba(255,255,255,0.06))" }} />
-                        </div>
-
-
-                        {/* Player Image with gentle Ken Burns */}
+                {/* Left: Player image only */}
+                <div className="flex-1 max-w-3xl flex justify-center">
+                    <div className="relative w-full h-full max-w-[48rem] max-h-[60rem] rounded-[32px] overflow-hidden shadow-2xl border border-gray-300 bg-white">
                         <img
                             src={player.profile_image}
                             alt={player.name}
                             onError={(e) => { e.target.onerror = null; e.target.src = "/no-image-found.png"; }}
-                            className="relative z-10 w-full h-full object-contain
-        drop-shadow-[0_10px_40px_rgba(0,0,0,0.35)]
-        animate-[kenburns_6s_ease-in-out_infinite]"
+                            className="w-full h-full object-contain"
                         />
-
-                        {/* Serial No – Top Left (with SOLD/UNSOLD image below) */}
                         <div className="absolute top-4 left-4 z-30 flex flex-col items-start gap-2">
-                            <div className="relative inline-flex items-center px-5 py-1.5 rounded-full">
-                                {/* Inner Chip */}
-                                <span className="relative bg-black/80 text-white text-3xl font-extrabold rounded-full px-4 py-1">
-                                    #{player.auction_serial}
-                                </span>
-                            </div>
-
-                            {/* SOLD image (only if NOT Pool X) */}
-                            {isValidSold(player) && poolCode !== "X" && (
-                                <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
-                                    <img src="/SOLD.png" alt="SOLD" className="w-28 h-auto drop-shadow-xl animate-pulse" />
-                                </div>
-                            )}
-
-                            {/* UNSOLD image (only if NOT Pool X) */}
-                            {["FALSE", "false", false].includes(player?.sold_status) && poolCode !== "X" && (
-                                <div className="opacity-0 animate-[aa-fade-in_500ms_ease-out_forwards]">
-                                    <img
-                                        src={"/UNSOLD.png"}
-                                        alt="UNSOLD"
-                                        className="w-32 h-auto drop-shadow-xl"
-                                        loading="eager"
-                                    />
-                                </div>
-                            )}
-
+                            <span className="bg-black/80 text-white text-3xl font-extrabold rounded-full px-4 py-1">
+                                #{player.auction_serial}
+                            </span>
                         </div>
-
-                        {/* Pool Category – Top Right (with Owner/Icon override for Pool X) */}
-                        {(() => {
-                            const poolCode = String(player?.sold_pool || player?.base_category || "")
-                                .toUpperCase();
-                            const soldAmt = Number(player?.sold_price) || 0;
-
-                            if (!poolCode) return null; // ⬅️ Don’t render if no pool
-
-                            let poolLabel = `Pool ${poolCode}`;
-
-                            if (poolCode === "X") {
-                                if (soldAmt === 400000) poolLabel = "Owner";
-                                else if (soldAmt === 1000000) poolLabel = "ICON";
-                            }
-
-                            return (
-                                <div className="absolute top-4 right-4 z-30">
-                                    <div className="relative inline-flex items-center px-5 py-1.5 rounded-full">
-                                        {/* Inner Chip */}
-                                        <span className="relative bg-black/80 text-white text-3xl font-bold rounded-full px-4 py-1">
-                                            {poolLabel}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
-
                     </div>
                 </div>
 
-
-
-
-
-
-                <div className="w-1/3 flex flex-col justify-items-center-safe space-y-8 mt-10">
-
-                    {/* Player header — always visible */}
-                    <div className="w-full max-w-md mx-auto text-center -mt-1">
+                {/* Right: Player info and auction snapshot */}
+                <div className="flex-1 flex flex-col space-y-6 mt-8">
+                    {/* Header */}
+                    <div className="text-center">
                         <div className="inline-block rounded-2xl px-5 py-2 bg-black/55 backdrop-blur-sm shadow-lg">
                             <h2
                                 className="text-5xl font-black tracking-wide uppercase text-white drop-shadow"
@@ -2631,316 +2530,41 @@ const groups =
                         </p>
                     </div>
 
-                    {isValidSold(player) &&
-                        !["FALSE", "false", false].includes(player?.sold_status) &&
-                        !unsoldOverlayActive && (() => {
-                            const poolCode = String(player?.sold_pool ?? player?.base_category ?? "").toUpperCase();
-                            const isPoolX = poolCode === "X";
-                            const soldAmt = Number(player?.sold_price) || 0;
-                            const xLabel = isPoolX
-                                ? (soldAmt === 400000 ? "Owner" : soldAmt === 1000000 ? "ICON" : "Pool X")
-                                : null;
-
-                            return (
-                                <div className="bg-black/60 backdrop-blur-lg shadow-xl rounded-2xl w-full max-w-md mx-auto">
-                                    {/* Team Logo */}
-                                    <div className="flex justify-center">
-                                        <img
-                                            src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogoId}?`}
-                                            alt={teamName}
-                                            className="w-[20rem] h-[20rem] object-contain animate-bounce-in drop-shadow-lg"
-                                        />
-                                    </div>
-
-                                    {/* Team Name */}
-                                    <p className="text-3xl text-center mt-2 text-white uppercase tracking-wide">
-                                        {teamName}
-                                    </p>
-
-                                    {/* Sold Amount — HIDE when Pool X */}
-                                    {!isPoolX && (
-                                        <div className="bg-green-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-4 animate-pulse">
-                                            <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
-                                                🎉 Sold Amount: {formatLakhs(player?.sold_price || 0)}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* Players Bought & Base Price / Owner / ICON */}
-                                    {team?.bought_count !== undefined && team?.max_bid_allowed !== undefined && (
-                                        <div className="grid grid-cols-2 divide-x divide-white/20 rounded-xl border border-white/20 overflow-hidden mt-4">
-                                            <div className="flex flex-col items-center py-3 bg-black/40">
-                                                <p className="text-xl text-yellow-400 uppercase tracking-wider">Players Bought</p>
-                                                <p className="text-xl text-white">
-                                                    🧑‍🤝‍🧑 {team.bought_count} / {totalPlayersToBuy || 17}
-                                                </p>
-                                            </div>
-
-                                            <div className="flex flex-col items-center py-3 bg-black/40">
-                                                {isPoolX ? (
-                                                    <>
-                                                        <p className="text-xl text-yellow-400 uppercase tracking-wider">Category</p>
-                                                        <p className="text-xl text-white tracking-wider uppercase">
-                                                            {xLabel}
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <p className="text-xl text-yellow-400 uppercase tracking-wider">Base Price</p>
-                                                        <p className="tracking-wider uppercase text-white">
-                                                            {formatLakhs(getDisplayBasePrice(player, activePool))}
-                                                        </p>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })()}
-
-
-
-                    {!isValidSold(player) && !isUnsold(player) && (
-                        isWaitingForBid && !unsoldOverlayActive ? (
-                            // ⛔ shown only when actively waiting, not UNSOLD, not overlay
-                            <div className="text-center items-center justify-center">
-                                <img
-                                    src="/bidding.gif"
-                                    alt="Waiting for a Bid"
-                                    className="w-[20rem] h-[20rem] object-contain mx-auto mb-4 mt-20"
-                                />
-                                <p className="text-3xl text-yellow-300 animate-pulse">
-                                    Waiting for a Bid.
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                {(() => {
-                                    const leadingTeamObj = Array.isArray(teamSummaries)
-                                        ? teamSummaries.find(t => t.name?.trim() === leadingTeam?.trim())
-                                        : null;
-
-                                    const leadingTeamLogo = leadingTeamObj?.logo;
-                                    const leadingTeamName = leadingTeamObj?.name;
-
-                                    return (
-                                        <div className="bg-white-600/60 rounded-xl px-6 py-4 text-center justify-center">
-                                            {leadingTeamLogo && (
-                                                <img
-                                                    src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${leadingTeamLogo}?tr=q-95,e-sharpen`}
-                                                    alt={leadingTeamName}
-                                                    className="rounded-sm w-[20rem] h-[30rem] object-contain inline-block align-middle"
-                                                />
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-
-                                {!unsoldOverlayActive && ( 
-                                    <div className="w-auto text-center mt-2 ml-5">
-                                    <div className="bg-black/60 border border-yellow-400/30 rounded-2xl px-2 py-2 animate-pulse shadow-lg">
-                                        <p className="text-2xl uppercase tracking-wider text-white/70 mb-2">Current Bid</p>
-                                        <p className="text-6xl md:text-8xl font-extrabold text-yellow-300 drop-shadow-lg">
-                                        {formatLakhs(highestBid)}
-                                        </p>
-                                    </div>
-                                    </div>
-
-                                )}
-
-                                <div>
-                                    {!["TRUE", "true", true, "FALSE", "false", false].includes(player?.sold_status) &&
-                                        player?.secret_bidding_enabled && (
-                                            <p className="text-3xl mt-4 text-yellow-300  animate-pulse">
-                                                Secret Bidding In Progress.
-                                            </p>
-                                        )}
-                                </div>
-                            </>
-                        )
-                    )}
-
-
-
-                    {(unsoldOverlayActive || ["FALSE", "false", false].includes(player?.sold_status)) && unsoldClip && (
-                        <div className="relative w-full max-w-[24rem] mx-auto">
-                            {/* Media wrapper: same size for video/img */}
-                            <div className="relative rounded-xl overflow-hidden border-4 shadow-xl bg-black/30 aspect-video">
-                                {String(unsoldClip).toLowerCase().endsWith(".mp4") ? (
-                                    <video
-                                        src={unsoldClip}
-                                        autoPlay
-                                        muted
-                                        playsInline
-                                        loop
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <img
-                                        src={unsoldClip}
-                                        alt="UNSOLD Reaction"
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => { e.currentTarget.style.objectFit = 'contain'; }}
-                                    />
-                                )}
-                            </div>
-
-                            {/* Label */}
-                            <div className="bg-red-500/20 border border-yellow-400/30 rounded-xl px-4 py-2 text-center mt-3 animate-pulse">
-                                <p className="text-lg uppercase tracking-wider text-white drop-shadow-sm">
-                                    UNSOLD
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-
-
-                </div>
-
-                <div className="w-1/3 flex flex-col space-y-6 mt-10">
-                    {/* ——— Player Info ——— */}
-                    <div
-                        className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 text-3xl
-               bg-white/5 backdrop-blur-md"
-                    >
+                    {/* Player Info */}
+                    <div className="relative rounded-[24px] shadow-lg overflow-hidden border border-white/20 text-2xl bg-white/5 backdrop-blur-md">
                         <div className="relative p-6 md:p-8 font-orbitron">
-                            <div
-                                className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full
-                   bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90
-                   text-xl tracking-widest uppercase">
+                            <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400/30 to-rose-500/30 text-white/90 text-lg tracking-widest uppercase">
                                 Player Info
                             </div>
 
-                            <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-3xl">
-                                {/* <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
-                                <div className="px-3 py-2">{player?.nickname || "-"}</div> */}
+                            <div className="grid grid-cols-2 divide-x divide-y divide-white/15 text-2xl">
+                                <div className="px-3 py-2 tracking-wider uppercase">Name</div>
+                                <div className="px-3 py-2">{player?.name || "-"}</div>
+
+                                <div className="px-3 py-2 tracking-wider uppercase">Nickname</div>
+                                <div className="px-3 py-2">{player?.nickname || "-"}</div>
+
+                                <div className="px-3 py-2 tracking-wider uppercase">Mobile</div>
+                                <div className="px-3 py-2">{player?.mobile || "-"}</div>
+
+                                <div className="px-3 py-2 tracking-wider uppercase">Location</div>
+                                <div className="px-3 py-2">{player?.location || "-"}</div>
 
                                 <div className="px-3 py-2 tracking-wider uppercase">Role</div>
                                 <div className="px-3 py-2 uppercase">{player?.role || "-"}</div>
 
-                                <div className="px-3 py-2 tracking-wider uppercase">Age Category</div>
-                                <div className="px-3 py-2 uppercase">{player?.age_category || "Below 40"}</div> 
+                                <div className="px-3 py-2 tracking-wider uppercase">Batting Hand</div>
+                                <div className="px-3 py-2 uppercase">{player?.batting_hand || "-"}</div>
 
-
-                                {/* <div className="px-3 py-2 tracking-wider uppercase">Batting Type</div>
-                                <div className="px-3 py-2 uppercase">{player?.batting_hand || "-"}</div> */}
-
-                                {/* <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
-                                <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div> */}
-
-                                {player?.location && (
-                                    <>
-                                        <div className="px-3 py-2 tracking-wider uppercase">Location</div>
-                                        <div className="px-3 py-2">{player.location}</div>
-                                    </>
-                                )}
+                                <div className="px-3 py-2 tracking-wider uppercase">Bowling Hand</div>
+                                <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* ——— Auction Snapshot (fills the blank area neatly) ——— */}
-                    <div className="relative rounded-[32px] shadow-lg overflow-hidden border border-white/20 bg-white/5 backdrop-blur-md">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {/* Base Price */}
-                            <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                <div className="text-xl tracking-widest text-white/70 uppercase">Base Price</div>
-                                <div className="text-3xl font-extrabold text-green-300 mt-1">
-                                    {formatLakhs(getDisplayBasePrice(player, activePool))}
-                                </div>
-                            </div>
-
-                            {/* Current Bid / Sold / Unsold */}
-                            <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                {["FALSE", "false", false].includes(player?.sold_status) ? (
-                                    <>
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Status</div>
-                                        <div className="text-3xl font-extrabold text-red-400 mt-1">Unsold</div>
-                                    </>
-
-
-
-
-                                ) : ["TRUE", "true", true].includes(player?.sold_status) ? (
-                                    <>
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Sold Amount</div>
-                                        <div className="text-3xl font-extrabold text-green-300 mt-1">
-                                            {formatLakhs(player?.sold_price || 0)}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Current Bid</div>
-                                        <div className="text-3xl font-extrabold text-yellow-300 mt-1">
-                                            {formatLakhs(highestBid || 0)}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-
-                            {/* Leading Team */}
-                            {!["FALSE", "false", false].includes(player?.sold_status) && (
-                                <>
-                                    {/* Leading Team */}
-                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center col-span-2 md:col-span-1">
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Leading Team</div>
-                                        <div className="text-xl font-bold text-white mt-1 truncate">
-                                            {leadingTeamObj?.name || teamName}
-                                        </div>
-                                    </div>
-
-                                    {/* Players in Team */}
-                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Players in Team</div>
-                                        <div className="text-3xl font-extrabold text-white mt-1">{playersInTeamCount}</div>
-                                    </div>
-
-                                    {/* Available Purse */}
-                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Available Purse</div>
-                                        <div className="text-3xl font-extrabold text-blue-300 mt-1">
-                                            {formatLakhs(availablePurse)}
-                                        </div>
-                                    </div>
-
-
-                                    {/* Leading Team Max Bid */}
-                                    <div className="rounded-2xl bg-black/30 border border-white/10 px-4 py-4 text-center">
-                                        <div className="text-xl tracking-widest text-white/70 uppercase">Team Max Bid</div>
-                                        <div className="text-3xl font-extrabold text-green-300 mt-1">
-                                            {formatLakhs(leadingTeamMaxBid)}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-
-                        </div>
-
-                    </div>
                 </div>
 
             </div>
-
-            {tournamentLogo && (
-                <img
-                    src={tournamentLogo}
-                    alt="Tournament Logo"
-                    className="w-24 h-24 object-contain absolute bottom-60 right-0 opacity-70 z-[100]"
-                />
-            )}
-
-            {tournamentLogo && (
-                <img
-                    src={tournamentLogo}
-                    alt="Tournament Logo"
-                    className="w-24 h-24 object-contain absolute bottom-60 left-0 opacity-70 z-[100]"
-                />
-            )}
-
-
             {marqueeEnabled && renderFooter(top5SoldPlayers, teamPurseChunks)}
 
             <footer className="fixed bottom-0 left-0 w-full h-20 text-center text-white text-xl bg-black animate-pulse z-50 py-2">
