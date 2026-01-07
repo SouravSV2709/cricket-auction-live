@@ -567,6 +567,9 @@ const SpectatorLiveDisplay = () => {
         p.team_id !== null &&
         p.team_id !== "";
 
+    const isSoldStatus = (p) =>
+        p && (p.sold_status === true || p.sold_status === "TRUE");
+
     const isUnsold = (p) =>
         p && (p.sold_status === false || p.sold_status === "FALSE");
 
@@ -2441,6 +2444,11 @@ const groups =
         (!highestBid || Number(highestBid) === 0) &&
         !player?.secret_bidding_enabled;
 
+    const statusBadge = isSoldStatus(player)
+        ? { label: "SOLD", className: "bg-emerald-600 text-white" }
+        : isUnsold(player)
+            ? { label: "UNSOLD", className: "bg-rose-600 text-white" }
+            : null;
 
 
 
@@ -2510,6 +2518,13 @@ const groups =
                                 #{player.auction_serial}
                             </span>
                         </div>
+                        {statusBadge && (
+                            <div className="absolute top-4 right-4 z-30">
+                                <span className={`text-2xl font-extrabold rounded-full px-4 py-1 shadow-lg ${statusBadge.className}`}>
+                                    {statusBadge.label}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

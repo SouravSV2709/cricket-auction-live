@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import CONFIG from "../components/config";
+import { io } from "socket.io-client";
 
 const API = CONFIG.API_BASE_URL;
 
@@ -13,6 +14,11 @@ const SoftAdminPanel = () => {
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState("");
+    const [teams, setTeams] = useState([]);
+    const [selectedTeamId, setSelectedTeamId] = useState("");
+    const [finalAmount, setFinalAmount] = useState("");
+    const [actionLoading, setActionLoading] = useState(false);
+    const socketRef = useRef(null);
 
     const resolveProfileImage = (player, size = 400) => {
         if (!player) return "/no-image-found.png";
@@ -28,6 +34,20 @@ const SoftAdminPanel = () => {
 
     useEffect(() => {
         document.title = "Auction Selector | Auction Arena";
+    }, []);
+
+    useEffect(() => {
+        socketRef.current = io(API, {
+            transports: ["websocket"],
+            upgrade: false,
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 500,
+        });
+
+        return () => {
+            socketRef.current?.disconnect();
+        };
     }, []);
 
     useEffect(() => {
@@ -68,6 +88,23 @@ const SoftAdminPanel = () => {
         fetchPlayers();
     }, [tournamentId, tournamentSlug]);
 
+    useEffect(() => {
+        if (!tournamentId) return;
+
+        const fetchTeams = async () => {
+            try {
+                const res = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
+                const data = await res.json();
+                setTeams(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error("Failed to load teams", err);
+                setTeams([]);
+            }
+        };
+
+        fetchTeams();
+    }, [tournamentId]);
+
     const serialOptions = useMemo(
         () =>
             players
@@ -90,6 +127,15 @@ const SoftAdminPanel = () => {
             return basic;
         }
     };
+
+    useEffect(() => {
+        if (!currentPlayer) {
+            setFinalAmount("");
+            return;
+        }
+        const nextAmount = currentPlayer.sold_price ? String(currentPlayer.sold_price) : "";
+        setFinalAmount(nextAmount);
+    }, [currentPlayer?.id]);
 
     const pushToSpectator = async () => {
         setStatus("");
@@ -488,6 +534,191 @@ const SoftAdminPanel = () => {
         printable.document.close();
     };
 
+
+    const getAmountValue = () => {
+        const value = Number(finalAmount);
+        return Number.isFinite(value) ? value : 0;
+    };
+
+    const handleMarkSold = async () => {
+        setStatus("");
+
+        if (!tournamentId) {
+            setStatus("Tournament is not ready yet.");
+            return;
+        }
+
+        if (!currentPlayer?.id) {
+            setStatus("Select a player first.");
+            return;
+        }
+
+        const amount = getAmountValue();
+        if (amount <= 0) {
+            setStatus("Enter a valid sold amount.");
+            return;
+        }
+
+        const team = teams.find((t) => Number(t.id) === Number(selectedTeamId));
+        if (!team) {
+            setStatus("Select a team for sold.");
+            return;
+        }
+
+        setActionLoading(true);
+
+        try {
+            const updatedPlayer = {
+                ...currentPlayer,
+                sold_status: "TRUE",
+                team_id: team.id,
+                sold_price: amount,
+            };
+
+            await Promise.all([
+                fetch(`${API}/api/current-player`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId }),
+                }),
+                fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        sold_status: "TRUE",
+                        team_id: team.id,
+                        sold_price: amount,
+                    }),
+                }),
+            ]);
+
+            socketRef.current?.emit("playerSold", {
+                player_id: currentPlayer.id,
+                team_id: team.id,
+                sold_price: amount,
+                tournament_id: tournamentId,
+                tournament_slug: tournamentSlug,
+            });
+
+            fetch(`${API}/api/notify-player-change`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId, tournament_slug: tournamentSlug }),
+            });
+
+            fetch(`${API}/api/notify-sold`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId, tournament_slug: tournamentSlug }),
+            });
+
+            setCurrentPlayer(updatedPlayer);
+            setPlayers((prev) =>
+                Array.isArray(prev)
+                    ? prev.map((p) =>
+                        Number(p.id) === Number(currentPlayer.id)
+                            ? { ...p, sold_status: true, team_id: team.id, sold_price: amount }
+                            : p
+                    )
+                    : prev
+            );
+            setStatus(`Marked SOLD to ${team.name}.`);
+        } catch (err) {
+            console.error("Failed to mark player as sold", err);
+            setStatus("Unable to mark player as SOLD right now.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleMarkUnsold = async () => {
+        setStatus("");
+
+        if (!tournamentId) {
+            setStatus("Tournament is not ready yet.");
+            return;
+        }
+
+        if (!currentPlayer?.id) {
+            setStatus("Select a player first.");
+            return;
+        }
+
+        setActionLoading(true);
+
+        try {
+            const updatedPlayer = {
+                ...currentPlayer,
+                sold_status: "FALSE",
+                team_id: null,
+                sold_price: 0,
+            };
+
+            await Promise.all([
+                fetch(`${API}/api/current-player`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...updatedPlayer, tournament_id: tournamentId }),
+                }),
+                fetch(`${API}/api/players/${currentPlayer.id}?slug=${tournamentSlug}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        sold_status: "FALSE",
+                        team_id: null,
+                        sold_price: 0,
+                    }),
+                }),
+                fetch(`${API}/api/current-bid`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        bid_amount: 0,
+                        team_name: "",
+                        tournament_id: tournamentId,
+                    }),
+                }),
+            ]);
+
+            socketRef.current?.emit("playerUnsold", {
+                player_id: currentPlayer.id,
+                sold_pool: currentPlayer.sold_pool ?? null,
+                tournament_id: tournamentId,
+                tournament_slug: tournamentSlug,
+            });
+
+            fetch(`${API}/api/notify-player-change`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: currentPlayer.id,
+                    sold_status: "FALSE",
+                    sold_price: 0,
+                    sold_pool: currentPlayer.sold_pool ?? null,
+                    tournament_id: tournamentId,
+                    tournament_slug: tournamentSlug,
+                }),
+            });
+
+            setCurrentPlayer(updatedPlayer);
+            setPlayers((prev) =>
+                Array.isArray(prev)
+                    ? prev.map((p) =>
+                        Number(p.id) === Number(currentPlayer.id)
+                            ? { ...p, sold_status: false, team_id: null, sold_price: 0 }
+                            : p
+                    )
+                    : prev
+            );
+            setStatus("Marked UNSOLD.");
+        } catch (err) {
+            console.error("Failed to mark player as unsold", err);
+            setStatus("Unable to mark player as UNSOLD right now.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center p-6">
             <div className="w-full max-w-4xl space-y-6">
@@ -616,6 +847,75 @@ const SoftAdminPanel = () => {
                     ) : (
                         <p className="text-gray-400">Nothing selected yet.</p>
                     )}
+                </div>
+
+
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold">Mark Sold / Unsold</h2>
+                        <span className="text-xs uppercase tracking-widest text-gray-500">Broadcasts Live</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <label className="flex flex-col gap-2">
+                            <span className="text-sm uppercase tracking-widest text-gray-400">
+                                Team (for sold)
+                            </span>
+                            <select
+                                className="p-3 rounded-lg bg-gray-800 border border-gray-700 text-white"
+                                value={selectedTeamId}
+                                onChange={(e) => setSelectedTeamId(e.target.value)}
+                                disabled={actionLoading || !teams.length || !currentPlayer}
+                            >
+                                <option value="">Select team</option>
+                                {teams.map((team) => (
+                                    <option key={team.id} value={team.id}>
+                                        {team.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="flex flex-col gap-2">
+                            <span className="text-sm uppercase tracking-widest text-gray-400">
+                                Amount
+                            </span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                className="p-3 rounded-lg bg-gray-800 border border-gray-700 text-white"
+                                value={finalAmount}
+                                onChange={(e) => setFinalAmount(e.target.value)}
+                                placeholder="Enter amount"
+                                disabled={actionLoading || !currentPlayer}
+                            />
+                        </label>
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button
+                                type="button"
+                                onClick={handleMarkSold}
+                                disabled={actionLoading || !currentPlayer}
+                                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-3 rounded-lg shadow-lg transition"
+                            >
+                                {actionLoading ? "Working..." : "Mark SOLD"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleMarkUnsold}
+                                disabled={actionLoading || !currentPlayer}
+                                className="bg-rose-600 hover:bg-rose-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-3 rounded-lg shadow-lg transition"
+                            >
+                                {actionLoading ? "Working..." : "Mark UNSOLD"}
+                            </button>
+                        </div>
+                    </div>
+
+                    <p className="text-xs text-gray-400 mt-3">
+                        Sold requires a team and amount. Unsold clears team and price and triggers the spectator overlay.
+                    </p>
                 </div>
             </div>
         </div>
