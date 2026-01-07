@@ -14,6 +14,7 @@ const SoftAdminPanel = () => {
     const [currentPlayer, setCurrentPlayer] = useState(null);
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState("");
+    const [playersPerTeam, setPlayersPerTeam] = useState(null);
     const [teams, setTeams] = useState([]);
     const [selectedTeamId, setSelectedTeamId] = useState("");
     const [finalAmount, setFinalAmount] = useState("");
@@ -59,6 +60,7 @@ const SoftAdminPanel = () => {
                 if (res.ok && data?.id) {
                     setTournamentId(data.id);
                     setTournamentTitle(data.title || "Tournament");
+                    setPlayersPerTeam(Number(data.players_per_team) || null);
                 } else {
                     setStatus("Unable to find tournament.");
                 }
@@ -562,6 +564,24 @@ const SoftAdminPanel = () => {
         const team = teams.find((t) => Number(t.id) === Number(selectedTeamId));
         if (!team) {
             setStatus("Select a team for sold.");
+            return;
+        }
+
+        if (team.max_bid_allowed != null && amount > Number(team.max_bid_allowed)) {
+            setStatus(`Cannot mark SOLD. Amount exceeds max bid allowed for ${team.name}.`);
+            return;
+        }
+
+        const soldCountForTeam = players.filter(
+            (p) =>
+                Number(p.team_id) === Number(team.id) &&
+                (p.sold_status === true || p.sold_status === "TRUE")
+        ).length;
+        const boughtCount = Number.isFinite(Number(team.bought_count))
+            ? Number(team.bought_count)
+            : soldCountForTeam;
+        if (playersPerTeam != null && boughtCount >= playersPerTeam) {
+            setStatus(`Cannot mark SOLD. ${team.name} has completed all slots.`);
             return;
         }
 
