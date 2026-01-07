@@ -530,7 +530,8 @@ const SpectatorLiveDisplay = () => {
     const [cricheroesStats, setCricheroesStats] = useState(null);
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
     const [activePool, setActivePool] = useState(""); // optional: keep in sync with Admin
-    const [theme, setTheme] = useState(DEFAULT_THEME_KEY);
+    const DEFAULT_VIDEO_THEME = "video:bg15.mp4";
+    const theme = DEFAULT_VIDEO_THEME;
     const activeTheme =
         (THEMES && THEMES[theme]) ||
         (THEMES && THEMES[DEFAULT_THEME_KEY]) ||
@@ -589,43 +590,6 @@ const SpectatorLiveDisplay = () => {
         });
     }, []);
 
-
-    useEffect(() => {
-        const controller = new AbortController();
-        const slugQuery = tournamentSlug ? `?slug=${encodeURIComponent(tournamentSlug)}` : "";
-        const applyTheme = (key) => {
-            const isVideo = typeof key === "string" && key.startsWith("video:");
-            setTheme(key && (THEMES[key] || isVideo) ? key : DEFAULT_THEME_KEY);
-        };
-
-        fetch(`${API}/api/theme${slugQuery}`, { signal: controller.signal })
-            .then(res => res.json())
-            .then(data => applyTheme(data?.theme))
-            .catch(() => { });
-
-        const socket = io(API, {
-            transports: ["websocket"],
-            upgrade: false,
-            reconnection: true,
-            reconnectionAttempts: 10,
-            reconnectionDelay: 500,
-        });
-
-        const handleThemeUpdate = (payload) => {
-            const incoming = typeof payload === "string"
-                ? { theme: payload, slug: null }
-                : (payload || {});
-            if (!slugsMatch(incoming.slug, tournamentSlug)) return;
-            applyTheme(incoming.theme);
-        };
-
-        socket.on("themeUpdate", handleThemeUpdate);
-        return () => {
-            controller.abort();
-            socket.off("themeUpdate", handleThemeUpdate);
-            socket.disconnect();
-        };
-    }, [tournamentSlug]);
 
     const fetchKcplTeamStates = async () => {
         if (!tournamentId) return;
@@ -1229,16 +1193,6 @@ const SpectatorLiveDisplay = () => {
         socket.on("secretBiddingToggled", (payload) => { if (!matchesTournament(payload)) return; fastRefresh(); });
 
         // Theme + custom message + reveal flow — move onto THIS socket
-        const handleSocketThemeUpdate = (payload) => {
-            const incoming = typeof payload === "string"
-                ? { theme: payload, slug: null }
-                : (payload || {});
-            if (!slugsMatch(incoming.slug, tournamentSlug)) return;
-            const key = incoming.theme;
-            const isVideo = typeof key === "string" && key.startsWith("video:");
-            setTheme(key && (THEMES[key] || isVideo) ? key : DEFAULT_THEME_KEY);
-        };
-        socket.on("themeUpdate", handleSocketThemeUpdate);
 
         socket.on("customMessageUpdate", (payload) => {
             // Support legacy string payloads (treated as global/ignored here), and new scoped objects
@@ -1329,7 +1283,6 @@ const SpectatorLiveDisplay = () => {
             socket.off("playerUnsold", onPlayerUnsold);
             socket.off("playerChanged", fastRefresh);
             socket.off("secretBiddingToggled", fastRefresh);
-            socket.off("themeUpdate", handleSocketThemeUpdate);
             socket.off("customMessageUpdate");
             socket.off("revealSecretBids");
             socket.off("secretBidWinnerAssigned");
@@ -2425,11 +2378,16 @@ const groups =
   }
 `}</style>
 
+    const isVideoTheme = typeof theme === "string" && theme.startsWith("video:");
+    const rootBgClass = isVideoTheme
+        ? `w-screen h-screen ${activeTheme.text} overflow-hidden relative`
+        : `w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`;
+
     return (
-        <div className={`w-screen h-screen bg-gradient-to-br ${activeTheme.bg} ${activeTheme.text} overflow-hidden relative`}>
+        <div className={rootBgClass}>
             {/* <div className="w-screen h-screen relative overflow-hidden bg-black text-white"> */}
             {/* Background Layer – Particle Animation */}
-            {/* <BackgroundEffect theme={theme} /> */}
+            <BackgroundEffect theme={theme} />
 
             <div className="flex items-center justify-between px-6 py-4">
                 {/* Left: EA ARENA Logo */}
