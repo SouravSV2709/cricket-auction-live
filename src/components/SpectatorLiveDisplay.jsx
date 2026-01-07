@@ -497,20 +497,6 @@ const BottomMarquee = ({
 
 const API = CONFIG.API_BASE_URL;
 
-let currentSoldAudio = null;
-
-const soldAudioFiles = [
-    // '/sounds/clapping.wav',
-    '/sounds/bbpl1.wav',
-    '/sounds/bbpl2.wav',
-    '/sounds/bbpl3.wav'
-];
-
-const getRandomSoldAudio = () => {
-    const index = Math.floor(Math.random() * soldAudioFiles.length);
-    return soldAudioFiles[index];
-};
-
 const unsoldMedia = [
     '/sounds/unsold1207.gif',
     '/sounds/unsold3.gif',
@@ -678,14 +664,6 @@ const SpectatorLiveDisplay = () => {
         if (unsoldLockRef.current) return;
 
         if (!isLoading && isValidSold(playerData)) {
-            if (currentSoldAudio) {
-                currentSoldAudio.pause();
-                currentSoldAudio.currentTime = 0;
-            }
-            const selectedSrc = getRandomSoldAudio();
-            currentSoldAudio = new Audio(selectedSrc);
-            currentSoldAudio.volume = 1.0;
-            currentSoldAudio.play().catch(() => { });
 
             setTimeout(() => {
                 const duration = 3000;
@@ -1062,19 +1040,7 @@ const SpectatorLiveDisplay = () => {
 
         console.log("🎉 SOLD player detected:", player.name);
         lastPlayerId.current = player.id;
-
-        // 🔊 Confetti + Audio
-        if (currentSoldAudio) {
-            currentSoldAudio.pause();
-            currentSoldAudio.currentTime = 0;
-        }
-
-        const selectedSrc = getRandomSoldAudio();
-        currentSoldAudio = new Audio(selectedSrc);
-        currentSoldAudio.volume = 1.0;
-        currentSoldAudio.play().catch(err => {
-            console.warn("Autoplay prevented:", err);
-        });
+        // Confetti
 
         const duration = 3000;
         const end = Date.now() + duration;
@@ -1192,10 +1158,6 @@ const SpectatorLiveDisplay = () => {
             setUnsoldOverlayActive(true);
             setUnsoldClip(unsoldMedia[Math.floor(Math.random() * unsoldMedia.length)]);
             try {
-                if (currentSoldAudio) {
-                    currentSoldAudio.pause();
-                    currentSoldAudio.currentTime = 0;
-                }
                 unsoldAudio.currentTime = 0;
                 unsoldAudio.play();
             } catch { }
