@@ -542,7 +542,7 @@ const SpectatorLiveDisplay = () => {
         { bg: "from-[#0F2A5A] via-[#1F3E73] to-[#0F2A5A]", text: "text-yellow-50" };
     const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
     const unsoldOverlayTimerRef = useRef(null);
-    const [marqueeEnabled, setMarqueeEnabled] = useState(true);
+    const [marqueeEnabled, setMarqueeEnabled] = useState(false);
     const { tournamentSlug } = useParams();
     // guards for UNSOLD transition
     const unsoldLockRef = useRef(false);
