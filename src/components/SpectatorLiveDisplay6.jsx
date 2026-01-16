@@ -48,6 +48,7 @@ const SpectatorLiveDisplay6 = () => {
     const [playerList, setPlayerList] = useState([]);
     const socketRef = useRef(null);
     const lastPlayerIdRef = useRef(null);
+    const lastOptimisticSoldRef = useRef({ playerId: null, at: 0 });
 
     const fetchTournament = useCallback(async () => {
         if (!tournamentSlug) return;
@@ -283,6 +284,19 @@ const SpectatorLiveDisplay6 = () => {
                     resetBidTeams();
                     lastPlayerIdRef.current = null;
                 } else {
+                    const recentSold =
+                        Number(lastOptimisticSoldRef.current?.playerId) === Number(payloadId) &&
+                        Date.now() - Number(lastOptimisticSoldRef.current?.at || 0) < 2500 &&
+                        (payload?.sold_status === true ||
+                            String(payload?.sold_status || "").toUpperCase() === "TRUE" ||
+                            payload?.sold_price != null ||
+                            payload?.team_id != null ||
+                            payload?.team_name);
+                    if (recentSold) {
+                        fetchTeams();
+                        fetchPlayerList();
+                        return;
+                    }
                     applyPlayerSnapshot(payload);
                 }
             }
@@ -294,6 +308,9 @@ const SpectatorLiveDisplay6 = () => {
         const handlePlayerSold = (payload = {}) => {
             if (!matchesTournament(payload)) return;
             const payloadId = payload?.player_id ?? payload?.id ?? null;
+            if (payloadId != null) {
+                lastOptimisticSoldRef.current = { playerId: payloadId, at: Date.now() };
+            }
             setPlayer((prev) => {
                 if (payloadId != null && prev?.id != null && Number(prev.id) !== Number(payloadId)) {
                     return prev;
