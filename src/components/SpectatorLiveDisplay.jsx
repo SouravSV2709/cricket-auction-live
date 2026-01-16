@@ -548,6 +548,11 @@ const SpectatorLiveDisplay = () => {
 
     const lastConfettiPlayerIdRef = useRef(null);
     const lastConfettiAtRef = useRef(0);
+    const playerRef = useRef(null);
+
+    useEffect(() => {
+        playerRef.current = player;
+    }, [player]);
 
     // Treat as SOLD only when status is TRUE AND we have a non-zero price AND a real team_id
     const isValidSold = (p) =>
@@ -1050,10 +1055,15 @@ const SpectatorLiveDisplay = () => {
 
         // 🔴 LIVE: update bid instantly on every increment
         const onBidUpdated = ({ bid_amount, team_name }) => {
-            if (unsoldOverlayActive && Number(bid_amount) === 0 && (!team_name || team_name === "")) return;
+            const livePlayer = playerRef.current;
+            const isZero = Number(bid_amount) === 0 && (!team_name || team_name === "");
+            const isTerminal = livePlayer && (isValidSold(livePlayer) || isUnsold(livePlayer));
+
+            if (isZero && (unsoldOverlayActive || isTerminal)) return;
+
             setHighestBid(Number(bid_amount) || 0);
             setLeadingTeam(team_name || "");
-            if (Number(bid_amount) === 0 && (!team_name || team_name === "")) fastRefresh();
+            if (isZero && !isTerminal) fastRefresh();
         };
 
         socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); }); // scoped
@@ -1159,9 +1169,14 @@ const SpectatorLiveDisplay = () => {
 
         socket.on("playerChanged", (payload) => {
             if (!matchesTournament(payload)) return;
+            const livePlayer = playerRef.current;
             const samePlayer =
-                payload?.id != null && player?.id != null &&
-                Number(payload.id) === Number(player.id);
+                payload?.id != null && livePlayer?.id != null &&
+                Number(payload.id) === Number(livePlayer.id);
+            const isSoldOrUnsold =
+                ["TRUE", "true", true, "FALSE", "false", false].includes(
+                    payload?.sold_status ?? livePlayer?.sold_status
+                );
 
             // If this is the SAME player and we just handled UNSOLD,
             // treat it as a soft refresh (no transition loader / no reset).
@@ -1171,6 +1186,13 @@ const SpectatorLiveDisplay = () => {
             ) {
                 setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
                 // keep current highestBid/leadingTeam; do not set isLoading
+                return;
+            }
+
+            // If payload is for the same player already in a terminal state (SOLD/UNSOLD),
+            // merge it without clearing bids/loading to avoid flicker.
+            if (samePlayer && isSoldOrUnsold) {
+                setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
                 return;
             }
 
