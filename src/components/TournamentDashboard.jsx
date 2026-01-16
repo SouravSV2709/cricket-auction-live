@@ -408,9 +408,9 @@ const TournamentDashboard = () => {
 
                           {/* Available balance quick badge */}
                           <span className="px-2 py-1 rounded bg-white/10 text-yellow-200 text-xs md:text-sm whitespace-nowrap">
-                            Purse:{" "}
+                            Budget:{" "}
                             <span className="font-bold text-white">
-                              {formatLakhs(remainingPurse)}
+                              {formatLakhs(budget)}
                             </span>
                           </span>
                         </header>
@@ -418,9 +418,9 @@ const TournamentDashboard = () => {
                         {/* Quick stats */}
                         <div className="grid grid-cols-3 gap-2 md:gap-3 text-[12px] md:text-sm text-yellow-300">
                           <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
-                            <div className="opacity-70">BUDGET</div>
+                            <div className="opacity-70">PURSE</div>
                             <div className="font-extrabold text-white text-xs md:text-base">
-                              {formatLakhs(budget)}
+                              {formatLakhs(remainingPurse)}
                             </div>
                           </div>
                           <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
