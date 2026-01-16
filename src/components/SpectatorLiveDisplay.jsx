@@ -546,6 +546,9 @@ const SpectatorLiveDisplay = () => {
     const lastUnsoldAtRef = useRef(0);
     const lastUnsoldPlayerIdRef = useRef(null);
 
+    const lastConfettiPlayerIdRef = useRef(null);
+    const lastConfettiAtRef = useRef(0);
+
     // Treat as SOLD only when status is TRUE AND we have a non-zero price AND a real team_id
     const isValidSold = (p) =>
         p &&
@@ -627,7 +630,18 @@ const SpectatorLiveDisplay = () => {
         // do not confetti while UNSOLD is transitioning
         if (unsoldLockRef.current) return;
 
+        const id = Number(playerData?.id);
+        if (!id) return;
+        if (
+            lastConfettiPlayerIdRef.current === id &&
+            Date.now() - Number(lastConfettiAtRef.current || 0) < 2500
+        ) {
+            return;
+        }
+
         if (!isLoading && isValidSold(playerData)) {
+            lastConfettiPlayerIdRef.current = id;
+            lastConfettiAtRef.current = Date.now();
 
             setTimeout(() => {
                 const duration = 3000;
@@ -991,37 +1005,6 @@ const SpectatorLiveDisplay = () => {
 
 
     useEffect(() => {
-        if (!player || !["TRUE", "true", true].includes(player.sold_status)) return;
-
-        // ⛔ ignore SOLD flashes for the same player right after UNSOLD
-        if (
-            unsoldLockRef.current &&
-            Number(player.id) === Number(lastUnsoldPlayerIdRef.current) &&
-            Date.now() - lastUnsoldAtRef.current < 3000
-        ) {
-            return;
-        }
-
-        console.log("🎉 SOLD player detected:", player.name);
-        lastPlayerId.current = player.id;
-        // Confetti
-
-        const duration = 3000;
-        const end = Date.now() + duration;
-
-        const frame = () => {
-            confetti({ particleCount: 10, angle: 60, spread: 100, origin: { x: 0 } });
-            confetti({ particleCount: 10, angle: 120, spread: 100, origin: { x: 1 } });
-            confetti({ particleCount: 10, angle: 270, spread: 100, origin: { y: 0 } });
-            confetti({ particleCount: 10, angle: 90, spread: 100, origin: { y: 1 } });
-            if (Date.now() < end) requestAnimationFrame(frame);
-        };
-
-        setTimeout(frame, 100);
-    }, [player?.sold_status]);
-
-
-    useEffect(() => {
         if (!tournamentId) return;
 
         // Initial fetches
@@ -1115,6 +1098,12 @@ const SpectatorLiveDisplay = () => {
             // keep the banner in sync so "Waiting for Bid" never shows
             setHighestBid(price);
             setLeadingTeam(resolvedName || "");
+            triggerConfettiIfSold({
+                id: payload?.player_id,
+                sold_status: "TRUE",
+                sold_price: price,
+                team_id: payload?.team_id,
+            });
 
             // refresh only aggregates; don't refetch the player yet
             fetchAllPlayers();
