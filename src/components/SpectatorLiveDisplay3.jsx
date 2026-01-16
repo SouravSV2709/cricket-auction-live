@@ -71,9 +71,9 @@ const SpectatorLiveDisplay = () => {
     const [secretBidActive, setSecretBidActive] = useState(false);
     const [totalPlayersToBuy, setTotalPlayersToBuy] = useState(0);
     const [showPurse, setShowPurse] = useState(false);
-    const [showMaxBid, setShowMaxBid] = useState(true);
+    const [showMaxBid, setShowMaxBid] = useState(false);
     const [showPlayersToBuy, setShowPlayersToBuy] = useState(false);
-    const [showActiveBidders, setShowActiveBidders] = useState(true);
+    const [showActiveBidders, setShowActiveBidders] = useState(false);
     const [activeBidders, setActiveBidders] = useState([]);
     const { tournamentSlug } = useParams();
     const [cricheroesStats, setCricheroesStats] = useState(null);

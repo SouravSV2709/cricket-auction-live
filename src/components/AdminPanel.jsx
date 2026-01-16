@@ -29,9 +29,9 @@ const AdminPanel = () => {
     const [undoStack, setUndoStack] = useState([]);
     const [customMessage, setCustomMessage] = useState('');
     const [showBidderPurse, setShowBidderPurse] = useState(false);
-    const [showBidderMaxBid, setShowBidderMaxBid] = useState(true);
+    const [showBidderMaxBid, setShowBidderMaxBid] = useState(false);
     const [showBidderPlayersToBuy, setShowBidderPlayersToBuy] = useState(false);
-    const [showBidderPanel, setShowBidderPanel] = useState(true);
+    const [showBidderPanel, setShowBidderPanel] = useState(false);
     const [tournamentTitle, setTournamentTitle] = useState('Tournament');
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
