@@ -1759,6 +1759,42 @@ app.post("/api/reset-auction", async (req, res) => {
   }
 });
 
+// Recalculate max bid for all teams without resetting auction state
+app.post("/api/reset-max-bid", async (req, res) => {
+  try {
+    const tournamentId = req.body?.tournament_id;
+
+    if (!tournamentId) {
+      return res.status(400).json({ error: "Tournament ID is required." });
+    }
+
+    const teamRes = await pool.query(
+      `SELECT id FROM teams WHERE tournament_id = $1`,
+      [tournamentId]
+    );
+
+    await Promise.all(
+      teamRes.rows.map(row => updateTeamStats(row.id, tournamentId))
+    );
+
+    const updatedTeams = await pool.query(
+      `SELECT id, name, bought_count, max_bid_allowed, budget
+       FROM teams
+       WHERE tournament_id = $1
+       ORDER BY id`,
+      [tournamentId]
+    );
+
+    res.json({
+      message: "Max bid recalculated for all teams.",
+      teams: updatedTeams.rows
+    });
+  } catch (err) {
+    console.error("Error recalculating max bid:", err);
+    res.status(500).json({ error: "Reset max bid failed" });
+  }
+});
+
 // Reset only unsold players for a tournament (bulk)
 app.post("/api/reset-unsold", async (req, res) => {
   try {

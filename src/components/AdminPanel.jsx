@@ -36,6 +36,7 @@ const AdminPanel = () => {
     const [showCustomMessagePanel, setShowCustomMessagePanel] = useState(false);
     const [resetInProgress, setResetInProgress] = useState(false);
     const [resetUnsoldInProgress, setResetUnsoldInProgress] = useState(false);
+    const [resetMaxBidInProgress, setResetMaxBidInProgress] = useState(false);
     const [selectedTheme, setSelectedTheme] = useState("fireflies");
     const [isTeamViewActive, setIsTeamViewActive] = useState(false);
     const [isTeamLoopActive, setIsTeamLoopActive] = useState(false);
@@ -1812,6 +1813,35 @@ const handleSearchById = async (idOverride) => {
 
 
 
+    const resetMaxBid = async () => {
+        try {
+            if (!tournamentId) {
+                alert("Tournament not loaded yet.");
+                return;
+            }
+
+            setResetMaxBidInProgress(true);
+            const res = await fetch(`${API}/api/reset-max-bid`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ tournament_id: tournamentId })
+            });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.error || "Failed to reset max bid.");
+            }
+
+            await fetchTeams(tournamentId);
+            alert("✅ Max bid recalculated for all teams.");
+        } catch (err) {
+            console.error("❌ Failed to reset max bid:", err);
+            alert("❌ Error occurred while resetting max bid.");
+        } finally {
+            setResetMaxBidInProgress(false);
+        }
+    };
+
     const resetUnsoldPlayers = async () => {
         try {
             setResetUnsoldInProgress(true);
@@ -3178,6 +3208,14 @@ const handleSearchById = async (idOverride) => {
                                 disabled={resetUnsoldInProgress}
                             >
                                 {resetUnsoldInProgress ? "Resetting unsold..." : "Reset Unsold"}
+                            </button>
+
+                            <button
+                                className={`bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded shadow ${resetMaxBidInProgress ? "opacity-70 cursor-not-allowed" : ""}`}
+                                onClick={resetMaxBid}
+                                disabled={resetMaxBidInProgress}
+                            >
+                                {resetMaxBidInProgress ? "Recalculating..." : "Recalculate Max Bid"}
                             </button>
 
                             <button
