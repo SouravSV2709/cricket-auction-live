@@ -849,17 +849,14 @@ const SpectatorLiveDisplay = () => {
             }
 
             lastPlayerId.current = basic.id;
-
             if (isPlayerChanged) {
                 // Only delay for new player
                 setTimeout(() => {
                     setIsLoading(false);
-                    triggerConfettiIfSold(fullPlayer);
                 }, 800);
             } else {
                 // Immediate update for same player (like secret bid sold)
                 setIsLoading(false);
-                triggerConfettiIfSold(fullPlayer);
             }
 
             if (fullPlayer.cricheroes_id) {
