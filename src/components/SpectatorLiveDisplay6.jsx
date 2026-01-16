@@ -114,6 +114,35 @@ const SpectatorLiveDisplay6 = () => {
         setLiveBidTeams(seeds.slice(0, 4));
     }, [resetBidTeams]);
 
+    const applyPlayerSnapshot = useCallback((snapshot) => {
+        if (!snapshot) return;
+        const nextId = snapshot.id ?? snapshot.player_id ?? null;
+        setPlayer(snapshot);
+        lastPlayerIdRef.current = nextId;
+
+        if (snapshot.latest_bid_amount != null) {
+            setHighestBid(Number(snapshot.latest_bid_amount) || 0);
+        } else if (snapshot.sold_price) {
+            setHighestBid(Number(snapshot.sold_price) || 0);
+        } else {
+            setHighestBid(0);
+        }
+
+        if (snapshot.leading_team_name || snapshot.team_name) {
+            setLeadingTeam(snapshot.leading_team_name || snapshot.team_name || "");
+        } else if (snapshot?.team_data?.name) {
+            setLeadingTeam(snapshot.team_data.name);
+        } else {
+            setLeadingTeam("");
+        }
+
+        if (Array.isArray(snapshot.live_bid_teams)) {
+            seedBidTeams(snapshot.live_bid_teams);
+        } else {
+            resetBidTeams();
+        }
+    }, [resetBidTeams, seedBidTeams]);
+
     const fetchCurrentPlayer = useCallback(async () => {
         if (!tournamentSlug) return;
         try {
@@ -245,7 +274,52 @@ const SpectatorLiveDisplay6 = () => {
 
         const handleRefreshPlayer = (payload = {}) => {
             if (!matchesTournament(payload)) return;
+            if ("id" in payload || "player_id" in payload) {
+                const payloadId = payload?.id ?? payload?.player_id;
+                if (payloadId == null) {
+                    setPlayer(null);
+                    setHighestBid(0);
+                    setLeadingTeam("");
+                    resetBidTeams();
+                    lastPlayerIdRef.current = null;
+                } else {
+                    applyPlayerSnapshot(payload);
+                }
+            }
             fetchCurrentPlayer();
+            fetchTeams();
+            fetchPlayerList();
+        };
+
+        const handlePlayerSold = (payload = {}) => {
+            if (!matchesTournament(payload)) return;
+            const payloadId = payload?.player_id ?? payload?.id ?? null;
+            setPlayer((prev) => {
+                if (payloadId != null && prev?.id != null && Number(prev.id) !== Number(payloadId)) {
+                    return prev;
+                }
+                return {
+                    ...(prev || {}),
+                    sold_status: "TRUE",
+                    sold_price: payload?.sold_price ?? prev?.sold_price ?? 0,
+                    team_id: payload?.team_id ?? prev?.team_id ?? null,
+                    team_name: payload?.team_name ?? prev?.team_name ?? "",
+                    leading_team_name: payload?.team_name ?? prev?.leading_team_name ?? "",
+                };
+            });
+
+            if (payload?.sold_price != null) {
+                setHighestBid(Number(payload.sold_price) || 0);
+            }
+            if (payload?.team_name) {
+                setLeadingTeam(payload.team_name);
+                registerBidTeam({
+                    team_id: payload?.team_id,
+                    team_name: payload?.team_name,
+                    bid_amount: payload?.sold_price,
+                });
+            }
+
             fetchTeams();
             fetchPlayerList();
         };
@@ -253,17 +327,19 @@ const SpectatorLiveDisplay6 = () => {
         socket.on("bidUpdated", handleBidUpdated);
         socket.on("playerChanged", handleRefreshPlayer);
         socket.on("saleCommitted", handleRefreshPlayer);
+        socket.on("playerSold", handlePlayerSold);
         socket.on("playerUnsold", handleRefreshPlayer);
 
         return () => {
             socket.off("bidUpdated", handleBidUpdated);
             socket.off("playerChanged", handleRefreshPlayer);
             socket.off("saleCommitted", handleRefreshPlayer);
+            socket.off("playerSold", handlePlayerSold);
             socket.off("playerUnsold", handleRefreshPlayer);
             socket.disconnect();
             socketRef.current = null;
         };
-    }, [tournamentId, fetchCurrentPlayer, fetchTeams, fetchPlayerList, matchesTournament, registerBidTeam]);
+    }, [tournamentId, applyPlayerSnapshot, fetchCurrentPlayer, fetchTeams, fetchPlayerList, matchesTournament, registerBidTeam, resetBidTeams]);
 
     useEffect(() => {
         return () => {
