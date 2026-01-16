@@ -1067,6 +1067,8 @@ const SpectatorLiveDisplay = () => {
 
         const onSaleCommitted = (payload) => {
             if (!matchesTournament(payload)) return;
+            const livePlayer = playerRef.current;
+            if (!livePlayer || Number(livePlayer.id) !== Number(payload?.player_id)) return;
             // Ignore during UNSOLD overlay or when payload is not a valid SOLD update
             const price = Number(payload?.sold_price) || 0;
             const hasTeam = payload?.team_id !== null && payload?.team_id !== "";
