@@ -203,7 +203,7 @@ const SpectatorLiveDisplay = () => {
         setTimeout(() => {
             setViewPlayer(next);
             playPopIn();
-        }, 200);
+        }, 900);
     };
 
 
@@ -813,7 +813,29 @@ const SpectatorLiveDisplay = () => {
                 </div>
             )}
             {vis && (
-                <div key={`${vis?.id}-${animTick}`} className={`relative w-full h-full ${animClass}`}>
+                <div
+                    key={`${vis?.id}-${animTick}`}
+                    className="relative w-full h-full"
+                    style={
+                        animClass === "pop-out"
+                            ? { animation: "aa-slide-out-left 1400ms ease both" }
+                            : animClass === "pop-in"
+                                ? { animation: "aa-slide-in-right 1400ms ease both" }
+                                : undefined
+                    }
+                >
+                    <style>{`
+  @keyframes aa-slide-out-left {
+    0%   { opacity: 1; transform: translateX(0) scale(1); }
+    70%  { opacity: 0.6; transform: translateX(-60px) scale(0.99); }
+    100% { opacity: 0; transform: translateX(-140px) scale(0.98); }
+  }
+  @keyframes aa-slide-in-right {
+    0%   { opacity: 0; transform: translateX(140px) scale(0.98); }
+    60%  { opacity: 1; transform: translateX(0) scale(1.01); }
+    100% { opacity: 1; transform: translateX(0) scale(1); }
+  }
+`}</style>
                     <PlayerCard3
                         player={{
                             ...vis,

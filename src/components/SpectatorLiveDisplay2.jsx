@@ -614,6 +614,10 @@ const SpectatorLiveDisplay = () => {
     const [highestBid, setHighestBid] = useState(0);
     const [leadingTeam, setLeadingTeam] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [transitionPrevPlayer, setTransitionPrevPlayer] = useState(null);
+    const [isPlayerTransitioning, setIsPlayerTransitioning] = useState(false);
+    const transitionTimerRef = useRef(null);
+    const lastRenderedPlayerRef = useRef(null);
     const [countdownTime, setCountdownTime] = useState(null);
     const countdownIntervalRef = useRef(null);
     const [tournamentId, setTournamentId] = useState(null);
@@ -653,6 +657,23 @@ const SpectatorLiveDisplay = () => {
     useEffect(() => {
         playerRef.current = player;
     }, [player]);
+
+    useEffect(() => {
+        const prev = lastRenderedPlayerRef.current;
+        if (player && prev && Number(player.id) !== Number(prev.id)) {
+            setTransitionPrevPlayer(prev);
+            setIsPlayerTransitioning(true);
+            if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+            transitionTimerRef.current = setTimeout(() => {
+                setIsPlayerTransitioning(false);
+                setTransitionPrevPlayer(null);
+            }, 1600);
+        }
+        lastRenderedPlayerRef.current = player;
+        return () => {
+            if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+        };
+    }, [player?.id]);
 
     // Reset active bidders when player changes
     useEffect(() => {
@@ -892,6 +913,14 @@ const SpectatorLiveDisplay = () => {
     const teamFlagSrc = playerTeam?.name ? TEAM_FLAG_MAP[playerTeam.name.trim()] ?? null : null;
     const cardBgColor =
         (playerTeam?.name && TEAM_BG_MAP[playerTeam.name.trim()]) || "#FFFFFF"; // fallback white
+    const transitionPrevImg =
+        transitionPrevPlayer?.profile_image
+            ? (String(transitionPrevPlayer.profile_image).startsWith("http")
+                ? transitionPrevPlayer.profile_image
+                : `https://ik.imagekit.io/auctionarena2/uploads/players/profiles/${transitionPrevPlayer.profile_image}?tr=w-300,h-400,fo-face,z-0.4,q-95,e-sharpen`)
+            : "/no-image-found.png";
+    const transitionPrevName = transitionPrevPlayer?.name || "Previous Player";
+    const transitionPrevRole = transitionPrevPlayer?.role || "";
 
 
     const fetchPlayer = async () => {
@@ -2997,16 +3026,46 @@ const groups =
                 )}
             </div>
 
+            {isPlayerTransitioning && transitionPrevPlayer && (
+                <div className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center">
+                    <div
+                        className="flex items-center gap-6 px-10 py-6 rounded-3xl bg-black/70 border border-white/25 backdrop-blur-md shadow-2xl"
+                        style={{ animation: "aa-player-exit 1400ms ease both" }}
+                    >
+                        <img
+                            src={transitionPrevImg}
+                            alt={transitionPrevName}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/no-image-found.png"; }}
+                            className="w-32 h-40 object-cover rounded-2xl border border-white/40 shadow-xl"
+                        />
+                        <div className="min-w-0">
+                            <div className="text-3xl font-extrabold text-white truncate">{transitionPrevName}</div>
+                            {transitionPrevRole ? (
+                                <div className="text-lg text-yellow-300 uppercase tracking-wide">{transitionPrevRole}</div>
+                            ) : null}
+                            <div className="text-sm text-white/70 mt-1 uppercase tracking-[0.2em]">Previous</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
 
             <div
                 key={player.id}
-                className={`flex w-full ${mainVerticalAlignClass} justify-between h-[calc(100%-120px)] px-12 ${mainSpacingClass} gap-8 transition-opacity duration-700 ${!isLoading ? 'opacity-100 animate-fade-in' : 'opacity-0'}`}
+                className={`flex w-full ${mainVerticalAlignClass} justify-between h-[calc(100%-120px)] px-12 ${mainSpacingClass} gap-8 transition-opacity duration-700 ${!isLoading ? "opacity-100" : "opacity-0"}`}
+                style={!isLoading ? { animation: "aa-player-enter 1400ms ease both" } : undefined}
             >
-                {/* one-time tiny keyframes for fade-in */}
+                {/* one-time keyframes for player enter/exit animation */}
                 <style>{`
-  @keyframes aa-fade-in {
-    from { opacity: 0; transform: translateY(-6px) scale(.98); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+  @keyframes aa-player-enter {
+    0%   { opacity: 0; transform: translateX(40px) scale(0.98); filter: saturate(0.85); }
+    60%  { opacity: 1; transform: translateX(0) scale(1.01); filter: saturate(1.05); }
+    100% { opacity: 1; transform: translateX(0) scale(1); filter: saturate(1); }
+  }
+  @keyframes aa-player-exit {
+    0%   { opacity: 0.95; transform: translateX(0) scale(1); filter: saturate(1); }
+    70%  { opacity: 0.6; transform: translateX(-60px) scale(0.99); filter: saturate(0.95); }
+    100% { opacity: 0; transform: translateX(-120px) scale(0.98); filter: saturate(0.9); }
   }
 `}</style>
 
