@@ -1075,17 +1075,29 @@ const SpectatorLiveDisplay = () => {
 
         socket.on("bidUpdated", (payload) => { if (!matchesTournament(payload)) return; onBidUpdated(payload); }); // scoped
 
-        socket.on("saleCommitted", (payload) => {
+        const onSaleCommitted = (payload) => {
             if (!matchesTournament(payload)) return;
             // Ignore during UNSOLD overlay or when payload is not a valid SOLD update
             const price = Number(payload?.sold_price) || 0;
             const hasTeam = payload?.team_id !== null && payload?.team_id !== "";
 
             if (unsoldOverlayActive || price <= 0 || !hasTeam) {
-                return; // 🔒 don't paint an invalid SOLD state
+                return; // dY"' don't paint an invalid SOLD state
             }
 
-            // ① update the visible player instantly (no network)
+            const t = Array.isArray(teamSummaries)
+                ? teamSummaries.find(x => Number(x.id) === Number(payload?.team_id))
+                : null;
+
+            const resolvedName =
+                (payload?.team_name && payload.team_name.trim()) ||
+                t?.name ||
+                t?.display_name ||
+                (t?.team_number ? `Team #${t.team_number}` : "");
+
+            const resolvedLogo = t?.logo;
+
+            // update the visible player instantly (no network)
             setPlayer((prev) =>
                 prev && Number(prev.id) === Number(payload?.player_id)
                     ? {
@@ -1094,19 +1106,27 @@ const SpectatorLiveDisplay = () => {
                         sold_price: payload?.sold_price,
                         team_id: payload?.team_id,
                         sold_pool: payload?.sold_pool ?? prev.sold_pool,
+                        team_name: resolvedName,
+                        team_logo: resolvedLogo,
                     }
                     : prev
             );
 
             // keep the banner in sync so "Waiting for Bid" never shows
             setHighestBid(price);
+            setLeadingTeam(resolvedName || "");
 
-            // ② refresh only aggregates; don't refetch the player yet
+            // refresh only aggregates; don't refetch the player yet
             fetchAllPlayers();
             fetchTeams();
             fetchKcplTeamStates();
-        });
+        };
 
+        socket.on("saleCommitted", onSaleCommitted);
+
+        // If Admin emits "playerSold" immediately, mirror the optimistic update
+        const onPlayerSold = (payload) => { if (!matchesTournament(payload)) return; onSaleCommitted(payload); };
+        socket.on("playerSold", onPlayerSold);
 
         // optimistic UNSOLD — immediately reflect UNSOLD on the card
         // UNSOLD: show overlay + audio, but DO NOT mutate local player/bid.
@@ -1162,6 +1182,12 @@ const SpectatorLiveDisplay = () => {
             ) {
                 setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
                 // keep current highestBid/leadingTeam; do not set isLoading
+                return;
+            }
+
+            // Same player refresh (e.g. SOLD confirmed from DB) ? no loader.
+            if (samePlayer) {
+                setPlayer(prev => ({ ...(prev || {}), ...(payload || {}) }));
                 return;
             }
 
@@ -1279,7 +1305,8 @@ const SpectatorLiveDisplay = () => {
         // Cleanup: unregister listeners and close the one socket
         return () => {
             socket.off("bidUpdated", onBidUpdated);
-            socket.off("saleCommitted");
+            socket.off("saleCommitted", onSaleCommitted);
+            socket.off("playerSold", onPlayerSold);
             socket.off("playerUnsold", onPlayerUnsold);
             socket.off("playerChanged", fastRefresh);
             socket.off("secretBiddingToggled", fastRefresh);
