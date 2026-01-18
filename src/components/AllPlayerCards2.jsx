@@ -37,6 +37,26 @@ const AllPlayerCards = () => {
     const hoverTimeoutRef = useRef(null);
     const [openImage, setOpenImage] = useState(null);
     const [openDetails, setOpenDetails] = useState(null);
+    const toGrayscaleCanvas = (source) => {
+        const bwCanvas = document.createElement("canvas");
+        bwCanvas.width = source.width;
+        bwCanvas.height = source.height;
+        const ctx = bwCanvas.getContext("2d");
+        ctx.drawImage(source, 0, 0);
+        const img = ctx.getImageData(0, 0, bwCanvas.width, bwCanvas.height);
+        const data = img.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+        }
+        ctx.putImageData(img, 0, 0);
+        return bwCanvas;
+    };
 
     const CARD_ROW_HEIGHT =
         windowWidth < 640 ? 420 :   // more space for mobile
@@ -402,7 +422,7 @@ const AllPlayerCards = () => {
                 backgroundColor: "#fff",
             });
 
-            const imgData = canvas.toDataURL("image/jpeg", 1.0);
+            const imgData = toGrayscaleCanvas(canvas).toDataURL("image/jpeg", 1.0);
             if (pageIndex > 0) pdf.addPage();
             pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
 
@@ -414,7 +434,7 @@ const AllPlayerCards = () => {
 
         setDownloadProgress({ current: pages, total: pages });
 
-        pdf.save("AllPlayerCards-Final.pdf");
+        pdf.save("AllPlayerCards-BW.pdf");
         console.log("🎉 PDF download completed.");
         setIsDownloading(false);
         setShowToast(true);
@@ -869,7 +889,7 @@ const AllPlayerCards = () => {
                                     onClick={downloadAllCardsAsPDF}
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                                 >
-                                    📥 Download All Player Cards (PDF)
+                                    📥 Download All Player Cards (B/W PDF)
                                 </button>
 
 
