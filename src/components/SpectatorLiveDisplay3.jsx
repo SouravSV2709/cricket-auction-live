@@ -37,6 +37,7 @@ const unsoldMedia = [
 
 const unsoldAudio = new Audio('/sounds/unsold4.mp3');
 const soldOverlayClip = "/balle2.gif";
+const unsoldOverlayClip = "/kohliunsold.gif";
 
 // Helper: format rupees into lakhs-friendly text for compact bidder info
 const formatLakhs = (amt) => {
@@ -87,6 +88,8 @@ const SpectatorLiveDisplay = () => {
     const confettiBlockRef = useRef(true); // when true, refuse to start confetti
     const [soldOverlayActive, setSoldOverlayActive] = useState(false);
     const soldOverlayTimerRef = useRef(null);
+    const [unsoldOverlayActive, setUnsoldOverlayActive] = useState(false);
+    const unsoldOverlayTimerRef = useRef(null);
 
 
 
@@ -302,6 +305,18 @@ const SpectatorLiveDisplay = () => {
         }, 5000);
     };
 
+    const triggerUnsoldOverlay = () => {
+        if (!unsoldOverlayClip) return;
+        if (unsoldOverlayTimerRef.current) {
+            clearTimeout(unsoldOverlayTimerRef.current);
+            unsoldOverlayTimerRef.current = null;
+        }
+        setUnsoldOverlayActive(true);
+        unsoldOverlayTimerRef.current = setTimeout(() => {
+            setUnsoldOverlayActive(false);
+        }, 3500);
+    };
+
 
     // 😞 Disappointment Emoji Rain (slower, more emojis)
     const triggerUnsoldEmojiRain = () => {
@@ -495,6 +510,11 @@ const SpectatorLiveDisplay = () => {
         const onSaleCommitted = (payload) => {
             if (!matchesTournament(payload)) return;
             if (!isValidSoldPayload(payload)) return;
+            if (unsoldOverlayTimerRef.current) {
+                clearTimeout(unsoldOverlayTimerRef.current);
+                unsoldOverlayTimerRef.current = null;
+            }
+            setUnsoldOverlayActive(false);
             const t = Array.isArray(teamSummaries)
                 ? teamSummaries.find(x => Number(x.id) === Number(payload?.team_id))
                 : null;
@@ -552,6 +572,7 @@ const SpectatorLiveDisplay = () => {
             soldOverlayTimerRef.current = null;
         }
         setSoldOverlayActive(false);
+        triggerUnsoldOverlay();
         // Stop any ongoing confetti immediately
         if (confettiRafRef.current) {
             cancelAnimationFrame(confettiRafRef.current);
@@ -692,6 +713,10 @@ const SpectatorLiveDisplay = () => {
                 clearTimeout(soldOverlayTimerRef.current);
                 soldOverlayTimerRef.current = null;
             }
+            if (unsoldOverlayTimerRef.current) {
+                clearTimeout(unsoldOverlayTimerRef.current);
+                unsoldOverlayTimerRef.current = null;
+            }
         };
     }, [tournamentId]);
 
@@ -777,6 +802,18 @@ const SpectatorLiveDisplay = () => {
                     <img
                         src={soldOverlayClip}
                         alt="Sold celebration"
+                        className="w-[22vw] max-w-sm h-auto drop-shadow-2xl"
+                    />
+                </div>
+            )}
+            {unsoldOverlayActive && (
+                <div
+                    className="absolute z-40 pointer-events-none"
+                    style={{ left: "52%", top: "66%", transform: "translate(0, -50%)" }}
+                >
+                    <img
+                        src={unsoldOverlayClip}
+                        alt="Unsold reaction"
                         className="w-[22vw] max-w-sm h-auto drop-shadow-2xl"
                     />
                 </div>
