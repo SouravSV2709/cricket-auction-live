@@ -36,6 +36,7 @@ const unsoldMedia = [
 ];
 
 const unsoldAudio = new Audio('/sounds/unsold4.mp3');
+const soldOverlayClip = "/balle2.gif";
 
 // Helper: format rupees into lakhs-friendly text for compact bidder info
 const formatLakhs = (amt) => {
@@ -84,6 +85,8 @@ const SpectatorLiveDisplay = () => {
     const confettiRafRef = useRef(null);
     const playerStatusRef = useRef(new Map()); // id -> "TRUE" | "FALSE"
     const confettiBlockRef = useRef(true); // when true, refuse to start confetti
+    const [soldOverlayActive, setSoldOverlayActive] = useState(false);
+    const soldOverlayTimerRef = useRef(null);
 
 
 
@@ -274,6 +277,29 @@ const SpectatorLiveDisplay = () => {
         };
 
         confettiRafRef.current = requestAnimationFrame(frame);
+    };
+
+    const isValidSoldPayload = (payload) => {
+        const statusOk = isSoldFlag(payload?.sold_status);
+        const priceOk = Number(payload?.sold_price) > 0;
+        const teamOk = payload?.team_id != null && String(payload?.team_id).length > 0;
+        return statusOk || (priceOk && teamOk);
+    };
+
+    const triggerSoldOverlay = (payload) => {
+        if (!isValidSoldPayload(payload)) return;
+        if (confettiBlockRef.current) return;
+        const payloadId = Number(payload?.player_id);
+        if (payloadId && normSoldFlag(playerStatusRef.current.get(payloadId)) === "FALSE") return;
+        if (!soldOverlayClip) return;
+        if (soldOverlayTimerRef.current) {
+            clearTimeout(soldOverlayTimerRef.current);
+            soldOverlayTimerRef.current = null;
+        }
+        setSoldOverlayActive(true);
+        soldOverlayTimerRef.current = setTimeout(() => {
+            setSoldOverlayActive(false);
+        }, 5000);
     };
 
 
@@ -468,6 +494,7 @@ const SpectatorLiveDisplay = () => {
         // ✅ SOLD committed (optimistic apply to the *visible* player)
         const onSaleCommitted = (payload) => {
             if (!matchesTournament(payload)) return;
+            if (!isValidSoldPayload(payload)) return;
             const t = Array.isArray(teamSummaries)
                 ? teamSummaries.find(x => Number(x.id) === Number(payload?.team_id))
                 : null;
@@ -499,6 +526,7 @@ const SpectatorLiveDisplay = () => {
             playerStatusRef.current.set(Number(payload?.player_id), "TRUE");
             confettiBlockRef.current = false; // clear any leftover block
             triggerConfettiIfSold({ id: payload?.player_id, sold_status: "TRUE" });
+            triggerSoldOverlay(payload);
 
 
             setHighestBid(Number(payload?.sold_price) || 0);
@@ -509,12 +537,21 @@ const SpectatorLiveDisplay = () => {
         socket.on("saleCommitted", onSaleCommitted);
 
         // 🟠 If your Admin emits "playerSold" immediately (it does), mirror the same optimistic update
-        const onPlayerSold = (payload) => { if (!matchesTournament(payload)) return; onSaleCommitted(payload); };
+        const onPlayerSold = (payload) => {
+            if (!matchesTournament(payload)) return;
+            if (!isValidSoldPayload(payload)) return;
+            onSaleCommitted(payload);
+        };
         socket.on("playerSold", onPlayerSold);
 
         // 🚫 UNSOLD (optimistic: clear team & sold_price locally)
         const onPlayerUnsold = ({ player_id, sold_pool, tournament_id, tournament_slug }) => {
         if (!matchesTournament({ tournament_id, tournament_slug })) return;
+        if (soldOverlayTimerRef.current) {
+            clearTimeout(soldOverlayTimerRef.current);
+            soldOverlayTimerRef.current = null;
+        }
+        setSoldOverlayActive(false);
         // Stop any ongoing confetti immediately
         if (confettiRafRef.current) {
             cancelAnimationFrame(confettiRafRef.current);
@@ -651,6 +688,10 @@ const SpectatorLiveDisplay = () => {
             socket.off("customMessageUpdate");
             socket.off("secretBiddingToggled");
             socket.disconnect();
+            if (soldOverlayTimerRef.current) {
+                clearTimeout(soldOverlayTimerRef.current);
+                soldOverlayTimerRef.current = null;
+            }
         };
     }, [tournamentId]);
 
@@ -728,6 +769,18 @@ const SpectatorLiveDisplay = () => {
 
     return (
         <div className="relative w-screen h-screen">
+            {soldOverlayActive && (
+                <div
+                    className="absolute z-40 pointer-events-none"
+                    style={{ left: "52%", top: "66%", transform: "translate(0, -50%)" }}
+                >
+                    <img
+                        src={soldOverlayClip}
+                        alt="Sold celebration"
+                        className="w-[22vw] max-w-sm h-auto drop-shadow-2xl"
+                    />
+                </div>
+            )}
             {showActivePanel && (
                 <div className="absolute bottom-52 left-[70%] -translate-x-1/2 w-[78vw] max-w-lg md:max-w-md z-20">
                     <div className="rounded-xl border border-white/20 bg-black/80 backdrop-blur shadow-[0_14px_36px_rgba(0,0,0,0.45)] overflow-hidden">
