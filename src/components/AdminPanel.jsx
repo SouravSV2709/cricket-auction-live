@@ -61,6 +61,8 @@ const AdminPanel = () => {
     const [kcplTeamStates, setKcplTeamStates] = useState([]);
     const [playerStats, setPlayerStats] = useState(null);
     const [isMarqueeOn, setIsMarqueeOn] = useState(false);
+    const [markSoldInProgress, setMarkSoldInProgress] = useState(false);
+    const [markUnsoldInProgress, setMarkUnsoldInProgress] = useState(false);
 
     // Prevent accidental player switches while an active bid is in progress
     const isBiddingLocked = React.useMemo(() => {
@@ -1027,11 +1029,11 @@ const AdminPanel = () => {
 
 
     const markAsSold = async () => {
+        if (markSoldInProgress) return;
         if (!selectedTeam || bidAmount === 0) {
             alert("Cannot mark as sold without a valid bid and team.");
             return;
         }
-
         const poolBase = kcplMode && activePool
             ? (KCPL_RULES.pools?.[activePool]?.base
                 ?? currentPlayer?.base_price
@@ -1050,6 +1052,7 @@ const AdminPanel = () => {
         }
 
         const teamId = team.id;
+        setMarkSoldInProgress(true);
 
         // Save undo
         setUndoStack(prev => [...prev, {
@@ -1102,7 +1105,8 @@ const AdminPanel = () => {
         });
 
         // ✅ Perform critical updates in parallel (skip bid reset here)
-        await Promise.all([
+        try {
+            await Promise.all([
             fetch(`${API}/api/current-player`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -1124,7 +1128,12 @@ const AdminPanel = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updatedTeam)
             })
-        ]);
+            ]);
+        } catch (err) {
+            console.error("Failed to mark player as sold:", err);
+            setMarkSoldInProgress(false);
+            return;
+        }
 
         // Refresh teams so non-KCPL max_bid_allowed and bought_count reflect instantly
         try { await fetchTeams(tournamentId); } catch {}
@@ -1244,10 +1253,14 @@ const AdminPanel = () => {
             console.warn("❌ Snapshot refresh error:", e);
         }
 
+        setMarkSoldInProgress(false);
     };
 
 
     const markAsUnsold = async () => {
+        if (markUnsoldInProgress) return;
+        setMarkUnsoldInProgress(true);
+        try {
         // Save undo
         setUndoStack(prev => [...prev, { type: "unsold", player: currentPlayer }]);
 
@@ -1350,6 +1363,9 @@ const AdminPanel = () => {
 
         // Non-KCPL: refresh teams to update max_bid_allowed/bought_count
         try { await fetchTeams(tournamentId); } catch {}
+        } finally {
+            setMarkUnsoldInProgress(false);
+        }
     };
 
 
@@ -2709,19 +2725,19 @@ const handleSearchById = async (idOverride) => {
                         {/* 🟥 Mark Sold/Unsold Buttons */}
                         <div className="flex items-center gap-4">
                             <button
-                                className="bg-green-500 hover:bg-green-400 text-black font-bold px-4 py-2 rounded shadow"
+                                className={`${markSoldInProgress ? "bg-yellow-400 hover:bg-yellow-300" : "bg-green-500 hover:bg-green-400"} text-black font-bold px-4 py-2 rounded shadow ${markSoldInProgress ? "opacity-80 cursor-not-allowed" : ""}`}
                                 onClick={markAsSold}
-                                disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                                disabled={markSoldInProgress || ["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
                             >
-                                ✅ MARK SOLD
+                                {markSoldInProgress ? "MARKING SOLD..." : "MARK SOLD"}
                             </button>
 
                             <button
-                                className="bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded shadow"
+                                className={`${markUnsoldInProgress ? "bg-yellow-400 hover:bg-yellow-300" : "bg-red-600 hover:bg-red-500"} text-white font-bold px-4 py-2 rounded shadow ${markUnsoldInProgress ? "opacity-80 cursor-not-allowed" : ""}`}
                                 onClick={markAsUnsold}
-                                disabled={["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
+                                disabled={markUnsoldInProgress || ["TRUE", true, "FALSE", false, "true", "false"].includes(currentPlayer?.sold_status)}
                             >
-                                ❌ MARK UNSOLD
+                                {markUnsoldInProgress ? "MARKING UNSOLD..." : "MARK UNSOLD"}
                             </button>
                         </div>
 
