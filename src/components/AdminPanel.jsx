@@ -83,7 +83,7 @@ const AdminPanel = () => {
 
     // --- Quick-pick: Paid players (payment_success=true AND not deleted) ---
     // ===== Quick-Pick UX: filter + search =====
-    const [serialView, setSerialView] = React.useState("paid"); // 'paid' | 'unpaid' | 'all'
+    const [serialView, setSerialView] = React.useState("na"); // 'paid' | 'unpaid' | 'all' | 'sold' | 'unsold' | 'na'
     const [serialQuery, setSerialQuery] = React.useState("");
     const [roleFilter, setRoleFilter] = React.useState("all");
     const [categoryFilter, setCategoryFilter] = React.useState("all");
