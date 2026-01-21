@@ -2739,6 +2739,15 @@ const handleSearchById = async (idOverride) => {
                             >
                                 {markUnsoldInProgress ? "MARKING UNSOLD..." : "MARK UNSOLD"}
                             </button>
+
+                            {["TRUE", "FALSE", true, false, "true", "false"].includes(currentPlayer?.sold_status) && (
+                                <button
+                                    className="bg-orange-500 hover:bg-orange-400 text-white font-bold px-4 py-2 rounded shadow"
+                                    onClick={handleReopenPlayer}
+                                >
+                                    ♻️ Reopen Player
+                                </button>
+                            )}
                         </div>
 
                         {/* 🔄 Toggles */}
