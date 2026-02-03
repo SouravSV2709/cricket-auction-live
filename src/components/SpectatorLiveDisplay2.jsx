@@ -3150,6 +3150,26 @@ const groups =
         animate-[kenburns_6s_ease-in-out_infinite]"
                         />
 
+                        {(isValidSold(player) || ["FALSE", "false", false].includes(player?.sold_status)) && (
+                            <div className="pointer-events-none absolute bottom-4 left-4 z-30">
+                                {isValidSold(player) ? (
+                                    <img
+                                        src="/balle2.gif"
+                                        alt="SOLD"
+                                        className="w-[220px] h-auto drop-shadow-xl"
+                                        loading="eager"
+                                    />
+                                ) : (
+                                    <img
+                                        src="/kohliunsold.gif"
+                                        alt="UNSOLD"
+                                        className="w-[220px] h-auto drop-shadow-xl"
+                                        loading="eager"
+                                    />
+                                )}
+                            </div>
+                        )}
+
                         {isValidSold(player) && teamLogoId && (
                             <div className="pointer-events-none absolute bottom-6 right-6 z-20 w-32 h-32 opacity-70">
                                 <div
