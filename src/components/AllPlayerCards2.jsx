@@ -59,9 +59,10 @@ const AllPlayerCards = () => {
     };
 
     const CARD_ROW_HEIGHT =
-        windowWidth < 640 ? 420 :   // more space for mobile
-            windowWidth < 768 ? 380 :
-                340;
+        windowWidth < 420 ? 304 :
+            windowWidth < 640 ? 332 :
+                windowWidth < 768 ? 352 :
+                    340;
 
 
     // Brand gradient background (EAARENA)
@@ -516,7 +517,7 @@ const AllPlayerCards = () => {
         return (
             <div
                 key={player.id}
-                style={{ ...style }}                     // keep react-window positioning
+                style={{ ...style, padding: windowWidth < 640 ? "4px" : "6px" }}                     // keep react-window positioning
                 onMouseEnter={() => {
                     if (window.innerWidth > 768) {
                         setSelectedPlayerId(player.id);
@@ -535,7 +536,7 @@ const AllPlayerCards = () => {
                     }
                 }}
                 className={[
-                    "player-card relative rounded-2xl overflow-hidden shadow-xl",
+                    "player-card relative h-full rounded-xl md:rounded-2xl overflow-hidden shadow-xl",
                     "ring-1 ring-black/10 bg-red/5 backdrop-blur-[1px]",
                     "transition-transform duration-300 ease-out cursor-pointer",
                     (typeof document !== "undefined" && document.body.classList.contains("exporting"))
@@ -546,7 +547,7 @@ const AllPlayerCards = () => {
                 {/* TOP: full image on red background */}
                 {/* TOP: image section with red bg + watermark + serial + player image */}
                 <div
-                    className="relative h-[66%] bg-center bg-cover"
+                    className="relative h-[60%] md:h-[66%] bg-center bg-cover"
                     style={{ backgroundImage: "url('/goldbg.jpg')" }}
                 >
                     {/* Dark overlay to dim the red background */}
@@ -561,7 +562,7 @@ const AllPlayerCards = () => {
                     />
 
                     {/* Serial pill */}
-                    <span className="absolute top-2 left-2 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
+                    <span className="absolute top-1.5 left-1.5 inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full shadow z-30">
                         #{player?.auction_serial ?? serial}
                     </span>
 
@@ -589,14 +590,14 @@ const AllPlayerCards = () => {
 
                 {/* BOTTOM: classy white info panel */}
                 {/* BOTTOM: classy info panel */}
-                <div className="relative h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-3 pt-3 pb-4 rounded-b-2xl">                    {/* Golden divider */}
+                <div className="relative h-[40%] md:h-[34%] bg-white/10 backdrop-blur-md border-t border-yellow-400/40 px-2.5 md:px-3 pt-2 md:pt-3 pb-3 md:pb-4 rounded-b-xl md:rounded-b-2xl">                    {/* Golden divider */}
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500"></div>
 
                     <div
-                        className="text-[13px] sm:text-sm font-bold text-yellow-300 leading-[1.25] drop-shadow"
+                        className="text-[12px] sm:text-sm font-bold text-yellow-300 leading-[1.15] drop-shadow"
                         style={{
                             display: "-webkit-box",
-                            WebkitLineClamp: 2,           // show up to 2 lines
+                            WebkitLineClamp: windowWidth < 640 ? 1 : 2,
                             WebkitBoxOrient: "vertical",
                             overflow: "hidden"
                         }}
@@ -604,22 +605,22 @@ const AllPlayerCards = () => {
                         {player.name}
                     </div>
 
-                    <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] sm:text-xs text-gray-200">
+                    <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-gray-200">
                         <div>
-                            <span className="uppercase tracking-wide text-gray-400 text-[10px]">Role</span>
+                            <span className="uppercase tracking-wide text-gray-400 text-[9px] sm:text-[10px]">Role</span>
                             <div className="font-semibold text-white truncate">{player.role || "-"}</div>
                         </div>
 
                         {player.district && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">District</span>
+                                <span className="uppercase tracking-wide text-gray-400 text-[9px] sm:text-[10px]">District</span>
                                 <div className="font-semibold text-white truncate">{player.district}</div>
                             </div>
                         )}
 
                         {player.base_category && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Category</span>
+                                <span className="uppercase tracking-wide text-gray-400 text-[9px] sm:text-[10px]">Category</span>
                                 <div className="font-semibold text-white truncate">
                                     {(() => {
                                         const baseCat = String(player.base_category).toUpperCase();
@@ -639,19 +640,19 @@ const AllPlayerCards = () => {
 
                         {player.nickname && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Nickname</span>
+                                <span className="uppercase tracking-wide text-gray-400 text-[9px] sm:text-[10px]">Nickname</span>
                                 <div className="font-semibold text-white truncate">{player.nickname}</div>
                             </div>
                         )}
 
                         {player.location && (
                             <div>
-                                <span className="uppercase tracking-wide text-gray-400 text-[10px]">Location</span>
+                                <span className="uppercase tracking-wide text-gray-400 text-[9px] sm:text-[10px]">Location</span>
                                 <div className="font-semibold text-white truncate">{player.location}</div>
                             </div>
                         )}
                         <button
-                            className="absolute bottom-2 right-5 text-[11px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
+                            className="absolute bottom-1.5 right-3 text-[10px] sm:text-xs text-yellow-300 hover:text-yellow-200 underline"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenDetails(player);
