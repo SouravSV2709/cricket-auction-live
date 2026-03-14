@@ -319,7 +319,7 @@ const TournamentDashboard = () => {
                 Teams Overview
               </h2>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                 <label className="text-xs text-yellow-200/80 uppercase tracking-wide">
                   Sort by
                 </label>
@@ -349,7 +349,7 @@ const TournamentDashboard = () => {
 
             {/* Cards grid */}
             {/* Cards grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-2 md:gap-4">
               {sortedTeams.map((team, idx) => {
                 const {
                   budget,
@@ -367,7 +367,7 @@ const TournamentDashboard = () => {
                 return (
                   <React.Fragment key={team.id}>
                     <article
-                      className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg backdrop-blur-md transition-transform duration-300 hover:scale-[1.02] hover:shadow-xl"
+                      className="relative overflow-hidden rounded-xl md:rounded-2xl bg-white/10 border border-white/10 p-2.5 md:p-4 shadow-lg backdrop-blur-md transition-transform duration-300 hover:scale-[1.02] hover:shadow-xl"
                     >
                       {/* Watermark background (flag or gradient fallback) */}
                       <div className="absolute inset-0 pointer-events-none select-none z-0">
@@ -376,38 +376,40 @@ const TournamentDashboard = () => {
                           style={{
                             backgroundImage: `url(${flagSrc})`,
                             filter:
-                              "grayscale(55%) brightness(0.55) contrast(1.1) blur(1px)",
+                              "grayscale(75%) brightness(0.3) contrast(0.9) blur(2px)",
                             transform: "scale(1.1)",
                             transformOrigin: "center",
                           }}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/15 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/88 via-slate-950/72 to-slate-900/78" />
                         <div
                           className="absolute inset-0"
                           style={{
                             background:
-                              "radial-gradient(85% 70% at 50% 55%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.35) 100%)",
+                              "radial-gradient(85% 70% at 50% 55%, rgba(15,23,42,0.08) 20%, rgba(2,6,23,0.58) 100%)",
                           }}
                         />
                       </div>
 
                       {/* Content */}
-                      <div className="relative z-10">
+                      <div className="relative z-10 rounded-lg md:rounded-xl bg-slate-950/26 p-1.5 md:bg-transparent md:p-0">
                         {/* Header */}
-                        <header className="flex items-center justify-between gap-3 mb-3">
-                          <div className="flex items-center gap-3 min-w-0">
+                        <header className="flex items-start justify-between gap-2 mb-2 md:mb-3">
+                          <div className="flex items-center gap-2 md:gap-3 min-w-0">
                             <img
                               src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                               alt={team.name}
-                              className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/60 bg-black/20 object-contain"
+                              className="w-8 h-8 md:w-12 md:h-12 rounded-full border border-white/60 bg-black/20 object-contain shrink-0"
                             />
-                            <h3 className="font-bold text-white text-base md:text-xl truncate">
-                              {team.name}
-                            </h3>
+                            <div className="min-w-0">
+                              <h3 className="font-bold text-white text-xs leading-tight md:text-xl truncate">
+                                {team.name}
+                              </h3>
+                            </div>
                           </div>
 
                           {/* Available balance quick badge */}
-                          <span className="px-2 py-1 rounded bg-white/10 text-yellow-200 text-xs md:text-sm whitespace-nowrap">
+                          <span className="hidden md:inline-flex px-2 py-1 rounded bg-white/10 text-yellow-200 text-xs md:text-sm whitespace-nowrap">
                             Budget:{" "}
                             <span className="font-bold text-white">
                               {formatLakhs(budget)}
@@ -415,64 +417,90 @@ const TournamentDashboard = () => {
                           </span>
                         </header>
 
-                        {/* Quick stats */}
-                        <div className="grid grid-cols-3 gap-2 md:gap-3 text-[12px] md:text-sm text-yellow-300">
-                          <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
-                            <div className="opacity-70">PURSE</div>
-                            <div className="font-extrabold text-white text-xs md:text-base">
+                        <div className="grid grid-cols-1 gap-1.5 md:hidden">
+                          <div className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-2">
+                            <div className="text-[9px] uppercase tracking-[0.18em] text-yellow-200/70">
+                              Purse available
+                            </div>
+                            <div className="mt-1 text-base font-extrabold leading-none text-white">
                               {formatLakhs(remainingPurse)}
                             </div>
                           </div>
-                          <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
-                            <div className="opacity-70">MAX BID</div>
-                            <div className="font-extrabold text-white text-xs md:text-base">
-                              {formatLakhs(maxBid)}
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <div className="rounded-lg border border-yellow-300/20 bg-black/45 px-2.5 py-2">
+                              <div className="text-[9px] uppercase tracking-[0.18em] text-yellow-200/70">
+                                Max bid
+                              </div>
+                              <div className="mt-1 text-sm font-extrabold leading-none text-white">
+                                {formatLakhs(maxBid)}
+                              </div>
                             </div>
-                          </div>
-                          <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
-                            <div className="opacity-70">SLOTS</div>
-                            <div className="font-extrabold text-white text-xs md:text-base">
-                              {bought} / {slotsTotal}
+                            <div className="rounded-lg border border-white/10 bg-white/10 px-2.5 py-2">
+                              <div className="text-[9px] uppercase tracking-[0.18em] text-yellow-200/70">
+                                To buy
+                              </div>
+                              <div className="mt-1 text-sm font-extrabold leading-none text-white">
+                                {slotsRemaining}
+                              </div>
                             </div>
                           </div>
                         </div>
 
-                        {/* Purse progress */}
-                        <div className="mt-3">
-                          <div className="h-2 w-full bg-white/10 rounded">
-                            <div
-                              className="h-2 rounded bg-yellow-400 transition-all"
-                              style={{ width: `${spentPct}%` }}
-                              title={`Spent: ${formatLakhs(
-                                totalSpent
-                              )} / Cap: ${formatLakhs(budget)} (${spentPct}%)`}
-                            />
+                        <div className="hidden md:block">
+                          {/* Quick stats */}
+                          <div className="grid grid-cols-3 gap-2 md:gap-3 text-[12px] md:text-sm text-yellow-300">
+                            <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
+                              <div className="opacity-70">PURSE</div>
+                              <div className="font-extrabold text-white text-xs md:text-base">
+                                {formatLakhs(remainingPurse)}
+                              </div>
+                            </div>
+                            <div className="bg-black/40 rounded-md p-2 md:p-3 text-center ring-1 ring-yellow-300/20">
+                              <div className="opacity-70">MAX BID</div>
+                              <div className="font-extrabold text-white text-xs md:text-base">
+                                {formatLakhs(maxBid)}
+                              </div>
+                            </div>
+                            <div className="bg-black/40 rounded-md p-2 md:p-3 text-center">
+                              <div className="opacity-70">SLOTS</div>
+                              <div className="font-extrabold text-white text-xs md:text-base">
+                                {bought} / {slotsTotal}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-1 flex justify-between text-[11px] md:text-sm text-yellow-200">
-                          <span>Spent: {formatLakhs(totalSpent)}</span>
-                          <span>
-                            Remaining:{" "}
-                            <span className="font-semibold text-white">
-                              {formatLakhs(remainingPurse)}
+
+                          {/* Purse progress */}
+                          <div className="mt-3">
+                            <div className="h-2 w-full bg-white/10 rounded">
+                              <div
+                                className="h-2 rounded bg-yellow-400 transition-all"
+                                style={{ width: `${spentPct}%` }}
+                                title={`Spent: ${formatLakhs(
+                                  totalSpent
+                                )} / Cap: ${formatLakhs(budget)} (${spentPct}%)`}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-1 flex justify-between text-[11px] md:text-sm text-yellow-200">
+                            <span>Spent: {formatLakhs(totalSpent)}</span>
+                            <span>
+                              Remaining:{" "}
+                              <span className="font-semibold text-white">
+                                {formatLakhs(remainingPurse)}
+                              </span>
                             </span>
-                          </span>
-                        </div>
+                          </div>
 
-                        {/* Secondary line */}
-                        <div className="mt-1 text-[11px] md:text-sm text-yellow-200">
-                          Players to buy:{" "}
-                          <span className="font-semibold text-white">
-                            {slotsRemaining}
-                          </span>
+                          <div className="mt-1 text-[11px] md:text-sm text-yellow-200">
+                            Players to buy:{" "}
+                            <span className="font-semibold text-white">
+                              {slotsRemaining}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </article>
 
-                    {/* MOBILE-ONLY separator (hidden at >=640px where grid has 2+ columns) */}
-                    {idx !== sortedTeams.length - 1 && (
-                      <div className="sm:hidden h-px mx-1 -mt-2 mb-3 bg-white/40" />
-                    )}
                   </React.Fragment>
                 );
               })}
