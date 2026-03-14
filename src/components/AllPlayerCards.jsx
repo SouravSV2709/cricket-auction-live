@@ -66,6 +66,19 @@ const AllPlayerCards = () => {
         return bwCanvas;
     };
 
+    const getDefaultSoldStatus = (list) => {
+        const source = Array.isArray(list) ? list : [];
+        const hasNotAuctioned = source.some(
+            (player) => player.sold_status === null || player.sold_status === undefined
+        );
+        if (hasNotAuctioned) return "notauctioned";
+
+        const hasUnsold = source.some((player) => player.sold_status === false);
+        if (hasUnsold) return "false";
+
+        return "";
+    };
+
     const CARD_ROW_HEIGHT =
         windowWidth < 420 ? 304 :
             windowWidth < 640 ? 332 :
@@ -507,6 +520,15 @@ const AllPlayerCards = () => {
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
+
+    useEffect(() => {
+        if (!players.length) return;
+
+        const defaultSoldStatus = getDefaultSoldStatus(players);
+        if (filtersoldstatus === "notauctioned" && defaultSoldStatus !== "notauctioned") {
+            setFiltersoldstatus(defaultSoldStatus);
+        }
+    }, [players, filtersoldstatus]);
 
     useEffect(() => {
 
@@ -1024,7 +1046,7 @@ const AllPlayerCards = () => {
                                         setFilterRole("");
                                         setFilterDistrict("");
                                         setFilterLocation("");
-                                        setFiltersoldstatus("");
+                                        setFiltersoldstatus(getDefaultSoldStatus(players));
                                         setFilterCategory("")
                                     }}
                                     className="col-span-2 sm:col-span-2 lg:col-span-2 px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition w-full"
