@@ -1,6 +1,52 @@
 import { seedFromString, shuffleDeterministic } from "../utils/groupUtils.js";
 
 export const makeGroupController = ({ pool, io }) => {
+  const getLetters = (groupsCount) =>
+    Array.from({ length: groupsCount }, (_, i) => String.fromCharCode(65 + i));
+
+  const getManualGroupsCount = (manual) =>
+    Math.max(
+      manual?.planOrder?.length ? new Set(Object.values(manual.groups || {})).size : 0,
+      2
+    );
+
+  const getRevealOrder = ({ slug, allIds, groupsCount, manual, method = "roundRobin" }) => {
+    if (manual) {
+      const letters = getLetters(groupsCount || getManualGroupsCount(manual));
+      const manualOrder = (manual.planOrder || []).map(Number).filter((id) => allIds.includes(id));
+      const used = new Set(manualOrder);
+      const remain = allIds.filter((id) => !used.has(id));
+      const remainShuffled = shuffleDeterministic(remain, seedFromString(slug));
+
+      const groupedRemain = {};
+      remainShuffled.forEach((id, index) => {
+        const letter = letters[index % letters.length];
+        (groupedRemain[letter] ??= []).push(id);
+      });
+
+      const interleavedRemain = [];
+      let added = true;
+      while (added) {
+        added = false;
+        for (const letter of letters) {
+          const nextId = groupedRemain[letter]?.shift();
+          if (nextId != null) {
+            interleavedRemain.push(nextId);
+            added = true;
+          }
+        }
+      }
+
+      return [...manualOrder, ...interleavedRemain];
+    }
+
+    if (method === "roundRobin" || method === "random") {
+      return shuffleDeterministic(allIds, seedFromString(slug));
+    }
+
+    return allIds.slice();
+  };
+
   const getGroups = async (req, res) => {
     try {
       const { slug } = req.params;
@@ -17,12 +63,31 @@ export const makeGroupController = ({ pool, io }) => {
          FROM teams WHERE tournament_id=$1 ORDER BY id`,
         [tid]
       );
+      const allIds = q.rows.map((row) => row.id);
+      const manual = MANUAL_GROUP_PLAN_IDS?.[slug];
+      const lettersInUse = [...new Set(q.rows.map((row) => row.group_letter).filter(Boolean))];
+      const groupsCount = Math.max(
+        lettersInUse.length,
+        manual ? getManualGroupsCount(manual) : 0,
+        2
+      );
+      const revealOrder = getRevealOrder({ slug, allIds, groupsCount, manual });
+      const orderIndex = new Map(revealOrder.map((id, index) => [id, index]));
       const groups = {};
       for (const row of q.rows) {
         if (!row.group_letter) continue;
         (groups[row.group_letter] ??= []).push(row);
       }
-      res.json({ groups, totalTeams: q.rowCount });
+      for (const teams of Object.values(groups)) {
+        teams.sort(
+          (a, b) => (orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+        );
+      }
+      res.json({
+        groups,
+        orderIndex: Object.fromEntries(orderIndex),
+        totalTeams: q.rowCount,
+      });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: "Internal server error" });
@@ -59,9 +124,7 @@ export const makeGroupController = ({ pool, io }) => {
       if (allIds.length === 0)
         return res.status(400).json({ error: "No teams in this tournament" });
 
-      const letters = Array.from({ length: groupsCount }, (_, i) =>
-        String.fromCharCode(65 + i)
-      );
+      const letters = getLetters(groupsCount);
       const manual = MANUAL_GROUP_PLAN_IDS?.[slug];
 
       await client.query("BEGIN");
@@ -186,9 +249,7 @@ export const makeGroupController = ({ pool, io }) => {
       );
       if (unassigned.rowCount === 0) return res.json({ done: true });
 
-      const letters = Array.from({ length: groupsCount }, (_, i) =>
-        String.fromCharCode(65 + i)
-      );
+      const letters = getLetters(groupsCount);
       const manual = MANUAL_GROUP_PLAN_IDS?.[slug];
 
       // —— Manual plan path (by IDs) ————————————————————————————————
@@ -348,6 +409,57 @@ export const makeGroupController = ({ pool, io }) => {
       91: "D", // Siliguri
       92: "D", // Birbhum
       93: "D"  // Paschim Bardhaman 1
+    }
+  },
+  "hpl-s11": {
+    // Interleaved reveal order (A -> B -> C -> D)
+    planOrder: [
+      278, // A: KSPL STAR 11
+      276, // B: AK 11
+      267, // C: Khushi X1
+      277, // D: BARSHAMIT 11
+
+      269, // A: SOUMYA 11
+      270, // B: Aishi X1
+      281, // C: Jishu 11
+      273, // D: Sky King Blaster Cricket
+
+      275, // A: Vai Vai 11
+      268, // B: EMPOWERED SPARTAN STRIKE
+      279, // C: BLACK PANTHERS
+      271, // D: A TO Z
+
+      274, // A: Smart X1
+      266, // B: The Real Power Shakti
+      280, // C: JANA TITANS
+      272  // D: ABK Riders
+    ],
+
+    // Fixed assignment: teamId -> group letter
+    groups: {
+      // Group A
+      278: "A", // KSPL STAR 11
+      269: "A", // SOUMYA 11
+      275: "A", // Vai Vai 11
+      274: "A", // Smart X1
+
+      // Group B
+      276: "B", // AK 11
+      270: "B", // Aishi X1
+      268: "B", // EMPOWERED SPARTAN STRIKE
+      266: "B", // The Real Power Shakti
+
+      // Group C
+      267: "C", // Khushi X1
+      281: "C", // Jishu 11
+      279: "C", // BLACK PANTHERS
+      280: "C", // JANA TITANS
+
+      // Group D
+      277: "D", // BARSHAMIT 11
+      273: "D", // Sky King Blaster Cricket
+      271: "D", // A TO Z
+      272: "D"  // ABK Riders
     }
   }
 };

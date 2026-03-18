@@ -40,6 +40,7 @@ export default function TournamentGroupDraw() {
   const [groupsCount, setGroupsCount] = useState(4);
   const [tournament, setTournament] = useState(null);
   const [groupMap, setGroupMap] = useState({});
+  const [orderIndex, setOrderIndex] = useState({});
   const [loading, setLoading] = useState(false);
   const [spinning, setSpinning] = useState(false);
   const [lastReveal, setLastReveal] = useState(null); // { team: {id,name,logo}, letter }
@@ -73,7 +74,15 @@ export default function TournamentGroupDraw() {
     const res = await fetch(`${API}/api/tournaments/${tournamentSlug}/groups`);
     const data = await res.json();
     setGroupMap(data.groups || {});
+    setOrderIndex(data.orderIndex || {});
   };
+
+  const getOrderedTeams = (letter) =>
+    [...(groupMap[letter] || [])].sort(
+      (a, b) =>
+        (orderIndex[a.id] ?? Number.MAX_SAFE_INTEGER) -
+        (orderIndex[b.id] ?? Number.MAX_SAFE_INTEGER)
+    );
 
   useEffect(() => {
     fetchTournament();
@@ -398,7 +407,7 @@ export default function TournamentGroupDraw() {
           {/* Group-wise boards */}
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {groupLetters.map((L) => {
-              const teams = groupMap[L] || [];
+              const teams = getOrderedTeams(L);
               return (
                 <article
                   key={L}
