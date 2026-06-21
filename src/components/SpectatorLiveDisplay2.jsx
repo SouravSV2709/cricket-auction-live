@@ -782,8 +782,8 @@ const SpectatorLiveDisplay = () => {
     const getDisplayBasePrice = (player, activePool) => {
         // If KCPL team-state is present and a pool base is defined, prefer it
         const poolBase = KCPL_RULES?.pools?.[activePool]?.base;
-        if (Array.isArray(kcplTeamStates) && kcplTeamStates.length > 0 && poolBase != null) {
-            return Number(poolBase) || 0;
+        if (Array.isArray(kcplTeamStates) && kcplTeamStates.length > 0 && Number(poolBase) > 0) {
+            return Number(poolBase);
         }
 
         // Fallbacks for non-KCPL or when rules aren't available:
@@ -1591,8 +1591,12 @@ const SpectatorLiveDisplay = () => {
                 if (payload.empty) {
                     setCustomMessage("No players yet for this team.");
                     setCustomView("noPlayers");
+                    fetchTeams();
                 } else {
-                    setCustomMessage(null); setCustomView("team"); fetchAllPlayers();
+                    setCustomMessage(null);
+                    setCustomView("team");
+                    fetchAllPlayers();
+                    fetchTeams();
                 }
             }
         });

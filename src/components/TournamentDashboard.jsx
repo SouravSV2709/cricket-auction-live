@@ -105,6 +105,13 @@ const TournamentDashboard = () => {
       setTotalPlayersToBuy(data.players_per_team || 14);
 
       const tournamentId = data.id;
+      if (!Number.isFinite(Number(tournamentId))) {
+        console.warn("KCPL dashboard skipped: tournament id is missing", data);
+        setKcplTeamStates([]);
+        setTeams([]);
+        setPlayers([]);
+        return;
+      }
 
       // 🔹 Fetch KCPL active pool
       const poolRes = await fetch(`${API}/api/kcpl/active-pool`);

@@ -15,8 +15,13 @@ const API = CONFIG.API_BASE_URL;
 const computeBasePrice = (player) => {
     if (player?.base_price && Number(player.base_price) > 0) return Number(player.base_price);
     const map = { A: 1700, B: 3000, C: 5000 };
-    const comp = String(player?.component || '').toUpperCase();
+    const comp = String(player?.component || player?.base_category || '').toUpperCase();
     return map[comp] || 0;
+};
+
+const getPositivePoolBase = (poolCode) => {
+    const base = Number(KCPL_RULES.pools?.[poolCode]?.base);
+    return Number.isFinite(base) && base > 0 ? base : null;
 };
 
 const AdminPanel = () => {
@@ -246,7 +251,7 @@ const AdminPanel = () => {
     const getPoolBaseForCurrent = React.useCallback(() => {
         const base =
             kcplMode && activePool
-                ? (KCPL_RULES.pools?.[activePool]?.base ??
+                ? (getPositivePoolBase(activePool) ??
                     currentPlayer?.base_price ??
                     computeBasePrice(currentPlayer))
                 : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
@@ -400,6 +405,12 @@ const AdminPanel = () => {
     }, [tournamentSlug]);
 
     useEffect(() => {
+        if (tournamentSlug?.toLowerCase() !== "kcpl") return;
+        setKcplMode(true);
+        setActivePool(prev => prev || "A");
+    }, [tournamentSlug]);
+
+    useEffect(() => {
         if (kcplMode && tournamentId && activePool) {
             fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${activePool}`)
                 .then(res => res.json())
@@ -420,6 +431,16 @@ const AdminPanel = () => {
 
                 .catch(err => console.error("Failed to fetch KCPL team states:", err));
         }
+    }, [kcplMode, tournamentId, activePool]);
+
+    useEffect(() => {
+        if (!kcplMode || !tournamentId || !activePool) return;
+
+        fetch(`${API}/api/kcpl/active-pool`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pool: activePool, tournament_id: tournamentId })
+        }).catch(err => console.error("Failed to sync KCPL active pool:", err));
     }, [kcplMode, tournamentId, activePool]);
 
 
@@ -1007,10 +1028,10 @@ const AdminPanel = () => {
     };
 
 
-    const refreshKcplTeamStates = async () => {
+    const refreshKcplTeamStates = async (poolOverride = activePool) => {
         if (!kcplMode || !tournamentId) return;
         try {
-            const res = await fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${activePool}`);
+            const res = await fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${poolOverride}`);
             const data = await res.json();
             const transformed = data.map(team => ({
                 ...team,
@@ -1035,7 +1056,7 @@ const AdminPanel = () => {
             return;
         }
         const poolBase = kcplMode && activePool
-            ? (KCPL_RULES.pools?.[activePool]?.base
+            ? (getPositivePoolBase(activePool)
                 ?? currentPlayer?.base_price
                 ?? computeBasePrice(currentPlayer))
             : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
@@ -1052,6 +1073,15 @@ const AdminPanel = () => {
         }
 
         const teamId = team.id;
+        if (kcplMode && activePool) {
+            const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(teamId));
+            const maxAllowed = Number(st?.poolStats?.[activePool]?.maxBid);
+            if (Number.isFinite(maxAllowed) && bidAmount > maxAllowed) {
+                alert(`❌ Sold price exceeds Pool ${activePool} max bid of ₹${maxAllowed.toLocaleString()}`);
+                return;
+            }
+        }
+
         setMarkSoldInProgress(true);
 
         // Save undo
@@ -1088,25 +1118,9 @@ const AdminPanel = () => {
         };
 
         // 🔊 Broadcast immediately (optimistic), then persist in DB.
-        socketRef.current?.emit("bidUpdated", {
-            bid_amount: bidAmount,
-            team_name: selectedTeam,
-            active_pool: activePool,
-            tournament_id: tournamentId,
-            tournament_slug: tournamentSlug,
-        });
-        socketRef.current?.emit("playerSold", {
-            player_id: currentPlayer.id,
-            team_id: teamId,
-            sold_price: bidAmount,
-            sold_pool: activePool,
-            tournament_id: tournamentId,
-            tournament_slug: tournamentSlug,
-        });
-
         // ✅ Perform critical updates in parallel (skip bid reset here)
         try {
-            await Promise.all([
+            const responses = await Promise.all([
             fetch(`${API}/api/current-player`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -1129,11 +1143,39 @@ const AdminPanel = () => {
                 body: JSON.stringify(updatedTeam)
             })
             ]);
+            const failed = responses.find((response) => !response.ok);
+            if (failed) {
+                let message = "Failed to mark player as sold.";
+                try {
+                    const data = await failed.json();
+                    message = data?.error || data?.message || message;
+                } catch {
+                    // keep fallback message
+                }
+                throw new Error(message);
+            }
         } catch (err) {
             console.error("Failed to mark player as sold:", err);
+            alert(err?.message || "Failed to mark player as sold.");
             setMarkSoldInProgress(false);
             return;
         }
+
+        socketRef.current?.emit("bidUpdated", {
+            bid_amount: bidAmount,
+            team_name: selectedTeam,
+            active_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
+        });
+        socketRef.current?.emit("playerSold", {
+            player_id: currentPlayer.id,
+            team_id: teamId,
+            sold_price: bidAmount,
+            sold_pool: activePool,
+            tournament_id: tournamentId,
+            tournament_slug: tournamentSlug,
+        });
 
         // Refresh teams so non-KCPL max_bid_allowed and bought_count reflect instantly
         try { await fetchTeams(tournamentId); } catch {}
@@ -1383,10 +1425,10 @@ const AdminPanel = () => {
             // 2. KCPL-specific filtering
             let unprocessedPlayers = [];
             if (kcplMode && activePool) {
-                const prevPools =
-                    activePool === "B" ? ["A"] :
-                        activePool === "C" ? ["A", "B"] :
-                            activePool === "D" ? ["A", "B", "C"] : [];
+                const activePoolIndex = KCPL_RULES.order.indexOf(activePool);
+                const prevPools = activePoolIndex > 0
+                    ? KCPL_RULES.order.slice(0, activePoolIndex)
+                    : [];
 
                 unprocessedPlayers = allPlayers.filter(p => {
                     const isUnprocessed = (p.sold_status === null || p.sold_status === undefined) && !p.deleted_at;
@@ -1742,7 +1784,7 @@ const handleSearchById = async (idOverride) => {
         // Compute base (KCPL-aware if on)
         const poolBase =
             kcplMode && activePool
-                ? KCPL_RULES.pools?.[activePool]?.base ??
+                ? getPositivePoolBase(activePool) ??
                 currentPlayer?.base_price ??
                 computeBasePrice(currentPlayer)
                 : currentPlayer?.base_price ?? computeBasePrice(currentPlayer);
@@ -2346,9 +2388,17 @@ const handleSearchById = async (idOverride) => {
                 )}
             </div>
 
-            {/* <div className="mb-4 flex items-center gap-3">
+            <div className="mb-4 flex items-center gap-3">
                 <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={kcplMode} onChange={e => setKcplMode(e.target.checked)} />
+                    <input
+                        type="checkbox"
+                        checked={kcplMode}
+                        onChange={e => {
+                            const enabled = e.target.checked;
+                            setKcplMode(enabled);
+                            if (enabled) setActivePool(prev => prev || "A");
+                        }}
+                    />
                     <span>KCPL Mode</span>
                 </label>
 
@@ -2363,8 +2413,9 @@ const handleSearchById = async (idOverride) => {
                                 await fetch(`${API}/api/kcpl/active-pool`, {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ pool: newPool })
+                                    body: JSON.stringify({ pool: newPool, tournament_id: tournamentId })
                                 });
+                                await refreshKcplTeamStates(newPool);
                                 // refresh selected team’s KCPL budget pane
                                 const t = teams.find(t => t.name === selectedTeam);
                                 if (t) {
@@ -2374,14 +2425,13 @@ const handleSearchById = async (idOverride) => {
                             }}
                             className="bg-black text-white border px-2 py-1 rounded"
                         >
-                            <option value="A">A</option>
-                            <option value="B">B</option>
-                            <option value="C">C</option>
-                            <option value="D">D</option>
+                            {KCPL_RULES.order.map(poolCode => (
+                                <option key={poolCode} value={poolCode}>{poolCode}</option>
+                            ))}
                         </select>
                     </>
                 )}
-            </div> */}
+            </div>
 
 
 
