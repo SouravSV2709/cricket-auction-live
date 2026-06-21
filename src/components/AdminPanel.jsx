@@ -68,6 +68,8 @@ const AdminPanel = () => {
     const [isMarqueeOn, setIsMarqueeOn] = useState(false);
     const [markSoldInProgress, setMarkSoldInProgress] = useState(false);
     const [markUnsoldInProgress, setMarkUnsoldInProgress] = useState(false);
+    const isKcplTournament = String(tournamentSlug || "").toLowerCase() === "kcpl";
+    const kcplEnabled = isKcplTournament && kcplMode;
 
     // Prevent accidental player switches while an active bid is in progress
     const isBiddingLocked = React.useMemo(() => {
@@ -148,6 +150,22 @@ const AdminPanel = () => {
             .sort((a, b) => a - b);
     }, [players]);
 
+    const isActionableInActiveKcplPool = React.useCallback((p) => {
+        if (!kcplEnabled || !activePool || !p || !notDeleted(p?.deleted_at)) return false;
+
+        const activePoolIndex = KCPL_RULES.order.indexOf(activePool);
+        if (activePoolIndex < 0) return false;
+
+        const baseCategory = String(p?.base_category || "").toUpperCase();
+        const soldPool = String(p?.sold_pool || "").toUpperCase();
+        const soldStatus = String(p?.sold_status ?? "").toUpperCase();
+        const isUnprocessed = p?.sold_status === null || p?.sold_status === undefined || soldStatus === "";
+        const isUnsold = p?.sold_status === false || soldStatus === "FALSE";
+        const prevPools = KCPL_RULES.order.slice(0, activePoolIndex);
+
+        return (baseCategory === activePool && isUnprocessed) || (isUnsold && prevPools.includes(soldPool));
+    }, [activePool, kcplEnabled]);
+
     const soldSerials = React.useMemo(() => {
         if (!Array.isArray(players)) return [];
         return players
@@ -169,11 +187,14 @@ const AdminPanel = () => {
     const notAuctionedSerials = React.useMemo(() => {
         if (!Array.isArray(players)) return [];
         return players
-            .filter(p => (p?.sold_status == null) && notDeleted(p?.deleted_at))
+            .filter(p => {
+                if (kcplEnabled && activePool) return isActionableInActiveKcplPool(p);
+                return (p?.sold_status == null) && notDeleted(p?.deleted_at);
+            })
             .map(p => Number(p?.auction_serial))
             .filter(s => Number.isFinite(s) && s >= 1)
             .sort((a, b) => a - b);
-    }, [players]);
+    }, [activePool, isActionableInActiveKcplPool, kcplEnabled, players]);
 
     const quickMessageOptions = [
         { label: "Welcome", text: `Welcome to ${tournamentTitle}!` },
@@ -250,13 +271,13 @@ const AdminPanel = () => {
 
     const getPoolBaseForCurrent = React.useCallback(() => {
         const base =
-            kcplMode && activePool
+            kcplEnabled && activePool
                 ? (getPositivePoolBase(activePool) ??
                     currentPlayer?.base_price ??
                     computeBasePrice(currentPlayer))
                 : (currentPlayer?.base_price ?? computeBasePrice(currentPlayer));
         return Number(base) || 0;
-    }, [kcplMode, activePool, currentPlayer]);
+    }, [kcplEnabled, activePool, currentPlayer]);
 
     // is value aligned to increment grid starting at min
     const isAligned = (value, inc, min = 0) => {
@@ -405,13 +426,19 @@ const AdminPanel = () => {
     }, [tournamentSlug]);
 
     useEffect(() => {
-        if (tournamentSlug?.toLowerCase() !== "kcpl") return;
-        setKcplMode(true);
-        setActivePool(prev => prev || "A");
-    }, [tournamentSlug]);
+        if (isKcplTournament) {
+            setKcplMode(true);
+            setActivePool(prev => prev || "A");
+        } else {
+            setKcplMode(false);
+            setActivePool("");
+            setKcplTeamStates([]);
+            setTeamPoolState(null);
+        }
+    }, [isKcplTournament]);
 
     useEffect(() => {
-        if (kcplMode && tournamentId && activePool) {
+        if (kcplEnabled && tournamentId && activePool) {
             fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${activePool}`)
                 .then(res => res.json())
                 .then(data => {
@@ -431,17 +458,17 @@ const AdminPanel = () => {
 
                 .catch(err => console.error("Failed to fetch KCPL team states:", err));
         }
-    }, [kcplMode, tournamentId, activePool]);
+    }, [kcplEnabled, tournamentId, activePool]);
 
     useEffect(() => {
-        if (!kcplMode || !tournamentId || !activePool) return;
+        if (!kcplEnabled || !tournamentId || !activePool) return;
 
         fetch(`${API}/api/kcpl/active-pool`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pool: activePool, tournament_id: tournamentId })
         }).catch(err => console.error("Failed to sync KCPL active pool:", err));
-    }, [kcplMode, tournamentId, activePool]);
+    }, [kcplEnabled, tournamentId, activePool]);
 
 
 
@@ -740,7 +767,7 @@ const AdminPanel = () => {
         const nextBid = getNextBidAmountForEligibility();
         if (!Number.isFinite(nextBid) || nextBid <= 0) return { eligible: true, reason: "" };
 
-        if (kcplMode) {
+        if (kcplEnabled) {
             const st = kcplTeamStates?.find?.(t => Number(t.teamId) === Number(team.id));
             const poolStats = st?.poolStats?.[activePool] || {};
             const maxAllowed = Number(poolStats?.maxBid);
@@ -778,7 +805,7 @@ const AdminPanel = () => {
         const purse = Math.max(Number(team?.budget || 0) - spent, 0);
         if (purse < nextBid) return { eligible: false, reason: "Insufficient purse" };
         return { eligible: true, reason: "" };
-    }, [kcplMode, kcplTeamStates, activePool, getNextBidAmountForEligibility]);
+    }, [kcplEnabled, kcplTeamStates, activePool, getNextBidAmountForEligibility]);
 
     // Determine if a team can legally bid the next amount
     const canTeamBid = React.useCallback((team) => {
@@ -786,7 +813,7 @@ const AdminPanel = () => {
             const nextBid = getNextBidAmountForEligibility();
             if (!Number.isFinite(nextBid) || nextBid <= 0) return true;
 
-            if (kcplMode) {
+            if (kcplEnabled) {
                 const st = kcplTeamStates?.find?.(t => Number(t.teamId) === Number(team.id));
                 const poolStats = st?.poolStats?.[activePool] || {};
                 const maxAllowed = poolStats?.maxBid;
@@ -819,7 +846,7 @@ const AdminPanel = () => {
             console.warn("Eligibility check failed for team", team?.id, e);
             return true; // fail-open
         }
-    }, [kcplMode, kcplTeamStates, activePool, getNextBidAmountForEligibility]);
+    }, [kcplEnabled, kcplTeamStates, activePool, getNextBidAmountForEligibility]);
 
     // Function to updated team secret code
 
@@ -875,7 +902,7 @@ const AdminPanel = () => {
         let url = `${API}/api/players?tournament_id=${tournamentId}&slug=${tournamentSlug}`;
 
         // KCPL-specific: append pool filter only if KCPL mode is active
-        if (kcplMode && activePool) {
+        if (kcplEnabled && activePool) {
             url += `&pool=${activePool}`;
         }
 
@@ -983,7 +1010,7 @@ const AdminPanel = () => {
             const amt = typeof bidAmount === "number" ? bidAmount : parseInt(bidAmount, 10) || 0;
 
             // Non-KCPL guard against team's max bid (when available)
-            if (!kcplMode && selectedTeam?.id) {
+            if (!kcplEnabled && selectedTeam?.id) {
                 try {
                     const teamData = await fetch(`${API}/api/teams/${selectedTeam.id}`).then(r => r.json());
                     if (teamData?.max_bid_allowed != null && amt > teamData.max_bid_allowed) {
@@ -1029,7 +1056,7 @@ const AdminPanel = () => {
 
 
     const refreshKcplTeamStates = async (poolOverride = activePool) => {
-        if (!kcplMode || !tournamentId) return;
+        if (!kcplEnabled || !tournamentId) return;
         try {
             const res = await fetch(`${API}/api/kcpl/team-states/${tournamentId}?activePool=${poolOverride}`);
             const data = await res.json();
@@ -1055,7 +1082,7 @@ const AdminPanel = () => {
             alert("Cannot mark as sold without a valid bid and team.");
             return;
         }
-        const poolBase = kcplMode && activePool
+        const poolBase = kcplEnabled && activePool
             ? (getPositivePoolBase(activePool)
                 ?? currentPlayer?.base_price
                 ?? computeBasePrice(currentPlayer))
@@ -1073,7 +1100,7 @@ const AdminPanel = () => {
         }
 
         const teamId = team.id;
-        if (kcplMode && activePool) {
+        if (kcplEnabled && activePool) {
             const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(teamId));
             const maxAllowed = Number(st?.poolStats?.[activePool]?.maxBid);
             if (Number.isFinite(maxAllowed) && bidAmount > maxAllowed) {
@@ -1424,7 +1451,7 @@ const AdminPanel = () => {
 
             // 2. KCPL-specific filtering
             let unprocessedPlayers = [];
-            if (kcplMode && activePool) {
+            if (kcplEnabled && activePool) {
                 const activePoolIndex = KCPL_RULES.order.indexOf(activePool);
                 const prevPools = activePoolIndex > 0
                     ? KCPL_RULES.order.slice(0, activePoolIndex)
@@ -1432,25 +1459,20 @@ const AdminPanel = () => {
 
                 unprocessedPlayers = allPlayers.filter(p => {
                     const isUnprocessed = (p.sold_status === null || p.sold_status === undefined) && !p.deleted_at;
-                    const isPrevPoolUnprocessed = prevPools.includes(p.base_category) && isUnprocessed;
-                    const isPrevPoolUnsold = prevPools.includes(p.base_category) &&
+                    const isPrevPoolUnsold = prevPools.includes(String(p.sold_pool || "").toUpperCase()) &&
                         (p.sold_status === false || p.sold_status === "FALSE");
                     const isCurrentPoolUnprocessed = p.base_category === activePool && isUnprocessed;
-                    const isCurrentPoolUnsold = p.base_category === activePool &&
-                        (p.sold_status === false || p.sold_status === "FALSE");
 
-                    // Block unsold from the current pool unless reopened manually
                     return (
                         isCurrentPoolUnprocessed ||
-                        (isPrevPoolUnprocessed && p.sold_pool !== activePool) ||
                         isPrevPoolUnsold
-                    ) && !(isCurrentPoolUnsold && p.sold_pool === activePool);
+                    );
                 });
 
                 // 3. Override base price for migrated unsold players from previous pools
                 unprocessedPlayers = unprocessedPlayers.map(p => {
-                    if (prevPools.includes(p.base_category) &&
-                        (p.sold_status === null || p.sold_status === false || p.sold_status === "FALSE")) {
+                    if (prevPools.includes(String(p.sold_pool || "").toUpperCase()) &&
+                        (p.sold_status === false || p.sold_status === "FALSE")) {
                         return {
                             ...p,
                             base_price: KCPL_RULES.pools[activePool]?.base || p.base_price
@@ -1477,7 +1499,7 @@ const AdminPanel = () => {
             const nextBasic = unprocessedPlayers[Math.floor(Math.random() * unprocessedPlayers.length)];
 
             // 5. Fetch full details
-            const detailUrl = kcplMode && activePool
+            const detailUrl = kcplEnabled && activePool
                 ? `${API}/api/players/${nextBasic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
                 : `${API}/api/players/${nextBasic.id}?slug=${tournamentSlug}`;
 
@@ -1521,35 +1543,41 @@ const AdminPanel = () => {
     };
 
 // put near other refs
-const detailCacheRef = useRef(new Map()); // key: playerId, value: detailed player
+const detailCacheRef = useRef(new Map()); // key: playerId or playerId:pool, value: detailed player
+
+const getDetailCacheKey = React.useCallback((playerId, poolCode = activePool) => {
+  return kcplEnabled && poolCode ? `${playerId}:${poolCode}` : String(playerId);
+}, [activePool, kcplEnabled]);
 
 // Keep the local detail cache in sync when a player's status changes
 const upsertDetailCache = React.useCallback((player) => {
     if (!player?.id) return;
-    const prev = detailCacheRef.current.get(player.id) || {};
-    detailCacheRef.current.set(player.id, { ...prev, ...player });
-}, []);
+    const key = getDetailCacheKey(player.id);
+    const prev = detailCacheRef.current.get(key) || {};
+    detailCacheRef.current.set(key, { ...prev, ...player });
+}, [getDetailCacheKey]);
 
 const getDetailedPlayer = async (basic) => {
   if (!basic?.id) return basic;
-  const cached = detailCacheRef.current.get(basic.id);
+  const cacheKey = getDetailCacheKey(basic.id);
+  const cached = detailCacheRef.current.get(cacheKey);
   if (cached) return cached;
 
   const detailUrl =
-    kcplMode && activePool
+    kcplEnabled && activePool
       ? `${API}/api/players/${basic.id}?slug=${tournamentSlug}&active_pool=${activePool}`
       : `${API}/api/players/${basic.id}?slug=${tournamentSlug}`;
 
   const res = await fetch(detailUrl);
   if (!res.ok) return basic;
   const detailed = await res.json();
-  detailCacheRef.current.set(basic.id, detailed);
+  detailCacheRef.current.set(cacheKey, detailed);
   return detailed;
 };
 
 const prefetchBySerial = async (serial) => {
   const p = serialToPlayer.get(Number(serial));
-  if (!p?.id || detailCacheRef.current.has(p.id)) return;
+  if (!p?.id || detailCacheRef.current.has(getDetailCacheKey(p.id))) return;
   try { await getDetailedPlayer(p); } catch { /* ignore */ }
 };
 
@@ -1729,7 +1757,7 @@ const handleSearchById = async (idOverride) => {
             const amt = currentBid;
 
             // Validate against max-allowed
-            if (kcplMode) {
+            if (kcplEnabled) {
                 const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
                 const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
                 if (Number.isFinite(maxAllowed) && amt > maxAllowed) {
@@ -1783,7 +1811,7 @@ const handleSearchById = async (idOverride) => {
 
         // Compute base (KCPL-aware if on)
         const poolBase =
-            kcplMode && activePool
+            kcplEnabled && activePool
                 ? getPositivePoolBase(activePool) ??
                 currentPlayer?.base_price ??
                 computeBasePrice(currentPlayer)
@@ -1794,7 +1822,7 @@ const handleSearchById = async (idOverride) => {
             currentBid <= 0 ? base : currentBid + getDynamicBidIncrement(currentBid);
 
         // Validate newBid
-        if (kcplMode) {
+        if (kcplEnabled) {
             const st = kcplTeamStates.find((t) => Number(t.teamId) === Number(team.id));
             const maxAllowed = st?.poolStats?.[activePool]?.maxBid ?? Infinity;
             if (Number.isFinite(maxAllowed) && newBid > maxAllowed) {
@@ -2392,8 +2420,10 @@ const handleSearchById = async (idOverride) => {
                 <label className="flex items-center gap-2">
                     <input
                         type="checkbox"
-                        checked={kcplMode}
+                        checked={kcplEnabled}
+                        disabled={!isKcplTournament}
                         onChange={e => {
+                            if (!isKcplTournament) return;
                             const enabled = e.target.checked;
                             setKcplMode(enabled);
                             if (enabled) setActivePool(prev => prev || "A");
@@ -2402,7 +2432,7 @@ const handleSearchById = async (idOverride) => {
                     <span>KCPL Mode</span>
                 </label>
 
-                {kcplMode && (
+                {kcplEnabled && (
                     <>
                         <span>Pool:</span>
                         <select
@@ -2646,7 +2676,7 @@ const handleSearchById = async (idOverride) => {
                                 )}
                             </div>
 
-                            {kcplMode && kcplTeamStates.length > 0 && (
+                            {kcplEnabled && kcplTeamStates.length > 0 && (
                                 <table className="mt-2 text-xs text-gray-300 w-full">
                                     <thead>
                                         <tr>

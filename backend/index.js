@@ -732,6 +732,28 @@ async function getEffectiveBasePriceScoped(player, activePool) {
   return catMap[cat] ?? 0;
 }
 
+function computeEffectiveBasePriceFromTournament(player, tournament, activePool) {
+  const cat = String(player?.base_category || '').toUpperCase();
+  const catMap = { A: 1700, B: 3000, C: 5000 };
+  const isKcplTournament = String(tournament?.slug || '').toLowerCase() === 'kcpl';
+
+  if (isKcplTournament && cat) {
+    const poolCode = (activePool && activePool !== cat) ? activePool : cat;
+    const kcplBase = Number(KCPL_RULES.pools?.[poolCode]?.base || 0);
+    if (kcplBase > 0) return kcplBase;
+  }
+
+  if (tournament?.base_price != null) return Number(tournament.base_price) || 0;
+
+  if (tournament?.min_base_price != null) {
+    return isKcplTournament
+      ? (Number(tournament.min_base_price) || 0)
+      : (catMap[cat] ?? Number(tournament.min_base_price) ?? 0);
+  }
+
+  return catMap[cat] ?? 0;
+}
+
 
 
 
@@ -1036,16 +1058,56 @@ app.get('/api/players', async (req, res) => {
   try {
     const params = [tournament_id];
     let where = `tournament_id = $1`;
+    let tournament = null;
+    let activePoolForBase = null;
 
     if (poolParam) {
-      params.push(String(poolParam).toUpperCase());
-      where += ` AND UPPER(base_category) = $${params.length}`;
+      const activePool = String(poolParam).toUpperCase();
+      activePoolForBase = activePool;
+      const tournamentRes = await pool.query(
+        `SELECT slug, base_price, min_base_price FROM tournaments WHERE id = $1`,
+        [tournament_id]
+      );
+      tournament = tournamentRes.rows[0] || null;
+      const isKcplTournament = String(tournament?.slug || "").toLowerCase() === "kcpl";
+      const activePoolIndex = KCPL_RULES.order.indexOf(activePool);
+
+      if (isKcplTournament && activePoolIndex >= 0) {
+        const prevPools = KCPL_RULES.order.slice(0, activePoolIndex);
+        params.push(activePool);
+        const activePoolParam = params.length;
+        params.push(prevPools);
+        const prevPoolsParam = params.length;
+        where += ` AND (
+          UPPER(base_category) = $${activePoolParam}
+          OR (
+            UPPER(COALESCE(sold_pool, '')) = ANY($${prevPoolsParam}::text[])
+            AND UPPER(COALESCE(sold_status::text, '')) = 'FALSE'
+          )
+        )`;
+      } else {
+        params.push(activePool);
+        where += ` AND UPPER(base_category) = $${params.length}`;
+      }
     }
 
     const result = await pool.query(
       `SELECT * FROM players WHERE ${where} ORDER BY auction_serial NULLS LAST, id`,
       params
     );
+
+    if (!tournament) {
+      const tournamentRes = await pool.query(
+        `SELECT slug, base_price, min_base_price FROM tournaments WHERE id = $1`,
+        [tournament_id]
+      );
+      tournament = tournamentRes.rows[0] || null;
+    }
+
+    result.rows = result.rows.map((player) => ({
+      ...player,
+      base_price: computeEffectiveBasePriceFromTournament(player, tournament, activePoolForBase)
+    }));
 
     res.json(result.rows);   // ✅ this is the only response
   } catch (err) {
@@ -1103,9 +1165,11 @@ app.put('/api/players/:id', async (req, res) => {
   try {
     // 1️⃣ Get existing player details
     const playerRes = await pool.query(
-      `SELECT id, tournament_id, base_category, sold_status, team_id AS old_team_id
-       FROM players
-       WHERE id = $1`,
+      `SELECT p.id, p.tournament_id, p.base_category, p.sold_status, p.team_id AS old_team_id,
+              t.slug AS tournament_slug
+       FROM players p
+       LEFT JOIN tournaments t ON t.id = p.tournament_id
+       WHERE p.id = $1`,
       [playerId]
     );
 
@@ -1118,6 +1182,7 @@ app.put('/api/players/:id', async (req, res) => {
     const playerCategory = player.base_category;
     const currentSoldStatus = player.sold_status;
     const oldTeamId = player.old_team_id;
+    const isKcplTournament = String(player.tournament_slug || "").toLowerCase() === "kcpl";
 
     // 🔒 Block updates if already SOLD (unless explicitly UNSOLD)
     if (["TRUE", true].includes(currentSoldStatus) && sold_status !== false && sold_status !== "FALSE") {
@@ -1126,7 +1191,7 @@ app.put('/api/players/:id', async (req, res) => {
 
     // 2️⃣ Determine effective category
     const effectiveCategory =
-      active_pool &&
+      isKcplTournament && active_pool &&
         (currentSoldStatus === null || currentSoldStatus === false || currentSoldStatus === "FALSE")
         ? active_pool
         : playerCategory;
@@ -1134,7 +1199,7 @@ app.put('/api/players/:id', async (req, res) => {
     // 3️⃣ Base price enforcement
     let minAllowed = 0;
     if (effectiveCategory) {
-      const poolBase = Number(KCPL_RULES.pools[effectiveCategory]?.base);
+      const poolBase = isKcplTournament ? Number(KCPL_RULES.pools[effectiveCategory]?.base) : 0;
       minAllowed = poolBase > 0
         ? poolBase
         : await getEffectiveBasePriceScoped(
@@ -1164,6 +1229,7 @@ app.put('/api/players/:id', async (req, res) => {
       }
 
       const hasValidPool =
+        isKcplTournament &&
         effectiveCategory &&
         KCPL_RULES.pools?.[String(effectiveCategory).toUpperCase()];
 
@@ -1203,7 +1269,7 @@ app.put('/api/players/:id', async (req, res) => {
     // 5️⃣ Persist the player (choose a sane sold_pool)
     const poolToSave =
       sold_pool ||
-      (KCPL_RULES.pools?.[String(effectiveCategory).toUpperCase()] ? effectiveCategory : null);
+      (isKcplTournament && KCPL_RULES.pools?.[String(effectiveCategory).toUpperCase()] ? effectiveCategory : null);
 
     await pool.query(
       `UPDATE players
@@ -1244,9 +1310,11 @@ app.patch('/api/players/:id', async (req, res) => {
   try {
     // 1️⃣ Fetch player info
     const playerRes = await pool.query(
-      `SELECT id, tournament_id, base_category, sold_status
-       FROM players
-       WHERE id = $1`,
+      `SELECT p.id, p.tournament_id, p.base_category, p.sold_status,
+              t.slug AS tournament_slug
+       FROM players p
+       LEFT JOIN tournaments t ON t.id = p.tournament_id
+       WHERE p.id = $1`,
       [playerId]
     );
 
@@ -1258,6 +1326,7 @@ app.patch('/api/players/:id', async (req, res) => {
     const tournamentId = player.tournament_id;
     const playerCategory = player.base_category;
     const currentSoldStatus = player.sold_status;
+    const isKcplTournament = String(player.tournament_slug || "").toLowerCase() === "kcpl";
 
     // 🔒 Block updates if already SOLD
     if (["TRUE", true].includes(currentSoldStatus) && sold_status !== false && sold_status !== "FALSE") {
@@ -1266,7 +1335,7 @@ app.patch('/api/players/:id', async (req, res) => {
 
     // 2️⃣ Determine effective category
     const effectiveCategory =
-      active_pool &&
+      isKcplTournament && active_pool &&
         (currentSoldStatus === null || currentSoldStatus === false || currentSoldStatus === "FALSE")
         ? active_pool
         : playerCategory;
@@ -1274,7 +1343,7 @@ app.patch('/api/players/:id', async (req, res) => {
     // 3️⃣ Enforce base price
     let minAllowed = 0;
     if (effectiveCategory) {
-      const poolBase = Number(KCPL_RULES.pools[effectiveCategory]?.base);
+      const poolBase = isKcplTournament ? Number(KCPL_RULES.pools[effectiveCategory]?.base) : 0;
       minAllowed = poolBase > 0
         ? poolBase
         : await getEffectiveBasePriceScoped(
@@ -1298,7 +1367,7 @@ app.patch('/api/players/:id', async (req, res) => {
     }
 
     // 4️⃣ KCPL slot + budget guard
-    if (["TRUE", true, "true"].includes(sold_status)) {
+    if (isKcplTournament && ["TRUE", true, "true"].includes(sold_status)) {
       if (!team_id) {
         return res.status(400).json({ error: "team_id required to mark SOLD" });
       }
@@ -1521,7 +1590,7 @@ app.get('/api/current-player', async (req, res) => {
 
 // ✅ SET current player
 app.put('/api/current-player', async (req, res) => {
-  const { id, name, role, base_price, profile_image, sold_status, team_id, sold_price, tournament_id } = req.body;
+  const { id, name, role, base_price, profile_image, sold_status, team_id, sold_price, tournament_id, active_pool } = req.body;
 
   if (!id || !name || !role) {
     console.error("❌ Missing required player fields:", req.body);
@@ -1529,6 +1598,24 @@ app.put('/api/current-player', async (req, res) => {
   }
 
   try {
+    let effectiveBasePrice = Number(base_price) || 0;
+    if (tournament_id) {
+      const playerRes = await pool.query(
+        `SELECT p.base_category, p.tournament_id, t.slug, t.base_price, t.min_base_price
+         FROM players p
+         LEFT JOIN tournaments t ON t.id = p.tournament_id
+         WHERE p.id = $1 AND p.tournament_id = $2`,
+        [id, tournament_id]
+      );
+      if (playerRes.rowCount > 0) {
+        effectiveBasePrice = computeEffectiveBasePriceFromTournament(
+          playerRes.rows[0],
+          playerRes.rows[0],
+          active_pool || null
+        );
+      }
+    }
+
     if (tournament_id) {
       await pool.query(
         `INSERT INTO current_player (tournament_id, id, name, role, base_price, profile_image, sold_status, team_id, sold_price, updated_at)
@@ -1543,14 +1630,14 @@ app.put('/api/current-player', async (req, res) => {
            team_id = EXCLUDED.team_id,
            sold_price = EXCLUDED.sold_price,
            updated_at = NOW()`,
-        [tournament_id, id, name, role, base_price, profile_image, sold_status, team_id, sold_price]
+        [tournament_id, id, name, role, effectiveBasePrice, profile_image, sold_status, team_id, sold_price]
       );
     } else {
       await pool.query('DELETE FROM current_player');
       await pool.query(
         `INSERT INTO current_player (id, name, role, base_price, profile_image, sold_status, team_id, sold_price)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [id, name, role, base_price, profile_image, sold_status, team_id, sold_price]
+        [id, name, role, effectiveBasePrice, profile_image, sold_status, team_id, sold_price]
       );
     }
     res.json({ message: 'Current player updated' });
