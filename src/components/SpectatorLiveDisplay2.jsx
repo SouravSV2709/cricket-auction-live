@@ -2490,9 +2490,57 @@ const groups =
             <div
                 className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}
             >
+                <style>{`
+                    @keyframes aa-stats-header-enter {
+                        0% { opacity: 0; transform: translateY(-28px) scale(.96); filter: blur(4px); }
+                        100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+                    }
+                    @keyframes aa-stats-title-enter {
+                        0% { opacity: 0; transform: translateY(18px); letter-spacing: .45em; }
+                        100% { opacity: 1; transform: translateY(0); letter-spacing: normal; }
+                    }
+                    @keyframes aa-stats-panel-enter {
+                        0% { opacity: 0; transform: translateX(calc(var(--aa-stats-side) * 55px)) scale(.97); }
+                        100% { opacity: 1; transform: translateX(0) scale(1); }
+                    }
+                    @keyframes aa-stats-row-enter {
+                        0% { opacity: 0; transform: translateX(calc(var(--aa-stats-side) * 38px)); filter: blur(3px); }
+                        65% { opacity: 1; transform: translateX(calc(var(--aa-stats-side) * -4px)); }
+                        100% { opacity: 1; transform: translateX(0); filter: blur(0); }
+                    }
+                    @keyframes aa-stats-value-pop {
+                        0% { opacity: 0; transform: scale(.72); }
+                        70% { opacity: 1; transform: scale(1.08); }
+                        100% { opacity: 1; transform: scale(1); }
+                    }
+                    @keyframes aa-stats-heading-sheen {
+                        0%, 18% { transform: translateX(-160%) skewX(-18deg); opacity: 0; }
+                        24% { opacity: .55; }
+                        42%, 100% { transform: translateX(500%) skewX(-18deg); opacity: 0; }
+                    }
+                    .aa-stats-header { animation: aa-stats-header-enter 650ms cubic-bezier(.2,.8,.2,1) both; }
+                    .aa-stats-title { animation: aa-stats-title-enter 620ms ease-out 180ms both; }
+                    .aa-stats-panel { animation: aa-stats-panel-enter 650ms cubic-bezier(.2,.8,.2,1) var(--aa-panel-delay) both; }
+                    .aa-stats-row {
+                        will-change: transform, opacity, filter;
+                        animation: aa-stats-row-enter 560ms cubic-bezier(.2,.8,.2,1) var(--aa-row-delay) both;
+                    }
+                    .aa-stats-value {
+                        opacity: 0;
+                        animation: aa-stats-value-pop 420ms cubic-bezier(.2,.8,.2,1) var(--aa-value-delay) both;
+                    }
+                    .aa-stats-heading-sheen { animation: aa-stats-heading-sheen 7s ease-in-out 1.5s infinite; }
+                    @media (prefers-reduced-motion: reduce) {
+                        .aa-stats-header, .aa-stats-title, .aa-stats-panel, .aa-stats-row,
+                        .aa-stats-value, .aa-stats-heading-sheen {
+                            animation: none !important;
+                            opacity: 1 !important;
+                        }
+                    }
+                `}</style>
                 {isVideoTheme && <BackgroundEffect theme={theme} />}
 
-                <div className="flex flex-row items-center justify-center mt-2 mb-4">
+                <div className="aa-stats-header flex flex-row items-center justify-center mt-2 mb-4">
                     {tournamentLogo && (
                         <img
                             src={tournamentLogo}
@@ -2503,21 +2551,30 @@ const groups =
                     <h1 className="text-3xl text-center mt-2">{tournamentName}</h1>
                 </div>
 
-                <h2 className="text-3xl text-center py-5 text-white">📊 Team Statistics</h2>
+                <h2 className="aa-stats-title text-3xl text-center py-5 text-white">📊 Team Statistics</h2>
 
                 <div className="flex gap-3 items-start justify-center px-2">
                     {groups.map((grp, grpIdx) => (
                         <div
                             key={grpIdx}
-                            className={`flex flex-col ${groups.length === 1 ? "w-[88%] max-w-[1200px]" : "w-auto max-w-[48%]"
+                            className={`aa-stats-panel flex flex-col ${groups.length === 1 ? "w-[88%] max-w-[1200px]" : "w-auto max-w-[48%]"
                                 } overflow-hidden bg-white/10 border border-white/10 rounded-2xl px-6 md:px-10 py-6 backdrop-blur-sm shadow-2xl`}
+                            style={{
+                                '--aa-group-index': grpIdx,
+                                '--aa-stats-side': groups.length === 1 || grpIdx === 0 ? -1 : 1,
+                                '--aa-panel-delay': `${280 + grpIdx * 130}ms`,
+                            }}
                         >
                             {/* Header (TEAM | PURSE | MAX BID | SLOTS LEFT) */}
-                            <div className="grid grid-cols-4 gap-2 md:gap-4 px-3 py-3 text-base md:text-xl bg-white/10 rounded-xl text-white/90 border border-white/10">
+                            <div className="relative overflow-hidden grid grid-cols-4 gap-2 md:gap-4 px-3 py-3 text-base md:text-xl bg-white/10 rounded-xl text-white/90 border border-white/10">
                                 <div className="tracking-wider">TEAM NAME</div>
                                 <div className="text-center tracking-wider">PURSE REMAINING</div>
                                 <div className="text-center tracking-wider">MAX BID ALLOWED</div>
                                 <div className="text-center tracking-wider">SLOTS LEFT</div>
+                                <div
+                                    aria-hidden="true"
+                                    className="aa-stats-heading-sheen absolute inset-y-0 left-0 w-1/4 bg-gradient-to-r from-transparent via-white/50 to-transparent blur-sm pointer-events-none"
+                                />
                             </div>
 
                             {/* Rows */}
@@ -2546,13 +2603,22 @@ const groups =
                                         0
                                     );
 
+                                    const rowIndex = groups
+                                        .slice(0, grpIdx)
+                                        .reduce((count, group) => count + group.length, 0) + idx;
+
                                     return (
                                         <div
                                             key={team.id}
-                                            className={`grid grid-cols-4 gap-2 md:gap-4 items-center px-3 py-3 rounded-xl 
-                                bg-gradient-to-r from-slate-900/70 to-indigo-900/50 text-2xl md:text-3xl font-semibold 
+                                            className={`aa-stats-row grid grid-cols-4 gap-2 md:gap-4 items-center px-3 py-3 rounded-xl
+                                bg-gradient-to-r from-slate-900/70 to-indigo-900/50 text-2xl md:text-3xl font-semibold
                                 border border-white/10 shadow-sm hover:shadow-xl transition-shadow ${idx % 2 ? "backdrop-blur-[2px]" : "backdrop-blur-sm"
                                                 }`}
+                                            style={{
+                                                '--aa-row-index': rowIndex,
+                                                '--aa-stats-side': groups.length === 1 || grpIdx === 0 ? -1 : 1,
+                                                '--aa-row-delay': `${460 + rowIndex * 85}ms`,
+                                            }}
                                         >
                                             {/* Team */}
                                             <div className="flex items-center gap-3 min-w-0">
@@ -2565,21 +2631,21 @@ const groups =
                                             </div>
 
                                             {/* Purse */}
-                                            <div className="text-center">
+                                            <div className="aa-stats-value text-center" style={{ '--aa-value-delay': `${700 + rowIndex * 85}ms` }}>
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-600/25 border border-emerald-300/30 text-emerald-200 tabular-nums">
                                                     {formatCurrency(purse)}
                                                 </span>
                                             </div>
 
                                             {/* Max Bid Allowed */}
-                                            <div className="text-center">
+                                            <div className="aa-stats-value text-center" style={{ '--aa-value-delay': `${770 + rowIndex * 85}ms` }}>
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-amber-600/25 border border-amber-300/30 text-amber-200 tabular-nums">
                                                     {formatCurrency(maxBidAllowed)}
                                                 </span>
                                             </div>
 
                                             {/* Slots Left */}
-                                            <div className="text-center">
+                                            <div className="aa-stats-value text-center" style={{ '--aa-value-delay': `${840 + rowIndex * 85}ms` }}>
                                                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-cyan-600/25 border border-cyan-300/30 text-cyan-200 tabular-nums">
                                                     {leftSlots}
                                                 </span>
@@ -2782,6 +2848,7 @@ const groups =
         const midpoint = Math.ceil(teamSummaries.length / 2);
         const leftTeams = teamSummaries.slice(0, midpoint);
         const rightTeams = teamSummaries.slice(midpoint);
+        const spotlightDuration = Math.max(12, teamSummaries.length * 0.8 + 2);
 
         const splitIntoPattern = (teams, pattern) => {
             const result = [];
@@ -2799,37 +2866,128 @@ const groups =
         const leftGrid = splitIntoPattern(leftTeams, leftPattern);
         const rightGrid = splitIntoPattern(rightTeams, rightPattern);
 
+        const getLogoAnimationStyle = (spotlightIndex, side) => ({
+            background: `url('/flame-ring.png') center/contain no-repeat`,
+            '--aa-logo-index': spotlightIndex,
+            '--aa-logo-side': side,
+            '--aa-logo-enter-delay': `${spotlightIndex * 90}ms`,
+            '--aa-spotlight-delay': `${1.4 + spotlightIndex * 0.8}s`,
+            '--aa-spotlight-duration': `${spotlightDuration}s`,
+        });
+
         return (
             <div className="w-screen h-screen relative overflow-hidden text-white p-4 border-8 border-yellow-400 rounded-[30px] box-border">
 
+                <style>{`
+                    @keyframes aa-team-logo-enter {
+                        0% {
+                            opacity: 0;
+                            transform: translateX(calc(var(--aa-logo-side) * 70px)) scale(.72) rotate(calc(var(--aa-logo-side) * -5deg));
+                            filter: blur(5px) brightness(.7);
+                        }
+                        70% { opacity: 1; transform: translateX(0) scale(1.06) rotate(0); }
+                        100% { opacity: 1; transform: translateX(0) scale(1) rotate(0); filter: blur(0) brightness(1); }
+                    }
+
+                    @keyframes aa-team-logo-spotlight {
+                        0%, 12%, 100% {
+                            transform: translateY(0) scale(1);
+                            filter: brightness(1) saturate(1) drop-shadow(0 8px 12px rgba(0, 0, 0, .45));
+                        }
+                        4%, 8% {
+                            transform: translateY(-10px) scale(1.08);
+                            filter: brightness(1.2) saturate(1.18) drop-shadow(0 0 18px rgba(250, 204, 21, .9));
+                        }
+                    }
+
+                    @keyframes aa-idle-title-sheen {
+                        0%, 16% { transform: translateX(-145%) skewX(-18deg); opacity: 0; }
+                        20% { opacity: .8; }
+                        38%, 100% { transform: translateX(145%) skewX(-18deg); opacity: 0; }
+                    }
+
+                    @keyframes aa-idle-gavel-swing {
+                        0%, 78%, 100% { transform: rotate(0deg); }
+                        83% { transform: rotate(-18deg); }
+                        87% { transform: rotate(11deg); }
+                        91% { transform: rotate(-6deg); }
+                        95% { transform: rotate(0deg); }
+                    }
+
+                    @keyframes aa-idle-center-breathe {
+                        0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 10px rgba(255,255,255,.35)); }
+                        50% { transform: translateY(-6px) scale(1.035); filter: drop-shadow(0 0 20px rgba(250,204,21,.48)); }
+                    }
+
+                    @keyframes aa-idle-ambient-sweep {
+                        0%, 100% { transform: translate3d(-35%, 0, 0) rotate(8deg); opacity: .08; }
+                        50% { transform: translate3d(35%, 0, 0) rotate(8deg); opacity: .16; }
+                    }
+
+                    .aa-team-logo {
+                        opacity: 0;
+                        will-change: transform, filter, opacity;
+                        animation:
+                            aa-team-logo-enter 720ms cubic-bezier(.2,.8,.2,1) var(--aa-logo-enter-delay) forwards,
+                            aa-team-logo-spotlight var(--aa-spotlight-duration) ease-in-out var(--aa-spotlight-delay) infinite;
+                    }
+
+                    .aa-idle-title-sheen { animation: aa-idle-title-sheen 6.5s ease-in-out 1.2s infinite; }
+                    .aa-idle-gavel { transform-origin: 72% 72%; animation: aa-idle-gavel-swing 7s ease-in-out 1.8s infinite; }
+                    .aa-idle-center-logo { animation: aa-idle-center-breathe 4.5s ease-in-out infinite; }
+                    .aa-idle-ambient { animation: aa-idle-ambient-sweep 14s ease-in-out infinite; }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .aa-team-logo, .aa-idle-title-sheen, .aa-idle-gavel, .aa-idle-center-logo, .aa-idle-ambient {
+                            animation: none !important;
+                        }
+                        .aa-team-logo { opacity: 1; }
+                    }
+                `}</style>
+
                 {/* Layout */}
                 <div className={`w-screen h-screen ${bgGradientClass} ${activeTheme.text} overflow-hidden relative`}>
-                    <div className="absolute inset-0 z-10 flex items-center justify-between px-2 py-4">
+                    <div
+                        aria-hidden="true"
+                        className="aa-idle-ambient absolute -inset-y-1/2 left-1/4 z-[9] w-1/2 pointer-events-none bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent blur-3xl"
+                    />
+                    <div
+                        className="absolute inset-0 z-10 grid items-center px-2 py-4"
+                        style={{
+                            gridTemplateColumns: 'minmax(0, 1fr) clamp(300px, 23vw, 440px) minmax(0, 1fr)',
+                            columnGap: 'clamp(12px, 1.5vw, 30px)',
+                        }}
+                    >
 
 
                         {/* Background particles */}
                         {isVideoTheme && <BackgroundEffect theme={theme} />}
                         {/* Left Logos: 3-3-2 */}
-                        <div className="flex flex-col gap-6 items-center pl-2">
+                        <div className="flex flex-col gap-6 items-center justify-self-end min-w-0">
                             {leftGrid.map((row, i) => (
                                 <div key={i} className="flex justify-center gap-2">
-                                    {row.map(team => (
+                                    {row.map((team, teamIndex) => {
+                                        const spotlightIndex = leftGrid
+                                            .slice(0, i)
+                                            .reduce((count, gridRow) => count + gridRow.length, 0) + teamIndex;
+                                        return (
                                         <div key={team.id} className="w-48 h-48 m-3">
                                             <img
                                                 src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                 alt={team.name}
-                                                className="w-full h-full object-contain rounded-full shadow-xl border-l-8 border-yellow-300"
-                                                style={{ background: `url('/flame-ring.png') center/contain no-repeat` }}
+                                                className="aa-team-logo w-full h-full object-contain rounded-full shadow-xl border-l-8 border-yellow-300"
+                                                style={getLogoAnimationStyle(spotlightIndex, -1)}
                                             />
 
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ))}
                         </div>
 
                         {/* Center Info */}
-                        <div className="flex flex-col items-center justify-center text-center px-1">
+                        <div className="flex flex-col items-center justify-center justify-self-center text-center px-1 w-full min-w-0">
                             {tournamentLogo && (
                                 <img
                                     src={tournamentLogo}
@@ -2839,9 +2997,9 @@ const groups =
                                         height: '180px',
                                         objectFit: 'contain',
                                         marginBottom: '1rem',
-                                        animation: 'pulse 2s infinite',
                                         filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.4))',
                                     }}
+                                    className="aa-idle-center-logo"
                                 />
                             )}
                             <h1
@@ -2870,9 +3028,15 @@ const groups =
                                 {tournamentName?.split(' ').slice(1).join(' ') || ''}
                             </h2>
 
-                            <h1 className="text-6xl md:text-8xl font-extrabold text-yellow-300 mb-4 drop-shadow-lg">
-                                AUCTION
-                            </h1>
+                            <div className="relative overflow-hidden mb-4 px-3">
+                                <h1 className="text-6xl md:text-8xl font-extrabold text-yellow-300 drop-shadow-lg">
+                                    AUCTION
+                                </h1>
+                                <div
+                                    aria-hidden="true"
+                                    className="aa-idle-title-sheen absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/80 to-transparent blur-sm pointer-events-none"
+                                />
+                            </div>
                             {/* <p
                             style={{
                                 fontFamily: "'Poppins', sans-serif",
@@ -2896,7 +3060,7 @@ const groups =
                                 <div className="bg-red-600 text-white text-sm  px-4 py-2 rounded-full animate-pulse">
                                     🔴 LIVE STREAMING
                                 </div>
-                                <img src="/hammer.png" alt="Gavel" className="w-10 h-10 object-contain" />
+                                <img src="/hammer.png" alt="Gavel" className="aa-idle-gavel w-10 h-10 object-contain" />
                                 <img src="/AuctionArena2.png" alt="EA ARENA" className="w-20 h-20 object-contain" />
                             </div>
 
@@ -2914,20 +3078,25 @@ const groups =
                         </div>
 
                         {/* Right Logos: 2-3-3 (mirror layout) */}
-                        <div className="flex flex-col gap-6 items-center pr-2">
+                        <div className="flex flex-col gap-6 items-center justify-self-start min-w-0">
                             {rightGrid.map((row, i) => (
                                 <div key={i} className="flex justify-center gap-4">
-                                    {row.map(team => (
+                                    {row.map((team, teamIndex) => {
+                                        const spotlightIndex = leftTeams.length + rightGrid
+                                            .slice(0, i)
+                                            .reduce((count, gridRow) => count + gridRow.length, 0) + teamIndex;
+                                        return (
                                         <div key={team.id} className="w-48 h-48 m-3">
                                             <img
                                                 src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`}
                                                 alt={team.name}
-                                                className="w-full h-full object-contain rounded-full shadow-xl border-r-8 border-yellow-300"
-                                                style={{ background: `url('/flame-ring.png') center/contain no-repeat` }}
+                                                className="aa-team-logo w-full h-full object-contain rounded-full shadow-xl border-r-8 border-yellow-300"
+                                                style={getLogoAnimationStyle(spotlightIndex, 1)}
                                             />
 
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ))}
                         </div>
