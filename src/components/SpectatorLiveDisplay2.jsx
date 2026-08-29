@@ -3557,10 +3557,10 @@ const groups =
                                  <div className="px-3 py-2 tracking-wider uppercase">Bowling Type</div>
                                 <div className="px-3 py-2 uppercase">{player?.bowling_hand || "-"}</div>
 
-                                {player?.location && (
+                                {player?.district && (
                                     <>
-                                        <div className="px-3 py-2 tracking-wider uppercase">Location</div>
-                                        <div className="px-3 py-2">{player.location}</div>
+                                        <div className="px-3 py-2 tracking-wider uppercase">District</div>
+                                        <div className="px-3 py-2">{player.district}</div>
                                     </>
                                 )}
                             </div>
