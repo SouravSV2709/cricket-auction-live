@@ -1,3 +1,4 @@
+import { getDisplayBasePrice as resolveDisplayBasePrice } from '../utils/basePrice.mjs';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -466,14 +467,8 @@ const SpectatorLiveDisplay6 = () => {
     }, [liveBidTeams, teamMapById, teamMapByName, highestBid, leadingTeam, resolveRemainingPurse]);
 
     const computeBasePrice = useCallback((playerData) => {
-        if (!playerData) return 0;
-        if (playerData.base_price && Number(playerData.base_price) > 0) {
-            return Number(playerData.base_price);
-        }
-        const poolDefaults = { A: 1700, B: 3000, C: 5000 };
-        const code = (playerData.base_category || "").toUpperCase();
-        return poolDefaults[code] || 0;
-    }, []);
+        return resolveDisplayBasePrice(playerData, tournamentId);
+    }, [tournamentId]);
 
     if (!player) {
         return (

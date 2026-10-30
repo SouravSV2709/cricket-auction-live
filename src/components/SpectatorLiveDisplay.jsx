@@ -1,3 +1,4 @@
+import { getDisplayBasePrice as resolveDisplayBasePrice } from '../utils/basePrice.mjs';
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import confetti from "canvas-confetti";
 import { useParams } from "react-router-dom";
@@ -633,13 +634,12 @@ const SpectatorLiveDisplay = () => {
 
 
     const computeBasePrice = (player) => {
-        if (player.base_price && player.base_price > 0) return player.base_price;
-        const map = { A: 1700, B: 3000, C: 5000 };
-        return map[player.base_category] || 0;
+        return resolveDisplayBasePrice(player, tournamentId);
     };
 
     // When auctioning a player from a different pool, show the Base Price of the *active* pool.
     const getDisplayBasePrice = (player, activePool) => {
+        if (Number(player?.tournament_id ?? tournamentId) === 30) return computeBasePrice(player);
         // If KCPL team-state is present and a pool base is defined, prefer it
         const poolBase = KCPL_RULES?.pools?.[activePool]?.base;
         if (Array.isArray(kcplTeamStates) && kcplTeamStates.length > 0 && poolBase != null) {
@@ -1994,7 +1994,7 @@ const groups =
                 .map((p) => Number(p?.base) || Infinity)
                 .filter((n) => Number.isFinite(n))
             : [];
-        const MIN_BASE_PRICE = poolBases.length > 0 ? Math.min(...poolBases) : 1700;
+        const MIN_BASE_PRICE = Number(tournamentId) === 30 ? 100 : (poolBases.length > 0 ? Math.min(...poolBases) : 1700);
 
         return (
             <div

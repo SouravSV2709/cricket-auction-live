@@ -1,3 +1,4 @@
+import { getTournamentBasePrice } from '../src/utils/basePrice.mjs';
 console.log("🟢 index.js is running");
 
 import express from 'express';
@@ -705,6 +706,8 @@ async function getEffectiveBasePriceLegacyUnsafe(player, activePool) {
 }
 
 async function getEffectiveBasePriceScoped(player, activePool) {
+  const scopedPrice = getTournamentBasePrice(player);
+  if (scopedPrice !== null) return scopedPrice;
   const cat = String(player.base_category || '').toUpperCase();
   const catMap = { A: 1700, B: 3000, C: 5000 };
 
@@ -733,6 +736,8 @@ async function getEffectiveBasePriceScoped(player, activePool) {
 }
 
 function computeEffectiveBasePriceFromTournament(player, tournament, activePool) {
+  const scopedPrice = getTournamentBasePrice(player);
+  if (scopedPrice !== null) return scopedPrice;
   const cat = String(player?.base_category || '').toUpperCase();
   const catMap = { A: 1700, B: 3000, C: 5000 };
   const isKcplTournament = String(tournament?.slug || '').toLowerCase() === 'kcpl';
@@ -870,7 +875,8 @@ async function updateTeamStats(teamId, tournamentId) {
     const totalSpent = playersRes.rows.reduce((sum, p) => sum + Number(p.sold_price || 0), 0);
     const remaining = Math.max(tournament.players_per_team - boughtCount, 0);
     const remainingPurse = totalBudget - totalSpent;
-    const minBasePrice = tournament.base_price ?? tournament.min_base_price ?? 0;
+    const minBasePrice = getTournamentBasePrice({ tournament_id: tournamentId })
+      ?? tournament.base_price ?? tournament.min_base_price ?? 0;
 
     const maxBidAllowed = remaining > 0
       ? remainingPurse - (remaining - 1) * minBasePrice
@@ -1198,7 +1204,9 @@ app.put('/api/players/:id', async (req, res) => {
 
     // 3️⃣ Base price enforcement
     let minAllowed = 0;
-    if (effectiveCategory) {
+    if (Number(tournamentId) === 30) {
+      minAllowed = getTournamentBasePrice(player);
+    } else if (effectiveCategory) {
       const poolBase = isKcplTournament ? Number(KCPL_RULES.pools[effectiveCategory]?.base) : 0;
       minAllowed = poolBase > 0
         ? poolBase
@@ -1342,7 +1350,9 @@ app.patch('/api/players/:id', async (req, res) => {
 
     // 3️⃣ Enforce base price
     let minAllowed = 0;
-    if (effectiveCategory) {
+    if (Number(tournamentId) === 30) {
+      minAllowed = getTournamentBasePrice(player);
+    } else if (effectiveCategory) {
       const poolBase = isKcplTournament ? Number(KCPL_RULES.pools[effectiveCategory]?.base) : 0;
       minAllowed = poolBase > 0
         ? poolBase
@@ -1575,6 +1585,8 @@ app.get('/api/current-player', async (req, res) => {
 
     return res.status(200).json({
       ...currentPlayer,
+      tournament_id: row.tournament_id ?? currentPlayer.tournament_id,
+      base_category: row.base_category,
       auction_serial: row.auction_serial || null,
       base_price: Number(effectiveBase) || 0
     });

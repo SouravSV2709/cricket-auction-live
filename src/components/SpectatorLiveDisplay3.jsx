@@ -1,3 +1,4 @@
+import { getDisplayBasePrice as resolveDisplayBasePrice } from '../utils/basePrice.mjs';
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import confetti from "canvas-confetti";
@@ -214,11 +215,9 @@ const SpectatorLiveDisplay = () => {
 
 
 
-    const MIN_BASE_PRICE = 1700;
+    const MIN_BASE_PRICE = Number(tournamentId) === 30 ? 100 : 1700;
     const computeBasePrice = (player) => {
-        if (player.base_price && player.base_price > 0) return player.base_price;
-        const map = { A: 1700, B: 3000, C: 5000 };
-        return map[player.base_category] || 0;
+        return resolveDisplayBasePrice(player, tournamentId);
     };
 
     const computeTeamFinancials = (teamObj) => {

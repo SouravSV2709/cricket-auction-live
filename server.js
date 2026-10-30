@@ -1,9 +1,11 @@
+import { getTournamentBasePrice } from './src/utils/basePrice.mjs';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import http from 'http';
 import { Server } from 'socket.io';
+
 
 dotenv.config();
 
@@ -87,7 +89,10 @@ app.get('/api/players', async (req, res) => {
       'SELECT * FROM players WHERE tournament_id = $1 ORDER BY id',
       [tournament_id]
     );
-    res.json(result.rows);
+    res.json(result.rows.map(player => {
+      const base = getTournamentBasePrice(player);
+      return base === null ? player : { ...player, base_price: base };
+    }));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -115,7 +120,7 @@ app.get('/api/players/:id', async (req, res) => {
     const tournamentBase = tournamentRes.rows[0]?.base_price;
 
     const componentMap = { A: 1700, B: 3000, C: 5000 };
-    player.base_price = tournamentBase ?? componentMap[player.component] ?? 0;
+    player.base_price = getTournamentBasePrice(player) ?? tournamentBase ?? componentMap[player.component] ?? 0;
 
     player.profile_image = `https://ik.imagekit.io/auctionarena/uploads/players/profiles/${player.profile_image}?tr=h-300,w-300,fo-face,z-0.4`;
 
@@ -154,7 +159,14 @@ app.get('/api/current-player', async (req, res) => {
     } else {
       result = await pool.query('SELECT * FROM current_player LIMIT 1');
     }
-    res.json(result.rows[0] || null);
+    const currentPlayer = result.rows[0];
+    if (currentPlayer) {
+      const playerResult = await pool.query('SELECT tournament_id, base_category FROM players WHERE id = $1', [currentPlayer.id]);
+      const player = playerResult.rows[0];
+      const base = getTournamentBasePrice(player);
+      if (base !== null) Object.assign(currentPlayer, player, { base_price: base });
+    }
+    res.json(currentPlayer || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -162,7 +174,8 @@ app.get('/api/current-player', async (req, res) => {
 
 // ✅ SET current player
 app.put('/api/current-player', async (req, res) => {
-  const { id, name, role, base_price, profile_image, sold_status, team_id, sold_price, tournament_id } = req.body;
+  const { id, name, role, profile_image, sold_status, team_id, sold_price, tournament_id } = req.body;
+  let { base_price } = req.body;
 
   if (!id || !name || !role) {
     console.error("❌ Missing required player fields:", req.body);
@@ -170,6 +183,9 @@ app.put('/api/current-player', async (req, res) => {
   }
 
   try {
+    const pricingPlayer = await pool.query('SELECT tournament_id, base_category FROM players WHERE id = $1', [id]);
+    base_price = getTournamentBasePrice(pricingPlayer.rows[0]) ?? base_price;
+
     if (tournament_id) {
       await pool.query(
         `INSERT INTO current_player (tournament_id, id, name, role, base_price, profile_image, sold_status, team_id, sold_price, updated_at)
