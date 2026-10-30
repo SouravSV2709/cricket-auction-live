@@ -1,458 +1,336 @@
-// src/pages/TournamentGroupDraw.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import CONFIG from "../components/config";
-import Navbar from "../components/Navbar";
+import CONFIG from "./config";
+import { downloadGroupDrawPoster } from "../utils/groupDrawPoster";
+import "./TournamentGroupDraw.css";
 
 const API = CONFIG.API_BASE_URL;
-const PUB = process.env.PUBLIC_URL || "";
-const FLAG = (file) => `${PUB}/${file}`;
-
-const TEAM_FLAG_MAP = {
-  Badgers: FLAG("badgers-flag.png"),
-  Blasters: FLAG("blasters-flag.png"),
-  Fighters: FLAG("fighters-flag.png"),
-  Kings: FLAG("kings-flag.png"),
-  Knights: FLAG("knights-flag.png"),
-  Lions: FLAG("lions-flag.png"),
-  Royals: FLAG("royals-flag.png"),
-  Titans: FLAG("titans-flag.png"),
-};
-
-const getTeamFlagSrc = (teamName, teamLogo) => {
-  const byName = TEAM_FLAG_MAP[teamName?.trim?.()];
-  if (byName) return byName;
-  return teamLogo
-    ? `https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${teamLogo}?tr=w-900,h-900,q-50,bl-6`
-    : "/no-team-logo.png";
-};
-
-const EA_BG_STYLE = {
-  backgroundImage: `
-    radial-gradient(1100px 600px at 0% 0%, rgba(250, 204, 21, .15), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(59, 130, 246, .16), transparent 60%),
-    linear-gradient(180deg, #0B1020 0%, #121028 48%, #1A1033 100%)
-  `,
-};
+const COLORS = ["#78d7ff", "#c3a0ff", "#ffba78", "#83e5ba", "#ff91b7", "#ffe18a"];
+const FLAGS = ["Badgers", "Blasters", "Fighters", "Kings", "Knights", "Lions", "Royals", "Titans"];
+const initials = (name = "") => name.split(" ").map(word => word[0]).join("").slice(0, 3).toUpperCase();
+function Crest({ team, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  const name = team?.name || "";
+  const src = team?.logo
+    ? `https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${team.logo}`
+    : FLAGS.includes(name) ? `${process.env.PUBLIC_URL || ""}/${name.toLowerCase()}-flag.png` : null;
+  return <span className={`draw-crest ${className}`}>
+    {src && !failed ? <img src={src} alt="" onError={() => setFailed(true)} /> : <span>{initials(name) || "✦"}</span>}
+  </span>;
+}
+async function request(path, options) {
+  const response = await fetch(`${API}/api/${path}`, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Unable to load the draw. Please try again.");
+  return data;
+}
+const post = body => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 export default function TournamentGroupDraw() {
   const { tournamentSlug } = useParams();
-  const [groupsCount, setGroupsCount] = useState(4);
   const [tournament, setTournament] = useState(null);
-  const [groupMap, setGroupMap] = useState({});
-  const [orderIndex, setOrderIndex] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [spinning, setSpinning] = useState(false);
-  const [lastReveal, setLastReveal] = useState(null); // { team: {id,name,logo}, letter }
   const [teams, setTeams] = useState([]);
-  const [spinName, setSpinName] = useState("");
-  const spinTimerRef = useRef(null);
-
-  const groupLetters = useMemo(
-    () =>
-      Array.from({ length: groupsCount }, (_, i) =>
-        String.fromCharCode(65 + i)
-      ),
-    [groupsCount]
-  );
-
-  const fetchTournament = async () => {
-    const res = await fetch(`${API}/api/tournaments/slug/${tournamentSlug}`);
-    const data = await res.json();
-    setTournament(data);
-    if (data?.id) fetchTeams(data.id);
-  };
-
-  const fetchTeams = async (tournamentId) => {
-    if (!tournamentId) return;
-    const res = await fetch(`${API}/api/teams?tournament_id=${tournamentId}`);
-    const data = await res.json();
-    setTeams(Array.isArray(data) ? data : data?.teams || []);
-  };
-
-  const fetchGroups = async () => {
-    const res = await fetch(`${API}/api/tournaments/${tournamentSlug}/groups`);
-    const data = await res.json();
-    setGroupMap(data.groups || {});
-    setOrderIndex(data.orderIndex || {});
-  };
-
-  const getOrderedTeams = (letter) =>
-    [...(groupMap[letter] || [])].sort(
-      (a, b) =>
-        (orderIndex[a.id] ?? Number.MAX_SAFE_INTEGER) -
-        (orderIndex[b.id] ?? Number.MAX_SAFE_INTEGER)
-    );
+  const [board, setBoard] = useState({ groups: {}, orderIndex: {} });
+  const [groupsCount, setGroupsCount] = useState(4);
+  const [phase, setPhase] = useState("idle");
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [reveal, setReveal] = useState(null);
+  const [ticker, setTicker] = useState(0);
+  const [flight, setFlight] = useState(null);
+  const [presentation, setPresentation] = useState(false);
+  const [sound, setSound] = useState(false);
+  const [presentationNotice, setPresentationNotice] = useState("");
+  const rootRef = useRef(null);
+  const audioRef = useRef(null);
+  const soundRef = useRef(false);
+  const [finale, setFinale] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [posterError, setPosterError] = useState("");
+  const exportBusy = useRef(false);
+  const finaleRef = useRef(null);
+  const busy = useRef(false);
+  const version = useRef(0);
+  const stageRef = useRef(null);
+  const groupRefs = useRef({});
+  const reducedMotion = useRef(false);
+  const active = ["shuffling", "slowing", "reveal", "flying", "resetting"].includes(phase);
+  const assigned = useMemo(() => new Set(Object.values(board.groups).flat().map(team => String(team.id))), [board]);
+  const pool = useMemo(() => teams.filter(team => !assigned.has(String(team.id))), [teams, assigned]);
+  const letters = Array.from({ length: groupsCount }, (_, i) => String.fromCharCode(65 + i));
+  const complete = ready && teams.length > 0 && pool.length === 0;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, reducedMotion.current ? Math.min(ms, 100) : ms));
 
   useEffect(() => {
-    fetchTournament();
-    fetchGroups();
-    // live updates from Socket.IO are possible — optional:
-    // const s = io(API, { transports: ["websocket"] });
-    // s.on("groupsUpdated", (p) => { if (p.slug === tournamentSlug) fetchGroups(); });
-    // return () => s.disconnect();
+    const current = ++version.current;
+    const controller = new AbortController();
+    reducedMotion.current = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
+    busy.current = false;
+    setFinale(false); setCelebrating(false); setPosterError("");
+    setReady(false); setError(""); setReveal(null); setFlight(null); setPhase("idle");
+    setTournament(null); setTeams([]); setBoard({ groups: {}, orderIndex: {} }); setGroupsCount(4);
+    (async () => {
+      try {
+        const options = { signal: controller.signal };
+        const [info, groups] = await Promise.all([
+          request(`tournaments/slug/${tournamentSlug}`, options),
+          request(`tournaments/${tournamentSlug}/groups`, options),
+        ]);
+        const result = await request(`teams?tournament_id=${info.id}`, options);
+        if (version.current !== current) return;
+        setTournament(info); setTeams(Array.isArray(result) ? result : result.teams || []);
+        setBoard({ groups: groups.groups || {}, orderIndex: groups.orderIndex || {} });
+        const used = Object.keys(groups.groups || {});
+        if (used.length) setGroupsCount(Math.max(2, ...used.map(letter => letter.charCodeAt(0) - 64)));
+        setReady(true);
+      } catch (err) { if (version.current === current && err.name !== "AbortError") setError(err.message); }
+    })();
+    return () => { controller.abort(); version.current = current + 1; };
   }, [tournamentSlug]);
 
   useEffect(() => {
+    if (phase !== "shuffling" && phase !== "slowing") return;
+    const timer = setInterval(() => setTicker(i => i + 1), phase === "slowing" ? 290 : 95);
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  useEffect(() => {
+    const syncFullscreen = () => {
+      if (document.fullscreenElement !== rootRef.current) setPresentation(false);
+    };
+    const handleEscape = event => {
+      if (event.key === "Escape") setPresentation(false);
+    };
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    document.addEventListener("keydown", handleEscape);
     return () => {
-      if (spinTimerRef.current) {
-        clearInterval(spinTimerRef.current);
-        spinTimerRef.current = null;
-      }
+      document.removeEventListener("fullscreenchange", syncFullscreen);
+      document.removeEventListener("keydown", handleEscape);
+      if (audioRef.current) audioRef.current.close().catch(() => {});
     };
   }, []);
 
-  const getUnassignedTeams = () => {
-    // Build assigned ID set from current groupMap
-    const assignedIds = new Set(
-      Object.values(groupMap || {})
-        .flat()
-        .map((t) => t.id)
-    );
-    const unassigned = teams.filter((t) => !assignedIds.has(t.id));
-    return unassigned.length ? unassigned : teams; // fallback to all to avoid empty spin
-  };
+  useEffect(() => {
+    if (!complete) { setFinale(false); setCelebrating(false); return; }
+    const timer = setTimeout(() => {
+      setFinale(true);
+      if (phase === "landed" && !reducedMotion.current) setCelebrating(true);
+    }, phase === "landed" ? (reducedMotion.current ? 100 : 1400) : 0);
+    return () => clearTimeout(timer);
+  }, [complete, phase]);
 
-  const handleDraw = async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (!finale) return;
+    finaleRef.current?.focus({ preventScroll: true });
+    rootRef.current?.scrollTo?.({ top: 0, behavior: "instant" });
+    if (!document.fullscreenElement) window.scrollTo?.({ top: 0, behavior: "instant" });
+  }, [finale]);
+
+  useEffect(() => {
+    if (!celebrating) return;
+    const timer = setTimeout(() => setCelebrating(false), 2600);
+    return () => clearTimeout(timer);
+  }, [celebrating]);
+
+  async function downloadPoster() {
+    if (exportBusy.current) return;
+    exportBusy.current = true;
+    setExporting(true); setPosterError("");
+    const current = version.current;
     try {
-      const res = await fetch(
-        `${API}/api/tournaments/${tournamentSlug}/draw-groups`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groupsCount, method: "roundRobin" }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Draw failed");
-      await fetchGroups();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      await downloadGroupDrawPoster({ title: tournament?.title || tournamentSlug, slug: tournamentSlug,
+        tournamentLogo: tournament?.logo, groups: Object.fromEntries(letters.map(letter => [letter, board.groups[letter] || []])), orderIndex: board.orderIndex });
+    } catch (err) { if (current === version.current) setPosterError(err.message || "Unable to download the poster. Please try again."); }
+    finally { exportBusy.current = false; if (current === version.current) setExporting(false); }
+  }
 
-  const handleReset = async () => {
-    if (!window.confirm("Clear all group assignments for this tournament?"))
-      return;
-
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `${API}/api/tournaments/${tournamentSlug}/reset-groups`,
-        { method: "POST" }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Reset failed");
-      await fetchGroups();
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSpinAssign = async () => {
-    // Start local spinning animation + name ticker
-    const spinPool = getUnassignedTeams();
-    if (!spinPool.length) {
-      setLastReveal({ done: true });
+  async function togglePresentation() {
+    setPresentationNotice("");
+    if (presentation) {
+      setPresentation(false);
+      if (document.fullscreenElement === rootRef.current) {
+        try { await document.exitFullscreen(); } catch { /* The in-page view is already restored. */ }
+      }
       return;
     }
-
-    setSpinning(true);
-    let i = Math.floor(Math.random() * spinPool.length);
-    if (spinTimerRef.current) clearInterval(spinTimerRef.current);
-    spinTimerRef.current = setInterval(() => {
-      setSpinName(spinPool[i % spinPool.length]?.name || "");
-      i++;
-    }, 80); // speed of cycling names
-
+    setPresentation(true);
     try {
-      const res = await fetch(
-        `${API}/api/tournaments/${tournamentSlug}/assign-one`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ groupsCount }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Assign-one failed");
-
-      if (data.done) {
-        setLastReveal({ done: true });
-      } else {
-        await fetchGroups(); // refresh board
-        setLastReveal({ team: data.team, letter: data.letter });
-      }
-    } catch (e) {
-      alert(e.message);
-    } finally {
-      if (spinTimerRef.current) {
-        clearInterval(spinTimerRef.current);
-        spinTimerRef.current = null;
-      }
-      setSpinName("");
-      // tiny delay so the spin feels natural
-      setTimeout(() => setSpinning(false), 300);
+      if (!rootRef.current?.requestFullscreen) throw new Error("Fullscreen unavailable");
+      await rootRef.current.requestFullscreen();
+    } catch {
+      setPresentationNotice("Fullscreen is unavailable. Presentation layout is active; press Esc or Exit presentation to return.");
     }
-  };
+  }
 
-  const getInitials = (name = "") => {
-    return name
-      .split(" ")
-      .map((word) => word[0]?.toUpperCase())
-      .join("")
-      .slice(0, 3); // limit to 3 letters
-  };
+  function unlockAudio() {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) throw new Error("Audio unavailable");
+      if (!audioRef.current) audioRef.current = new AudioContext();
+      audioRef.current.resume().catch(() => {});
+      return true;
+    } catch {
+      setSound(false);
+      setPresentationNotice("Sound effects are unavailable in this browser.");
+      return false;
+    }
+  }
 
-  return (
-    <div className="min-h-screen text-white mt-5" style={EA_BG_STYLE}>
-      <div className="grid grid-cols-3 h-screen overflow-hidden">
-        {/* Left 1/3: Flipping logos + Branding */}
-        {/* Left 1/3: Flipping logos + Branding */}
-        <div className="flex flex-col items-center justify-center border-r border-white/20 h-screen bg-black/20 px-6">
-          <div className="w-80 h-80 flip-card">
-            <div className="flip-inner relative">
-              {/* Front: Tournament Logo */}
-              <div className="flip-front flex items-center justify-center">
-                {tournament?.logo && (
-                  <img
-                    src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournament.logo}`}
-                    alt="Tournament Logo"
-                    className="w-72 h-72 object-contain drop-shadow-2xl"
-                  />
-                )}
-              </div>
+  function playCue(kind) {
+    const context = audioRef.current;
+    if (!soundRef.current || !context || context.state !== "running") return;
+    try {
+      const notes = kind === "reveal" ? [523.25, 659.25, 783.99] : kind === "land" ? [1046.5] : [220, 330];
+      notes.forEach((frequency, index) => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const start = context.currentTime + index * .12;
+        oscillator.type = "sine";
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(.065, start + .015);
+        gain.gain.exponentialRampToValueAtTime(.001, start + .35);
+        oscillator.connect(gain); gain.connect(context.destination);
+        oscillator.start(start); oscillator.stop(start + .4);
+        oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      });
+    } catch { /* Audio never interrupts the draw. */ }
+  }
 
-              {/* Back: EAARENA Logo */}
-              <div className="flip-back flex items-center justify-center">
-                <img
-                  src="/AuctionArena2.png"
-                  alt="EA Arena Logo"
-                  className="w-72 h-72 object-contain drop-shadow-2xl"
-                />
-              </div>
-            </div>
-          </div>
+  async function draw() {
+    if (busy.current || !ready || !pool.length) return;
+    busy.current = true;
+    if (sound) unlockAudio();
+    playCue("draw");
+    const current = version.current;
+    const valid = () => version.current === current;
+    setError(""); setReveal(null); setPhase("shuffling");
+    try {
+      // Fetch the real result immediately, but keep it off the board until its reveal lands.
+      const [result] = await Promise.all([
+        request(`tournaments/${tournamentSlug}/assign-one`, post({ groupsCount })), sleep(1900),
+      ]);
+      if (!valid()) return;
+      if (result.done) {
+        const next = await request(`tournaments/${tournamentSlug}/groups`);
+        if (valid()) { setBoard({ groups: next.groups || {}, orderIndex: next.orderIndex || {} }); setPhase("idle"); }
+        return;
+      }
+      setPhase("slowing"); await sleep(850);
+      if (!valid()) return;
+      setReveal(result); setPhase("reveal"); playCue("reveal");
+      await sleep(1700);
+      if (!valid()) return;
+      const source = stageRef.current?.getBoundingClientRect();
+      const destination = groupRefs.current[result.letter]?.getBoundingClientRect();
+      if (source && destination && !reducedMotion.current) {
+        setFlight({ team: result.team, x: source.x + source.width / 2 - 48, y: source.y + source.height / 2 - 48,
+          dx: destination.x + destination.width / 2 - (source.x + source.width / 2),
+          dy: destination.y + Math.min(destination.height / 2, 120) - (source.y + source.height / 2) });
+      }
+      setPhase("flying"); await sleep(850);
+      if (!valid()) return;
+      setBoard(previous => {
+        const existing = previous.groups[result.letter] || [];
+        return { groups: { ...previous.groups, [result.letter]: [...existing.filter(t => String(t.id) !== String(result.team.id)), result.team] },
+          orderIndex: { ...previous.orderIndex, [result.team.id]: Object.keys(previous.orderIndex).length + teams.length } };
+      });
+      setGroupsCount(count => Math.max(count, result.letter.charCodeAt(0) - 64));
+      setFlight(null); setPhase("landed"); playCue("land");
+    } catch (err) { if (valid()) { setError(`${err.message} Reload the page before retrying if the connection was interrupted.`); setPhase("idle"); } }
+    finally { if (valid()) busy.current = false; }
+  }
 
-          {/* Branding text */}
-          <div className="mt-10 text-center max-w-xs">
-            <h2 className="text-2xl font-extrabold text-yellow-300 tracking-wide">
-              Powered by EAARENA
-            </h2>
-            <p className="mt-3 text-sm text-yellow-200/80 leading-relaxed">
-              The Ultimate Sports Auction Platform
-            </p>
-            <p className="mt-4 text-base font-semibold text-yellow-100">
-              Customize and digitalize your auction experience with us.
-            </p>
+  async function reset() {
+    if (busy.current || !window.confirm("Clear all group assignments for this tournament?")) return;
+    busy.current = true;
+    const current = version.current;
+    setPhase("resetting"); setError("");
+    try {
+      await request(`tournaments/${tournamentSlug}/reset-groups`, post({}));
+      if (current === version.current) { setBoard({ groups: {}, orderIndex: {} }); setReveal(null); }
+    } catch (err) { if (current === version.current) setError(err.message); }
+    finally { if (current === version.current) { busy.current = false; setPhase("idle"); } }
+  }
 
-            {/* Contact info */}
-            <div className="mt-6 text-sm text-yellow-200/80 space-y-2">
-              <p>
-                📞 Contact:{" "}
-                <span className="font-bold text-yellow-300">
-                  Sourav Mukherjee
-                </span>
-              </p>
-              <p>
-                📱{" "}
-                <a
-                  href="tel:+919547652702"
-                  className="hover:underline text-yellow-300"
-                >
-                  +91-9547652702
-                </a>
-              </p>
-              <p>
-                🌐{" "}
-                <a
-                  href="https://www.eaarena.in"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:underline text-yellow-300"
-                >
-                  www.eaarena.in
-                </a>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right 2/3: UI */}
-        <div className="col-span-2 px-6 py-8 overflow-y-auto h-full">
-          {/* Header */}
-          <div className="flex flex-col items-center">
-            <h1 className="text-2xl font-extrabold mt-2 text-yellow-300 tracking-wide uppercase">
-              {tournament?.title || tournamentSlug} — Group Draw
-            </h1>
-            <p className="text-xs text-yellow-200/80 mt-1">
-              Select groups, draw, and view group-wise teams.
-            </p>
-          </div>
-
-          {/* Controls */}
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-end sm:justify-center">
-            <div className="flex flex-col">
-              <label className="text-xs text-yellow-200/80 mb-1">Groups</label>
-              <select
-                value={groupsCount}
-                onChange={(e) => setGroupsCount(parseInt(e.target.value, 10))}
-                className="bg-black/40 text-yellow-100 border border-white/20 rounded-md text-sm px-3 py-2 outline-none focus:border-yellow-400"
-                title="Select number of groups"
-              >
-                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
-                  <option key={n} value={n}>
-                    {n} {n === 2 ? "group" : "groups"}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              onClick={handleSpinAssign}
-              disabled={loading || spinning}
-              className="px-4 py-2 rounded-xl bg-emerald-400 text-black font-extrabold shadow hover:bg-emerald-300 transition"
-              title="Assign one team to the next group"
-            >
-              {spinning ? "Spinning..." : "Spin the wheel"}
-            </button>
-
-            <button
-              onClick={handleReset}
-              disabled={loading}
-              className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-yellow-200 hover:bg-white/20 transition"
-              title="Clear all group assignments"
-            >
-              Reset
-            </button>
-            {/* <button
-              onClick={handleDraw}
-              disabled={loading}
-              className="px-4 py-2 rounded-xl bg-yellow-400 text-black font-extrabold shadow hover:bg-yellow-300 transition"
-              title="Draw groups (round-robin)"
-            >
-              {" "}
-              {loading ? "Drawing..." : "Draw Now"}{" "}
-            </button> */}
-          </div>
-
-          {/* Spin Wheel + Reveal */}
-          <div className="mt-8 flex flex-col items-center">
-            {/* Wheel */}
-            <div className="relative w-56 h-56">
-              {/* wheel disc */}
-              <div
-                className={`w-full h-full rounded-full border-[6px] border-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.4)] 
-              bg-conic-gradient
-              ${spinning ? "animate-[spin_5s_linear_infinite]" : ""}`}
-              >
-                {/* overlay ring */}
-                <div className="absolute inset-2 rounded-full bg-black/40 backdrop-blur-sm" />
-              </div>
-
-              {/* pointer */}
-              <div
-                className="absolute -top-5 left-1/2 -translate-x-1/2 w-0 h-0
-                  border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent
-                  border-b-[24px] border-b-yellow-400 drop-shadow-lg"
-              />
-
-              {/* ticker name */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="px-3 text-center text-yellow-200 font-extrabold text-lg drop-shadow-sm animate-pulse">
-                  {spinName}
-                </div>
-              </div>
-            </div>
-
-            {/* Reveal */}
-            {lastReveal && !lastReveal.done && (
-              <div className="mt-4 px-4 py-2 rounded-xl bg-white/10 border border-white/10 backdrop-blur-md">
-                <div className="text-sm text-yellow-200/90">
-                  Assigned to{" "}
-                  <span className="font-bold text-yellow-300">
-                    Group {lastReveal.letter}
-                  </span>
-                  :
-                </div>
-                <div className="mt-1 flex items-center gap-3">
-                  {lastReveal.team.logo ? (
-                    <img
-                      src={`https://ik.imagekit.io/auctionarena2/uploads/teams/logos/${lastReveal.team.logo}`}
-                      alt={lastReveal.team.name}
-                      className="w-8 h-8 rounded-full border border-white/30 bg-black/30 object-contain"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-yellow-400 text-black flex items-center justify-center font-bold border border-white/30">
-                      {getInitials(lastReveal.team.name)}
-                    </div>
-                  )}
-
-                  <div className="font-semibold">{lastReveal.team.name}</div>
-                </div>
-              </div>
-            )}
-            {lastReveal?.done && (
-              <div className="mt-4 px-4 py-2 rounded-xl bg-white/10 border border-white/10 text-yellow-300">
-                All teams are already assigned.
-              </div>
-            )}
-          </div>
-
-          {/* Group-wise boards */}
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {groupLetters.map((L) => {
-              const teams = getOrderedTeams(L);
-              return (
-                <article
-                  key={L}
-                  className="relative overflow-hidden rounded-2xl bg-white/10 border border-white/10 p-4 shadow-lg backdrop-blur-md"
-                >
-                  <header className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg md:text-xl font-extrabold text-yellow-300 tracking-wide">
-                      Group {L}
-                    </h2>
-                    <span className="text-xs bg-white/10 text-yellow-200 px-2 py-1 rounded">
-                      {teams.length} Team{teams.length === 1 ? "" : "s"}
-                    </span>
-                  </header>
-
-                  <ul className="space-y-2">
-                    {teams.map((t) => (
-                      <li
-                        key={t.id}
-                        className="flex items-center gap-3 bg-black/30 border border-white/10 rounded-xl p-2"
-                      >
-                        {/* Initials */}
-                        <div className="w-10 h-10 flex items-center justify-center rounded-full bg-yellow-400 text-black font-bold border border-white/40">
-                          {getInitials(t.name)}
-                        </div>
-
-                        {/* Team Name */}
-                        <div className="min-w-0">
-                          <div className="text-sm md:text-base font-bold truncate">
-                            {t.name}
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                    {teams.length === 0 && (
-                      <li className="text-sm text-yellow-200/80">
-                        No teams yet.
-                      </li>
-                    )}
-                  </ul>
-                </article>
-              );
-            })}
-          </div>
-        </div>
+  const featured = reveal?.team || pool[ticker % Math.max(pool.length, 1)];
+  const showingResult = reveal && ["reveal", "flying", "landed"].includes(phase);
+  const drawNumber = Math.min(teams.length, assigned.size + (active && phase !== "resetting" ? 1 : 0));
+  return <main ref={rootRef} className={`group-draw ${presentation ? "draw-presentation" : ""} ${finale ? "draw-finale" : ""}`}>
+    <header className="draw-header">
+      <div className="draw-tournament">
+        {tournament?.logo && <img className="draw-tournament-logo" src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournament.logo}`} alt="Tournament logo" />}
+        <div><p className="draw-eyebrow">THE OFFICIAL GROUP DRAW</p><h1>{tournament?.title || tournamentSlug}</h1></div>
       </div>
+      <div className="draw-brand"><img src={`${process.env.PUBLIC_URL || ""}/AuctionArena2.png`} alt="EA Arena" /><span>POWERED BY <strong>EA ARENA</strong></span></div>
+    </header>
+    <div className="draw-host-toolbar" aria-label="Presentation controls">
+      <button className="draw-toolbar-button" aria-pressed={sound} onClick={() => {
+        if (sound) { soundRef.current = false; setSound(false); audioRef.current?.suspend().catch(() => {}); }
+        else if (unlockAudio()) { soundRef.current = true; setSound(true); }
+      }}>Sound {sound ? "on" : "off"}</button>
+      <button className="draw-toolbar-button" aria-pressed={presentation} onClick={togglePresentation}>{presentation ? "Exit presentation" : "Present fullscreen"}</button>
     </div>
-  );
+    {presentationNotice && <p className="draw-presentation-notice" role="status">{presentationNotice}</p>}
+    {error && <div className="draw-error" role="alert">{error}</div>}
+    {finale && <section className="draw-finale-banner" aria-labelledby="draw-finale-title">
+      <p className="draw-eyebrow">THE DRAW IS COMPLETE</p>
+      <h2 id="draw-finale-title" ref={finaleRef} tabIndex={-1}>The groups are set.<br /><span>Let the rivalries begin.</span></h2>
+      <p>{teams.length} teams. {groupsCount} groups. One trophy.</p>
+      <div className="draw-finale-actions"><button className="draw-button" onClick={downloadPoster} disabled={exporting}>{exporting ? "Creating poster?" : "Download draw poster"}<span aria-hidden="true">?</span></button>
+        {!presentation && <button className="draw-toolbar-button" onClick={reset} disabled={active || exporting}>Reset draw</button>}</div>
+      {posterError && <p className="draw-error" role="alert">{posterError}</p>}
+    </section>}
+    {celebrating && <div className="draw-confetti draw-finale-confetti" aria-hidden="true">{Array.from({ length: 40 }, (_, i) => <i key={i} style={{ "--i": i / 2, "--confetti-color": COLORS[i % COLORS.length] }} />)}</div>}
+    <div className="draw-layout">
+      {!finale && <section className={`draw-stage draw-phase-${phase}`} aria-label="Team draw stage">
+        <div className="draw-progress" aria-live="polite" aria-atomic="true">
+          <span>{!ready ? "Preparing draw" : complete ? `Draw complete ? ${teams.length} teams assigned` : `${drawNumber ? 'Draw ' + drawNumber : 'Ready'} of ${teams.length} ? ${pool.length} teams remaining`}</span>
+          <div role="progressbar" aria-label="Teams assigned" aria-valuemin={0} aria-valuemax={Math.max(teams.length, 1)} aria-valuenow={assigned.size}><span style={{ width: `${teams.length ? assigned.size / teams.length * 100 : 0}%` }} /></div>
+        </div>
+        <div className="draw-stage-top"><span className="draw-eyebrow">THE DRAW STAGE</span><span className="draw-edition">GROUP SELECTION</span></div>
+        <div className="draw-spotlight" aria-hidden="true" />
+        <div className="draw-orbit draw-orbit-one" aria-hidden="true" /><div className="draw-orbit draw-orbit-two" aria-hidden="true" />
+        <div className="draw-stage-content" ref={stageRef}>
+          <p className="draw-stage-kicker">{showingResult ? "THE NEXT CHAPTER BEGINS" : phase === "shuffling" || phase === "slowing" ? "WHO WILL IT BE?" : "EVERY GREAT RIVALRY STARTS HERE"}</p>
+          <div className="draw-carousel">
+            {!showingResult && pool.length > 1 && <div className="draw-side-crest draw-side-left" aria-hidden="true"><Crest key={pool[(ticker + pool.length - 1) % pool.length]?.id} team={pool[(ticker + pool.length - 1) % pool.length]} /></div>}
+            <div className="draw-hero-crest" key={showingResult ? `reveal-${featured?.id}` : `tick-${ticker}`}><Crest key={featured?.id} team={featured} /></div>
+            {!showingResult && pool.length > 1 && <div className="draw-side-crest draw-side-right" aria-hidden="true"><Crest key={pool[(ticker + 1) % pool.length]?.id} team={pool[(ticker + 1) % pool.length]} /></div>}
+          </div>
+          <div className="draw-announcement" aria-live="polite" aria-atomic="true">
+            <h2>{showingResult ? featured.name : phase === "shuffling" || phase === "slowing" ? "Finding their place…" : !ready ? "Preparing the stage" : complete ? "The groups are set" : "Let the draw begin"}</h2>
+            {showingResult ? <p className="draw-destination" style={{ "--group-accent": COLORS[(reveal.letter.charCodeAt(0) - 65) % COLORS.length] }}>JOINS <strong>GROUP {reveal.letter}</strong></p> : <p className="draw-stage-hint">{complete ? "All teams have been assigned to their groups." : "One team. One reveal. A new rivalry."}</p>}
+          </div>
+        </div>
+        {phase === "reveal" && <div className="draw-confetti" aria-hidden="true">{Array.from({ length: 20 }, (_, i) => <i key={i} style={{ "--i": i, "--confetti-color": COLORS[i % COLORS.length] }} />)}</div>}
+        <div className="draw-controls">
+          <button className="draw-button" onClick={draw} disabled={!ready || active || !pool.length}>{phase === "shuffling" || phase === "slowing" ? "Drawing a team…" : phase === "reveal" || phase === "flying" ? "Taking their place…" : complete ? "Draw complete" : "Draw next team"}<span aria-hidden="true">↗</span></button>
+          {!presentation && <div className="draw-settings"><label>Groups <select aria-label="Number of groups" value={groupsCount} onChange={event => setGroupsCount(Number(event.target.value))} disabled={!ready || active || assigned.size > 0}>{Array.from({ length: 11 }, (_, i) => i + 2).map(n => <option key={n} value={n}>{n}</option>)}</select></label><button onClick={reset} disabled={!ready || active || !assigned.size}>Reset draw</button></div>}
+        </div>
+      </section>}
+      <section className="draw-board" aria-label="Tournament groups">
+        <div className="draw-board-heading"><div><p className="draw-eyebrow">THE ROAD AHEAD</p><h2>{finale ? "The final lineup" : "Your groups. Your rivals."}</h2></div><span className="draw-board-mark" aria-hidden="true">✦</span></div>
+        <div className="draw-groups">{letters.map((letter, index) => {
+          const members = [...(board.groups[letter] || [])].sort((a, b) => (board.orderIndex[a.id] ?? Infinity) - (board.orderIndex[b.id] ?? Infinity));
+          const capacity = Math.max(members.length, Math.floor(teams.length / groupsCount) + (index < teams.length % groupsCount ? 1 : 0));
+          const highlighted = showingResult && reveal.letter === letter;
+          return <article key={letter} aria-label={`Group ${letter}`} ref={node => { groupRefs.current[letter] = node; }} className={`draw-group ${highlighted ? "draw-group-active" : ""}`} style={{ "--group-accent": COLORS[index % COLORS.length] }}>
+            <header><div><span className="draw-group-caption">GROUP</span><h3>{letter}</h3></div><span className="draw-group-count">{members.length} {members.length === 1 ? "TEAM" : "TEAMS"}</span></header>
+            <ul>{members.map(team => <li key={team.id} className={reveal?.team.id === team.id && phase === "landed" ? "draw-team-new" : ""}><Crest team={team} /><span>{team.name}</span>{!finale && reveal?.team.id === team.id && phase === "landed" && <span className="draw-new-tag">NEW</span>}</li>)}
+              {Array.from({ length: Math.max(0, capacity - members.length) }, (_, slot) => <li className="draw-empty-slot" key={`empty-${slot}`}><span className="draw-slot-symbol">+</span><span>Awaiting the draw</span></li>)}
+              {!teams.length && <li className="draw-empty-slot">{ready ? "No teams registered" : "Loading teams…"}</li>}
+            </ul>
+          </article>;
+        })}</div>
+      </section>
+    </div>
+    {!finale && <section className="draw-remaining" aria-label="Remaining teams">
+      <div className="draw-remaining-heading"><h2>Still in the draw</h2><span>{pool.length} {pool.length === 1 ? "team" : "teams"} remaining</span></div>
+      {pool.length ? <ul>{pool.map(team => <li key={team.id}><Crest team={team} /><span>{team.name}</span></li>)}</ul> : <p>{ready ? "Every team has found its group." : "Loading the team lineup?"}</p>}
+    </section>}
+    <footer className="draw-footer"><span>EA ARENA</span><span>THE STAGE IS SET. LET RIVALRIES BEGIN.</span><a href="https://www.eaarena.in" target="_blank" rel="noreferrer">eaarena.in ↗</a></footer>
+    {flight && <div className="draw-flying-crest" style={{ left: flight.x, top: flight.y, "--flight-x": `${flight.dx}px`, "--flight-y": `${flight.dy}px` }}><Crest team={flight.team} /></div>}
+  </main>;
 }
