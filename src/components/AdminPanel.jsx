@@ -121,14 +121,16 @@ const AdminPanel = () => {
         return Array.from(set).sort((a, b) => a.localeCompare(b));
     }, [players]);
 
+    const categoryField = Number(tournamentId) === 30 ? 'base_category' : 'age_category';
+
     const availableCategories = React.useMemo(() => {
         const set = new Set();
         for (const p of players || []) {
-            const c = String(p?.age_category || '').trim();
-            if (c) set.add(c);
+            const c = String(p?.[categoryField] || '').trim();
+            set.add(c);
         }
         return Array.from(set).sort((a, b) => a.localeCompare(b));
-    }, [players]);
+    }, [players, categoryField]);
 
     // build three lists (counts shown on tabs)
     const paidSerials = React.useMemo(() => {
@@ -228,7 +230,7 @@ const AdminPanel = () => {
             }
             // Category filter (exact match) if selected
             if (categoryFilter !== 'all') {
-                const c = String(p?.age_category || '').toLowerCase();
+                const c = String(p?.[categoryField] || '').trim().toLowerCase();
                 if (c !== String(categoryFilter).toLowerCase()) return false;
             }
             // If no text query, role/category filters alone may apply
@@ -239,7 +241,7 @@ const AdminPanel = () => {
             const nick = String(p?.nickname || "").toLowerCase();
             return name.includes(q) || nick.includes(q);
         });
-    }, [serialsByView, serialQuery, serialToPlayer, roleFilter, categoryFilter]);
+    }, [serialsByView, serialQuery, serialToPlayer, roleFilter, categoryFilter, categoryField]);
 
     // generic color helper (Sold=Green, Unsold=Red, Ongoing=Yellow, Default=Gray)
     const getSerialChipClass = (serial) => {
@@ -2548,7 +2550,7 @@ const handleSearchById = async (idOverride) => {
                                         >
                                             <option value="all">All categories</option>
                                             {availableCategories.map((category) => (
-                                                <option key={category} value={category}>{category}</option>
+                                                <option key={category} value={category}>{category || 'Uncategorized'}</option>
                                             ))}
                                         </select>
 
