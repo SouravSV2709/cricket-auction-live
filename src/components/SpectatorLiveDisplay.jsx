@@ -1994,7 +1994,7 @@ const groups =
                 .map((p) => Number(p?.base) || Infinity)
                 .filter((n) => Number.isFinite(n))
             : [];
-        const MIN_BASE_PRICE = Number(tournamentId) === 30 ? 100 : (poolBases.length > 0 ? Math.min(...poolBases) : 1700);
+        const MIN_BASE_PRICE = Number(tournamentId) === 30 ? 1000 : (poolBases.length > 0 ? Math.min(...poolBases) : 1700);
 
         return (
             <div

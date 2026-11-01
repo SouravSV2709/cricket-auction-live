@@ -1,8 +1,8 @@
 import { getDisplayBasePrice, getTournamentBasePrice } from './basePrice.mjs';
 
 test.each([
-  ['A', 400], ['B', 300], ['C', 250], ['D', 250], ['E', 200],
-  ['', 100], [null, 100], [' b ', 300],
+  ['A', 4000], ['B', 3000], ['C', 2500], ['D', 2500], ['E', 2000],
+  ['', 1000], [null, 1000], [' b ', 3000], ['Uncategory', 1000], ['Rest', 1000],
 ])('tournament 30 category %s resolves to %s', (category, price) => {
   const player = { tournament_id: '30', base_category: category, base_price: 5000 };
   expect(getTournamentBasePrice(player)).toBe(price);

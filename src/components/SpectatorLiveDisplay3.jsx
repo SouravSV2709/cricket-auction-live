@@ -215,7 +215,7 @@ const SpectatorLiveDisplay = () => {
 
 
 
-    const MIN_BASE_PRICE = Number(tournamentId) === 30 ? 100 : 1700;
+    const MIN_BASE_PRICE = Number(tournamentId) === 30 ? 1000 : 1700;
     const computeBasePrice = (player) => {
         return resolveDisplayBasePrice(player, tournamentId);
     };
