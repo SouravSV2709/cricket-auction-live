@@ -31,7 +31,7 @@ export default function TournamentGroupDraw() {
   const [tournament, setTournament] = useState(null);
   const [teams, setTeams] = useState([]);
   const [board, setBoard] = useState({ groups: {}, orderIndex: {} });
-  const [groupsCount, setGroupsCount] = useState(4);
+  const [groupsCount, setGroupsCount] = useState(6);
   const [phase, setPhase] = useState("idle");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
@@ -70,7 +70,7 @@ export default function TournamentGroupDraw() {
     busy.current = false;
     setFinale(false); setCelebrating(false); setPosterError("");
     setReady(false); setError(""); setReveal(null); setTargetGroup(null); setFlight(null); setPhase("idle");
-    setTournament(null); setTeams([]); setBoard({ groups: {}, orderIndex: {} }); setGroupsCount(4);
+    setTournament(null); setTeams([]); setBoard({ groups: {}, orderIndex: {} }); setGroupsCount(6);
     (async () => {
       try {
         const options = { signal: controller.signal };
@@ -292,7 +292,7 @@ export default function TournamentGroupDraw() {
       {posterError && <p className="draw-error" role="alert">{posterError}</p>}
     </section>}
     {celebrating && <div className="draw-confetti draw-finale-confetti" aria-hidden="true">{Array.from({ length: 40 }, (_, i) => <i key={i} style={{ "--i": i / 2, "--confetti-color": COLORS[i % COLORS.length] }} />)}</div>}
-    <div className="draw-layout">
+    <div className="draw-layout" style={{ "--draw-side-rows": Math.ceil(groupsCount / 2) }}>
       {!finale && <section className={`draw-stage draw-phase-${phase}`} aria-label="Team draw stage">
         <div className="draw-progress" aria-live="polite" aria-atomic="true">
           <span>{!ready ? "Preparing draw" : complete ? `Draw complete ? ${teams.length} teams assigned` : `${drawNumber ? 'Draw ' + drawNumber : 'Ready'} of ${teams.length} ? ${pool.length} teams remaining`}</span>
@@ -324,7 +324,7 @@ export default function TournamentGroupDraw() {
           const members = [...(board.groups[letter] || [])].sort((a, b) => (board.orderIndex[a.id] ?? Infinity) - (board.orderIndex[b.id] ?? Infinity));
           const capacity = Math.max(members.length, Math.floor(teams.length / groupsCount) + (index < teams.length % groupsCount ? 1 : 0));
           const highlighted = targetGroup === letter && (active || phase === "landed") && !finale;
-          return <article key={letter} aria-label={`Group ${letter}`} ref={node => { groupRefs.current[letter] = node; }} className={`draw-group ${highlighted ? "draw-group-active" : ""} ${highlighted && active ? "draw-group-drawing" : ""}`} style={{ "--group-accent": COLORS[index % COLORS.length], "--group-index": index }}>
+          return <article key={letter} aria-label={`Group ${letter}`} ref={node => { groupRefs.current[letter] = node; }} className={`draw-group ${highlighted ? "draw-group-active" : ""} ${highlighted && active ? "draw-group-drawing" : ""}`} style={{ "--group-accent": COLORS[index % COLORS.length], "--group-index": index, "--draw-group-column": index < Math.ceil(groupsCount / 2) ? 1 : 3, "--draw-group-row": index % Math.ceil(groupsCount / 2) + 2 }}>
             <header><div><span className="draw-group-caption">GROUP</span><h3>{letter}</h3></div><span className="draw-group-count">{members.length} / {capacity} teams</span></header>
             {highlighted && <p className="draw-group-status" role="status">{phase === "landed" ? "LATEST TEAM ADDED" : "DRAWING INTO THIS GROUP"}</p>}
             <ul>{members.map(team => <li key={team.id} className={reveal?.team.id === team.id && phase === "landed" ? "draw-team-new" : ""}><Crest team={team} /><span>{team.name}</span>{!finale && reveal?.team.id === team.id && phase === "landed" && <span className="draw-new-tag">NEW</span>}</li>)}

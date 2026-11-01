@@ -894,10 +894,10 @@
 .draw-board-layout .draw-host-toolbar .draw-settings { margin: 0 auto 0 0; }
 .draw-board-layout .draw-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  min-height: 0;
-  padding: 20px 26px;
+  min-height: 560px;
+  padding: 24px clamp(18px, 4vw, 56px) 30px;
   gap: 16px 28px;
   border-radius: 18px;
 }
@@ -905,25 +905,28 @@
 .draw-board-layout .draw-progress [role="progressbar"] { margin-top: 10px; height: 3px; }
 .draw-board-layout .draw-stage-top { display: none; }
 .draw-board-layout .draw-stage-content {
-  display: grid;
-  grid-template-columns: 124px minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px 24px;
-  padding: 0;
-  text-align: left;
+  gap: 0;
+  padding: 12px 0 0;
+  text-align: center;
+  width: 100%;
+  max-width: 900px;
+  justify-self: center;
 }
-.draw-board-layout .draw-stage-kicker { grid-column: 2; margin: 0; font-size: 11px; letter-spacing: 2px; }
-.draw-board-layout .draw-carousel { grid-column: 1; grid-row: 1 / 3; height: 124px; }
-.draw-board-layout .draw-hero-crest > .draw-crest { width: 112px; height: 112px; border-radius: 22px; font-size: 36px; }
-.draw-board-layout .draw-hero-crest img { padding: 10px; }
-.draw-board-layout .draw-side-crest { display: none; }
-.draw-board-layout .draw-announcement { grid-column: 2; min-height: 0; margin: 0; }
-.draw-board-layout .draw-announcement h2 { font-size: clamp(26px, 2.4vw, 40px); }
-.draw-board-layout .draw-stage-hint { margin: 10px 0 0; font-size: 14px; }
-.draw-board-layout .draw-destination { margin: 10px 0 0; font-size: 14px; }
-.draw-board-layout .draw-controls { padding: 0; max-width: none; }
-.draw-board-layout .draw-orbit { width: 250px; height: 250px; left: 88px; top: 0; }
-.draw-board-layout .draw-orbit-two { width: 320px; height: 320px; top: -35px; }
+.draw-board-layout .draw-stage-kicker { margin: 0 0 20px; font-size: 13px; letter-spacing: 2.5px; }
+.draw-board-layout .draw-carousel { width: 100%; max-width: 680px; height: clamp(210px, 23vw, 300px); }
+.draw-board-layout .draw-hero-crest > .draw-crest { width: clamp(180px, 20vw, 260px); height: clamp(180px, 20vw, 260px); border-radius: 36px; font-size: 76px; }
+.draw-board-layout .draw-hero-crest img { padding: 22px; }
+.draw-board-layout .draw-side-crest { display: block; }
+.draw-board-layout .draw-announcement { min-height: 110px; margin: 20px 0 0; width: 100%; }
+.draw-board-layout .draw-announcement h2 { font-size: clamp(30px, 3.5vw, 56px); }
+.draw-board-layout .draw-stage-hint { margin: 12px 0 0; font-size: 16px; }
+.draw-board-layout .draw-destination { margin: 14px 0 0; font-size: 18px; }
+.draw-board-layout .draw-controls { padding: 0; max-width: 400px; justify-self: center; }
+.draw-board-layout .draw-orbit { width: 380px; height: 380px; left: 50%; top: 90px; }
+.draw-board-layout .draw-orbit-two { width: 500px; height: 500px; top: 30px; }
 .draw-board-layout .draw-board { min-width: 0; }
 .draw-board-layout .draw-board-heading { padding-bottom: 20px; }
 .draw-board-layout .draw-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
@@ -1013,14 +1016,17 @@
 }
 @media (max-width: 1100px) {
   .draw-board-layout .draw-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .draw-board-layout .draw-stage { grid-template-columns: minmax(0, 1fr) 210px; gap: 16px; padding: 18px; }
+  .draw-board-layout .draw-stage { gap: 16px; }
 }
 @media (max-width: 760px) {
-  .draw-board-layout .draw-stage { grid-template-columns: minmax(0, 1fr); }
-  .draw-board-layout .draw-stage-content { grid-template-columns: 88px minmax(0, 1fr); gap: 8px 16px; }
-  .draw-board-layout .draw-carousel { height: 96px; }
-  .draw-board-layout .draw-hero-crest > .draw-crest { width: 84px; height: 84px; border-radius: 16px; font-size: 26px; }
-  .draw-board-layout .draw-stage-kicker { font-size: 9px; letter-spacing: 1px; }
+  .draw-board-layout .draw-stage { min-height: 500px; padding: 20px 16px 24px; }
+  .draw-board-layout .draw-stage-content { padding-top: 8px; }
+  .draw-board-layout .draw-carousel { height: 220px; }
+  .draw-board-layout .draw-hero-crest > .draw-crest { width: 180px; height: 180px; border-radius: 28px; font-size: 56px; }
+  .draw-board-layout .draw-side-crest .draw-crest { width: 64px; height: 76px; font-size: 24px; }
+  .draw-board-layout .draw-side-left { left: 0; }
+  .draw-board-layout .draw-side-right { right: 0; }
+  .draw-board-layout .draw-stage-kicker { font-size: 11px; letter-spacing: 1.5px; }
   .draw-board-layout .draw-announcement h2 { font-size: 26px; }
   .draw-board-layout .draw-controls { max-width: 360px; justify-self: center; }
   .draw-board-layout .draw-groups { gap: 14px; }
@@ -1032,4 +1038,72 @@
 @media (max-width: 540px) {
   .draw-board-layout .draw-groups { grid-template-columns: minmax(0, 1fr); }
   .draw-board-layout .draw-destination { font-size: 12px; letter-spacing: 1px; }
+}
+
+/* Keep the live shuffle between the two halves of the group board. */
+@media (min-width: 1101px) {
+  .draw-board-layout:not(.draw-finale) .draw-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 1.6fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .draw-board-layout:not(.draw-finale) .draw-board,
+  .draw-board-layout:not(.draw-finale) .draw-groups { display: contents; }
+  .draw-board-layout:not(.draw-finale) .draw-board-heading { grid-column: 1 / -1; grid-row: 1; padding-bottom: 0; }
+  .draw-board-layout:not(.draw-finale) .draw-stage {
+    grid-column: 2;
+    grid-row: 2 / span var(--draw-side-rows);
+    position: sticky;
+    top: 20px;
+    padding: 24px 20px 30px;
+    min-height: 620px;
+    align-self: start;
+  }
+  .draw-board-layout:not(.draw-finale) .draw-group {
+    grid-column: var(--draw-group-column);
+    grid-row: var(--draw-group-row);
+  }
+  .draw-board-layout:not(.draw-finale) .draw-announcement h2 { font-size: clamp(30px, 2.8vw, 48px); }
+  .draw-board-layout:not(.draw-finale) .draw-side-crest .draw-crest { width: 64px; height: 76px; font-size: 24px; }
+  .draw-board-layout:not(.draw-finale) .draw-side-left { left: 0; }
+  .draw-board-layout:not(.draw-finale) .draw-side-right { right: 0; }
+}
+
+/* Give the team crest most of the stage and keep the action beneath it. */
+.draw-board-layout .draw-carousel {
+  height: auto;
+  min-height: 280px;
+  padding: 12px 0;
+}
+.draw-board-layout .draw-hero-crest {
+  width: min(86%, 380px);
+  aspect-ratio: 1;
+}
+.draw-board-layout .draw-hero-crest > .draw-crest {
+  width: 100%;
+  height: 100%;
+  border-radius: 36px;
+  font-size: clamp(64px, 7vw, 110px);
+}
+.draw-board-layout .draw-hero-crest img { padding: 14px; }
+.draw-board-layout .draw-side-crest { opacity: .16; }
+.draw-board-layout .draw-controls {
+  width: auto;
+  max-width: 100%;
+  margin-top: 6px;
+}
+.draw-board-layout .draw-controls .draw-button {
+  width: auto;
+  max-width: 100%;
+  justify-content: center;
+  gap: 12px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+.draw-board-layout .draw-controls .draw-button span { font-size: 20px; }
+@media (max-width: 760px) {
+  .draw-board-layout .draw-carousel { min-height: 250px; }
+  .draw-board-layout .draw-hero-crest { width: min(86%, 300px); }
+  .draw-board-layout .draw-hero-crest > .draw-crest { border-radius: 28px; }
 }
