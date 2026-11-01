@@ -10,6 +10,21 @@
 .group-draw *{
   box-sizing:border-box
 }
+.draw-video-background{
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  overflow:hidden;
+  background:#090f16
+}
+.draw-video-background video{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:.45
+}
 .draw-header{
   display:flex;
   align-items:center;
@@ -869,4 +884,152 @@
   .draw-finale-banner h2 {
     font-size: 36px;
   }
+}
+.draw-board-layout .draw-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  padding-top: 20px;
+}
+.draw-board-layout .draw-host-toolbar { align-items: center; gap: 10px; }
+.draw-board-layout .draw-host-toolbar .draw-settings { margin: 0 auto 0 0; }
+.draw-board-layout .draw-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  align-items: center;
+  min-height: 0;
+  padding: 20px 26px;
+  gap: 16px 28px;
+  border-radius: 18px;
+}
+.draw-board-layout .draw-progress { grid-column: 1 / -1; padding: 0; font-size: 15px; }
+.draw-board-layout .draw-progress [role="progressbar"] { margin-top: 10px; height: 3px; }
+.draw-board-layout .draw-stage-top { display: none; }
+.draw-board-layout .draw-stage-content {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 24px;
+  padding: 0;
+  text-align: left;
+}
+.draw-board-layout .draw-stage-kicker { grid-column: 2; margin: 0; font-size: 11px; letter-spacing: 2px; }
+.draw-board-layout .draw-carousel { grid-column: 1; grid-row: 1 / 3; height: 124px; }
+.draw-board-layout .draw-hero-crest > .draw-crest { width: 112px; height: 112px; border-radius: 22px; font-size: 36px; }
+.draw-board-layout .draw-hero-crest img { padding: 10px; }
+.draw-board-layout .draw-side-crest { display: none; }
+.draw-board-layout .draw-announcement { grid-column: 2; min-height: 0; margin: 0; }
+.draw-board-layout .draw-announcement h2 { font-size: clamp(26px, 2.4vw, 40px); }
+.draw-board-layout .draw-stage-hint { margin: 10px 0 0; font-size: 14px; }
+.draw-board-layout .draw-destination { margin: 10px 0 0; font-size: 14px; }
+.draw-board-layout .draw-controls { padding: 0; max-width: none; }
+.draw-board-layout .draw-orbit { width: 250px; height: 250px; left: 88px; top: 0; }
+.draw-board-layout .draw-orbit-two { width: 320px; height: 320px; top: -35px; }
+.draw-board-layout .draw-board { min-width: 0; }
+.draw-board-layout .draw-board-heading { padding-bottom: 20px; }
+.draw-board-layout .draw-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.draw-board-layout .draw-group {
+  padding: 0 16px 16px;
+  overflow: hidden;
+  border-top: 4px solid var(--group-accent);
+  border-radius: 16px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--group-accent) 5%, #101923), #0d151e);
+}
+.draw-board-layout .draw-group header {
+  margin: 0 -16px 14px;
+  padding: 16px 20px;
+  background: color-mix(in srgb, var(--group-accent) 9%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--group-accent) 16%, transparent);
+}
+.draw-board-layout .draw-group header > div { display: flex; align-items: center; gap: 14px; }
+.draw-board-layout .draw-group-caption { font-size: 11px; letter-spacing: 2px; }
+.draw-board-layout .draw-group h3 { font-size: 54px; margin: 0; }
+.draw-board-layout .draw-group-count { color: var(--group-accent); font-size: 12px; letter-spacing: .5px; padding: 7px 9px; }
+.draw-board-layout .draw-group li { min-height: 64px; padding: 10px 12px; font-size: clamp(16px, 1.15vw, 20px); gap: 12px; }
+.draw-board-layout .draw-group .draw-crest { width: 42px; height: 42px; font-size: 16px; }
+.draw-board-layout .draw-group .draw-empty-slot { font-size: 13px; color: #718399; }
+.draw-board-layout .draw-slot-symbol { width: 42px; font-size: 13px; letter-spacing: 1px; color: var(--group-accent); opacity: .55; }
+.draw-board-layout .draw-group-active {
+  border-color: var(--group-accent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--group-accent) 18%, #101923), #0d151e);
+  box-shadow: 0 0 0 2px var(--group-accent), 0 0 48px color-mix(in srgb, var(--group-accent) 30%, transparent);
+}
+.draw-board-layout .draw-group {
+  position: relative;
+  animation: draw-group-enter .55s cubic-bezier(.2,.7,.2,1) backwards;
+  animation-delay: calc(var(--group-index, 0) * 75ms);
+  transition: transform .25s ease, box-shadow .4s ease, border-color .4s ease, background .4s ease;
+}
+.draw-board-layout .draw-group::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 35px color-mix(in srgb, var(--group-accent) 24%, transparent);
+}
+.draw-board-layout .draw-group-drawing::after {
+  animation: draw-group-pulse 1.6s ease-in-out infinite;
+}
+.draw-group-drawing .draw-group-status {
+  animation: draw-group-badge-in .3s ease-out both;
+}
+@media (hover: hover) and (pointer: fine) {
+  .draw-board-layout .draw-group:hover {
+    transform: translateY(-4px);
+    border-color: var(--group-accent);
+    box-shadow: 0 12px 32px #0005, 0 0 24px color-mix(in srgb, var(--group-accent) 15%, transparent);
+  }
+}
+@keyframes draw-group-enter {
+  from { opacity: 0; transform: translateY(18px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes draw-group-pulse {
+  0%, 100% { opacity: .2; }
+  50% { opacity: 1; }
+}
+@keyframes draw-group-badge-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .draw-board-layout .draw-group::after { animation: none; }
+  .draw-board-layout .draw-group:hover { transform: none; }
+}
+.draw-group-status {
+  position: absolute;
+  z-index: 1;
+  top: 76px;
+  right: 16px;
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: var(--group-accent);
+  color: #09131c;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .7px;
+}
+@media (max-width: 1100px) {
+  .draw-board-layout .draw-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .draw-board-layout .draw-stage { grid-template-columns: minmax(0, 1fr) 210px; gap: 16px; padding: 18px; }
+}
+@media (max-width: 760px) {
+  .draw-board-layout .draw-stage { grid-template-columns: minmax(0, 1fr); }
+  .draw-board-layout .draw-stage-content { grid-template-columns: 88px minmax(0, 1fr); gap: 8px 16px; }
+  .draw-board-layout .draw-carousel { height: 96px; }
+  .draw-board-layout .draw-hero-crest > .draw-crest { width: 84px; height: 84px; border-radius: 16px; font-size: 26px; }
+  .draw-board-layout .draw-stage-kicker { font-size: 9px; letter-spacing: 1px; }
+  .draw-board-layout .draw-announcement h2 { font-size: 26px; }
+  .draw-board-layout .draw-controls { max-width: 360px; justify-self: center; }
+  .draw-board-layout .draw-groups { gap: 14px; }
+  .draw-board-layout .draw-group header { padding: 14px; }
+  .draw-board-layout .draw-group h3 { font-size: 46px; }
+  .draw-board-layout .draw-group header > div { gap: 8px; }
+  .draw-board-layout .draw-host-toolbar .draw-settings { width: 100%; justify-content: flex-start; margin-bottom: 4px; }
+}
+@media (max-width: 540px) {
+  .draw-board-layout .draw-groups { grid-template-columns: minmax(0, 1fr); }
+  .draw-board-layout .draw-destination { font-size: 12px; letter-spacing: 1px; }
 }

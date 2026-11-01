@@ -36,6 +36,7 @@ export default function TournamentGroupDraw() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [reveal, setReveal] = useState(null);
+  const [targetGroup, setTargetGroup] = useState(null);
   const [ticker, setTicker] = useState(0);
   const [flight, setFlight] = useState(null);
   const [presentation, setPresentation] = useState(false);
@@ -55,7 +56,7 @@ export default function TournamentGroupDraw() {
   const stageRef = useRef(null);
   const groupRefs = useRef({});
   const reducedMotion = useRef(false);
-  const active = ["shuffling", "slowing", "reveal", "flying", "resetting"].includes(phase);
+  const active = ["assigning", "shuffling", "slowing", "reveal", "flying", "resetting"].includes(phase);
   const assigned = useMemo(() => new Set(Object.values(board.groups).flat().map(team => String(team.id))), [board]);
   const pool = useMemo(() => teams.filter(team => !assigned.has(String(team.id))), [teams, assigned]);
   const letters = Array.from({ length: groupsCount }, (_, i) => String.fromCharCode(65 + i));
@@ -68,7 +69,7 @@ export default function TournamentGroupDraw() {
     reducedMotion.current = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
     busy.current = false;
     setFinale(false); setCelebrating(false); setPosterError("");
-    setReady(false); setError(""); setReveal(null); setFlight(null); setPhase("idle");
+    setReady(false); setError(""); setReveal(null); setTargetGroup(null); setFlight(null); setPhase("idle");
     setTournament(null); setTeams([]); setBoard({ groups: {}, orderIndex: {} }); setGroupsCount(4);
     (async () => {
       try {
@@ -205,11 +206,15 @@ export default function TournamentGroupDraw() {
     playCue("draw");
     const current = version.current;
     const valid = () => version.current === current;
-    setError(""); setReveal(null); setPhase("shuffling");
+    const lastTeam = pool.length === 1;
+    setError(""); setReveal(null); setTargetGroup(null); setPhase(lastTeam ? "assigning" : "shuffling");
     try {
       // Fetch the real result immediately, but keep it off the board until its reveal lands.
       const [result] = await Promise.all([
-        request(`tournaments/${tournamentSlug}/assign-one`, post({ groupsCount })), sleep(1900),
+        request(`tournaments/${tournamentSlug}/assign-one`, post({ groupsCount })).then(result => {
+          if (valid() && !result.done) setTargetGroup(result.letter);
+          return result;
+        }), sleep(lastTeam ? 0 : 1900),
       ]);
       if (!valid()) return;
       if (result.done) {
@@ -217,10 +222,10 @@ export default function TournamentGroupDraw() {
         if (valid()) { setBoard({ groups: next.groups || {}, orderIndex: next.orderIndex || {} }); setPhase("idle"); }
         return;
       }
-      setPhase("slowing"); await sleep(850);
+      if (!lastTeam) { setPhase("slowing"); await sleep(850); }
       if (!valid()) return;
       setReveal(result); setPhase("reveal"); playCue("reveal");
-      await sleep(1700);
+      await sleep(lastTeam ? 500 : 1700);
       if (!valid()) return;
       const source = stageRef.current?.getBoundingClientRect();
       const destination = groupRefs.current[result.letter]?.getBoundingClientRect();
@@ -238,7 +243,7 @@ export default function TournamentGroupDraw() {
       });
       setGroupsCount(count => Math.max(count, result.letter.charCodeAt(0) - 64));
       setFlight(null); setPhase("landed"); playCue("land");
-    } catch (err) { if (valid()) { setError(`${err.message} Reload the page before retrying if the connection was interrupted.`); setPhase("idle"); } }
+    } catch (err) { if (valid()) { setError(`${err.message} Reload the page before retrying if the connection was interrupted.`); setTargetGroup(null); setPhase("idle"); } }
     finally { if (valid()) busy.current = false; }
   }
 
@@ -246,7 +251,7 @@ export default function TournamentGroupDraw() {
     if (busy.current || !window.confirm("Clear all group assignments for this tournament?")) return;
     busy.current = true;
     const current = version.current;
-    setPhase("resetting"); setError("");
+    setPhase("resetting"); setTargetGroup(null); setError("");
     try {
       await request(`tournaments/${tournamentSlug}/reset-groups`, post({}));
       if (current === version.current) { setBoard({ groups: {}, orderIndex: {} }); setReveal(null); }
@@ -257,7 +262,10 @@ export default function TournamentGroupDraw() {
   const featured = reveal?.team || pool[ticker % Math.max(pool.length, 1)];
   const showingResult = reveal && ["reveal", "flying", "landed"].includes(phase);
   const drawNumber = Math.min(teams.length, assigned.size + (active && phase !== "resetting" ? 1 : 0));
-  return <main ref={rootRef} className={`group-draw ${presentation ? "draw-presentation" : ""} ${finale ? "draw-finale" : ""}`}>
+  return <main ref={rootRef} className={`group-draw draw-board-layout ${presentation ? "draw-presentation" : ""} ${finale ? "draw-finale" : ""}`}>
+    <div className="draw-video-background" aria-hidden="true">
+      <video src={`${process.env.PUBLIC_URL || ""}/bg15.mp4`} autoPlay muted loop playsInline preload="metadata" tabIndex={-1} />
+    </div>
     <header className="draw-header">
       <div className="draw-tournament">
         {tournament?.logo && <img className="draw-tournament-logo" src={`https://ik.imagekit.io/auctionarena2/uploads/tournaments/${tournament.logo}`} alt="Tournament logo" />}
@@ -266,6 +274,7 @@ export default function TournamentGroupDraw() {
       <div className="draw-brand"><img src={`${process.env.PUBLIC_URL || ""}/AuctionArena2.png`} alt="EA Arena" /><span>POWERED BY <strong>EA ARENA</strong></span></div>
     </header>
     <div className="draw-host-toolbar" aria-label="Presentation controls">
+      {!presentation && !finale && <div className="draw-settings"><label>Groups <select aria-label="Number of groups" value={groupsCount} onChange={event => setGroupsCount(Number(event.target.value))} disabled={!ready || active || assigned.size > 0}>{Array.from({ length: 11 }, (_, i) => i + 2).map(n => <option key={n} value={n}>{n}</option>)}</select></label><button onClick={reset} disabled={!ready || active || !assigned.size}>Reset draw</button></div>}
       <button className="draw-toolbar-button" aria-pressed={sound} onClick={() => {
         if (sound) { soundRef.current = false; setSound(false); audioRef.current?.suspend().catch(() => {}); }
         else if (unlockAudio()) { soundRef.current = true; setSound(true); }
@@ -306,8 +315,7 @@ export default function TournamentGroupDraw() {
         </div>
         {phase === "reveal" && <div className="draw-confetti" aria-hidden="true">{Array.from({ length: 20 }, (_, i) => <i key={i} style={{ "--i": i, "--confetti-color": COLORS[i % COLORS.length] }} />)}</div>}
         <div className="draw-controls">
-          <button className="draw-button" onClick={draw} disabled={!ready || active || !pool.length}>{phase === "shuffling" || phase === "slowing" ? "Drawing a team…" : phase === "reveal" || phase === "flying" ? "Taking their place…" : complete ? "Draw complete" : "Draw next team"}<span aria-hidden="true">↗</span></button>
-          {!presentation && <div className="draw-settings"><label>Groups <select aria-label="Number of groups" value={groupsCount} onChange={event => setGroupsCount(Number(event.target.value))} disabled={!ready || active || assigned.size > 0}>{Array.from({ length: 11 }, (_, i) => i + 2).map(n => <option key={n} value={n}>{n}</option>)}</select></label><button onClick={reset} disabled={!ready || active || !assigned.size}>Reset draw</button></div>}
+          <button className="draw-button" onClick={draw} disabled={!ready || active || !pool.length}>{phase === "assigning" ? "Assigning final team..." : phase === "shuffling" || phase === "slowing" ? "Drawing a team…" : phase === "reveal" || phase === "flying" ? "Taking their place…" : complete ? "Draw complete" : "Draw next team"}<span aria-hidden="true">↗</span></button>
         </div>
       </section>}
       <section className="draw-board" aria-label="Tournament groups">
@@ -315,11 +323,12 @@ export default function TournamentGroupDraw() {
         <div className="draw-groups">{letters.map((letter, index) => {
           const members = [...(board.groups[letter] || [])].sort((a, b) => (board.orderIndex[a.id] ?? Infinity) - (board.orderIndex[b.id] ?? Infinity));
           const capacity = Math.max(members.length, Math.floor(teams.length / groupsCount) + (index < teams.length % groupsCount ? 1 : 0));
-          const highlighted = showingResult && reveal.letter === letter;
-          return <article key={letter} aria-label={`Group ${letter}`} ref={node => { groupRefs.current[letter] = node; }} className={`draw-group ${highlighted ? "draw-group-active" : ""}`} style={{ "--group-accent": COLORS[index % COLORS.length] }}>
-            <header><div><span className="draw-group-caption">GROUP</span><h3>{letter}</h3></div><span className="draw-group-count">{members.length} {members.length === 1 ? "TEAM" : "TEAMS"}</span></header>
+          const highlighted = targetGroup === letter && (active || phase === "landed") && !finale;
+          return <article key={letter} aria-label={`Group ${letter}`} ref={node => { groupRefs.current[letter] = node; }} className={`draw-group ${highlighted ? "draw-group-active" : ""} ${highlighted && active ? "draw-group-drawing" : ""}`} style={{ "--group-accent": COLORS[index % COLORS.length], "--group-index": index }}>
+            <header><div><span className="draw-group-caption">GROUP</span><h3>{letter}</h3></div><span className="draw-group-count">{members.length} / {capacity} teams</span></header>
+            {highlighted && <p className="draw-group-status" role="status">{phase === "landed" ? "LATEST TEAM ADDED" : "DRAWING INTO THIS GROUP"}</p>}
             <ul>{members.map(team => <li key={team.id} className={reveal?.team.id === team.id && phase === "landed" ? "draw-team-new" : ""}><Crest team={team} /><span>{team.name}</span>{!finale && reveal?.team.id === team.id && phase === "landed" && <span className="draw-new-tag">NEW</span>}</li>)}
-              {Array.from({ length: Math.max(0, capacity - members.length) }, (_, slot) => <li className="draw-empty-slot" key={`empty-${slot}`}><span className="draw-slot-symbol">+</span><span>Awaiting the draw</span></li>)}
+              {Array.from({ length: Math.max(0, capacity - members.length) }, (_, slot) => <li className="draw-empty-slot" key={`empty-${slot}`}><span className="draw-slot-symbol">{String(members.length + slot + 1).padStart(2, "0")}</span><span>Open slot</span></li>)}
               {!teams.length && <li className="draw-empty-slot">{ready ? "No teams registered" : "Loading teams…"}</li>}
             </ul>
           </article>;

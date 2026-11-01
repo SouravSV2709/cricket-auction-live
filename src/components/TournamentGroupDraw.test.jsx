@@ -35,6 +35,9 @@ test("keeps the result off the board until the reveal lands and prevents overlap
   await flush();
   expect(global.fetch.mock.calls.filter(([url]) => url.includes("assign-one"))).toHaveLength(1);
   const group = screen.getByRole("article", { name: "Group B" });
+  expect(group).toHaveClass("draw-group-active");
+  expect(within(group).getByRole("status")).toHaveTextContent("DRAWING INTO THIS GROUP");
+  expect(screen.getByRole("article", { name: "Group A" })).not.toHaveClass("draw-group-active");
   expect(within(group).queryByText("Titans")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /reset draw/i })).toBeDisabled();
   await advance(1900); await advance(850);
@@ -42,6 +45,7 @@ test("keeps the result off the board until the reveal lands and prevents overlap
   expect(within(group).queryByText("Titans")).not.toBeInTheDocument();
   await advance(1700); await advance(850);
   expect(within(group).getByText("Titans")).toBeInTheDocument();
+  expect(within(group).getByRole("status")).toHaveTextContent("LATEST TEAM ADDED");
   expect(screen.getByRole("button", { name: /draw next team/i })).toBeEnabled();
   expect(screen.getByRole("combobox", { name: /number of groups/i })).toBeDisabled();
 });
@@ -111,14 +115,21 @@ test("synchronizes presentation mode when the browser exits fullscreen", async (
 });
 
 
-test("the final reveal finishes before transitioning to the final lineup", async () => {
+test("the final team skips shuffling and lands quickly before transitioning to the final lineup", async () => {
   const initialFetch = global.fetch;
   global.fetch = jest.fn((url, options) => url.endsWith("/groups")
     ? Promise.resolve({ ok: true, json: async () => ({ groups: { A: [teams[1]] }, orderIndex: { 2: 0 } }) })
     : initialFetch(url, options));
   mount(); await flush();
   fireEvent.click(screen.getByRole("button", { name: /draw next team/i }));
-  await flush(); await advance(1900); await advance(850); await advance(1700); await advance(850);
+  expect(screen.getByRole("button", { name: /assigning final team/i })).toBeDisabled();
+  await flush(); await advance(0);
+  const group = screen.getByRole("article", { name: "Group B" });
+  expect(group).toHaveClass("draw-group-active");
+  expect(screen.getByRole("heading", { name: "Titans" })).toBeInTheDocument();
+  expect(within(group).queryByText("Titans")).not.toBeInTheDocument();
+  await advance(500); await advance(850);
+  expect(within(group).getByText("Titans")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Titans" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /download draw poster/i })).not.toBeInTheDocument();
   await advance(1400);
